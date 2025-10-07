@@ -1,0 +1,136 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  User, 
+  Package, 
+  MessageCircle, 
+  Settings, 
+  LogOut, 
+  Plus,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Store,
+  ShoppingCart,
+  Shield
+} from "lucide-react";
+import { FreshDashboard } from "@/components/FreshDashboard";
+import { AppHeader } from "@/components/AppHeader";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  accountType: string;
+  location: string;
+  verified: boolean;
+  phoneVerified: boolean;
+  verificationStatus: string;
+}
+
+export default function DashboardPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [userProducts, setUserProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  const fetchUserProducts = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/products?sellerId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error("Error fetching user products:", error);
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const userData = localStorage.getItem("user");
+
+    if (!token || !userData) {
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      
+      // Fetch user's products
+      if (parsedUser.id) {
+        fetchUserProducts(parsedUser.id);
+      }
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+      router.push("/login");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const getVerificationStatus = () => {
+    if (user.verified && user.phoneVerified) {
+      return { status: "verified", color: "bg-green-100 text-green-800", icon: CheckCircle };
+    } else if (user.verificationStatus === "pending") {
+      return { status: "pending", color: "bg-yellow-100 text-yellow-800", icon: Clock };
+    } else {
+      return { status: "unverified", color: "bg-red-100 text-red-800", icon: AlertCircle };
+    }
+  };
+
+  const verificationInfo = getVerificationStatus();
+  const VerificationIcon = verificationInfo.icon;
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader currentUser={user} onLogout={handleLogout} />
+      
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <FreshDashboard
+          user={user}
+          userProducts={userProducts}
+          onAddListing={() => router.push("/products/new")}
+          onEditListing={(product) => router.push(`/product/${product.id}/edit`)}
+          onDeleteListing={(productId) => {
+            // Handle delete
+            console.log("Delete product:", productId);
+          }}
+          onViewStorefront={() => router.push(`/seller/${user.id}`)}
+          onGoToMarketplace={() => router.push("/")}
+          onViewProduct={(productId) => router.push(`/product/${productId}`)}
+          onShowVerification={() => router.push("/verify")}
+          onViewMessages={() => router.push("/messages")}
+        />
+      </div>
+    </div>
+  );
+}
