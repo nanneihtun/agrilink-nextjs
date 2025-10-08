@@ -254,13 +254,13 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
                 </Button>
               )}
               
-              {user.userType === 'admin' && onGoToDashboard && (
+              {user.userType === 'admin' && (
                 <Button 
                   variant="outline" 
                   className="w-full justify-start gap-2"
                   onClick={() => {
                     setShowProfile(false);
-                    onGoToDashboard();
+                    window.location.href = '/admin';
                   }}
                 >
                   <Shield className="w-4 h-4" />
@@ -454,8 +454,8 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
               <span>Dashboard</span>
             </DropdownMenuItem>
           )}
-          {user.userType === 'admin' && onGoToDashboard && (
-            <DropdownMenuItem onClick={onGoToDashboard}>
+          {user.userType === 'admin' && (
+            <DropdownMenuItem onClick={() => window.location.href = '/admin'}>
               <Shield className="mr-2 h-4 w-4" />
               <span>Admin Panel</span>
             </DropdownMenuItem>

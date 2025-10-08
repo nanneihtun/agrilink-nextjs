@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Phone, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
-import { TwilioService } from '../services/twilio';
 
 interface PhoneVerificationStatusProps {
   userId: string;
@@ -27,7 +26,13 @@ export function PhoneVerificationStatus({
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const status = await TwilioService.getVerificationStatus(userId);
+        // For now, we'll use a simple mock status
+        // In a real implementation, you would fetch from your API
+        const status = {
+          phoneVerified: false, // This would come from your user profile API
+          phoneNumber: undefined,
+          phoneVerifiedAt: undefined
+        };
         setVerificationStatus(status);
       } catch (error) {
         console.error('Error fetching verification status:', error);

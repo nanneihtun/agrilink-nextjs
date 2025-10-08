@@ -44,8 +44,12 @@ export default function LoginPage() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         
-        // Redirect to dashboard
-        router.push("/dashboard");
+        // Redirect based on user type
+        if (data.user.userType === 'admin') {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         setError(data.message || 'Login failed. Please try again.');
       }

@@ -23,8 +23,6 @@ import {
   Ban,
   RefreshCw
 } from 'lucide-react';
-import { AdminVerificationPanel } from './AdminVerificationPanelNew';
-import { supabase } from '../lib/supabase';
 
 interface AdminStats {
   totalUsers: number;
@@ -34,8 +32,6 @@ interface AdminStats {
   reportedContent: number;
   platformRevenue: number;
 }
-
-// Note: VerificationRequest interface removed since we no longer show detailed verification data
 
 interface RecentUser {
   id: string;
@@ -47,7 +43,7 @@ interface RecentUser {
 
 interface AdminDashboardProps {
   currentAdmin: any;
-  onBack: () => void;
+  onBack?: () => void;
   onNavigateToVerification?: () => void;
   onUpdateUser?: (updates: any) => Promise<void>;
 }
@@ -62,7 +58,6 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
     platformRevenue: 0,
   });
 
-  // Note: verificationRequests state removed since we redirect to dedicated page
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -76,67 +71,66 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
     { id: '2', amount: 300, buyer: 'Mike Johnson', seller: 'John Doe', date: '4 hours ago' },
   ]);
 
-  // Function to fetch admin data
+  // Function to fetch admin data from Neon database
   const fetchAdminData = async () => {
     try {
       setLoading(true);
       
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
       // Fetch total users count (excluding admins)
-      const { count: totalUsersCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .neq('user_type', 'admin');
-
-      // Debug: Check what verification statuses exist in the database
-      const { data: debugUsers } = await supabase
-        .from('users')
-        .select('verification_status, user_type')
-        .neq('user_type', 'admin');
-      
-      console.log('🔍 Debug - All verification statuses:', debugUsers?.map(u => u.verification_status));
-      console.log('🔍 Debug - Under review count:', debugUsers?.filter(u => u.verification_status === 'under_review').length);
-      console.log('🔍 Debug - Pending count:', debugUsers?.filter(u => u.verification_status === 'pending').length);
-
-      // Fetch pending verifications count (excluding admins)
-      // Only count 'under_review' status as these are users who have actually submitted for review
-      const { count: pendingVerificationsCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('verification_status', 'under_review')
-        .neq('user_type', 'admin');
-
-      // Fetch total products count
-      const { count: totalProductsCount } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true });
-
-      // Note: We no longer fetch detailed verification requests data
-      // since we redirect to the dedicated verification page
-
-      // Fetch recent users (excluding admins)
-      const { data: recentUsersData } = await supabase
-        .from('users')
-        .select('id, name, user_type, created_at, email')
-        .neq('user_type', 'admin')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      // Update stats
-      setStats({
-        totalUsers: totalUsersCount || 0,
-        pendingVerifications: pendingVerificationsCount || 0,
-        totalProducts: totalProductsCount || 0,
-        activeTransactions: 156, // Keep mock data for now
-        reportedContent: 8, // Keep mock data for now
-        platformRevenue: 45670, // Keep mock data for now
+      const usersResponse = await fetch('/api/admin/stats/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
-      // Note: We no longer update verification requests state
-      // since we redirect to the dedicated verification page
+      // Fetch verification requests count
+      const verificationResponse = await fetch('/api/admin/verification-requests', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-      // Update recent users
-      setRecentUsers(recentUsersData || []);
+      // Fetch products count
+      const productsResponse = await fetch('/api/products');
 
+      if (usersResponse.ok && verificationResponse.ok && productsResponse.ok) {
+        const usersData = await usersResponse.json();
+        const verificationData = await verificationResponse.json();
+        const productsData = await productsResponse.json();
+
+        const pendingVerifications = verificationData.requests?.filter(
+          (req: any) => req.status === 'under_review'
+        ).length || 0;
+
+        // Fetch recent users from users API
+        const recentUsersResponse = await fetch('/api/users/recent', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        let recentUsersData = [];
+        if (recentUsersResponse.ok) {
+          recentUsersData = await recentUsersResponse.json();
+        }
+
+        // Update stats
+        setStats({
+          totalUsers: usersData.count || 0,
+          pendingVerifications,
+          totalProducts: productsData.products?.length || 0,
+          activeTransactions: 156, // Keep mock data for now
+          reportedContent: 8, // Keep mock data for now
+          platformRevenue: 45670, // Keep mock data for now
+        });
+
+        // Update recent users
+        setRecentUsers(recentUsersData || []);
+
+      }
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -144,7 +138,7 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
     }
   };
 
-  // Fetch real data from Supabase
+  // Fetch real data from Neon database
   useEffect(() => {
     fetchAdminData();
   }, []);
@@ -177,12 +171,12 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="w-full max-w-5xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600">Welcome back, {currentAdmin.name}</p>
+            <p className="text-gray-600">Welcome back, {currentAdmin?.name || 'Admin'}</p>
           </div>
           <div className="flex items-center gap-3">
             <Button 
@@ -195,9 +189,11 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            <Button variant="outline" onClick={onBack}>
-              ← Back to App
-            </Button>
+            {onBack && (
+              <Button variant="outline" onClick={onBack}>
+                ← Back to App
+              </Button>
+            )}
           </div>
         </div>
 
@@ -308,7 +304,7 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
                       onNavigateToVerification();
                     } else {
                       // Fallback to window location if navigation function not provided
-                      window.location.href = '/admin-verification';
+                      window.location.href = '/admin/verification';
                     }
                   }}
                 >
@@ -385,7 +381,7 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
                           onNavigateToVerification();
                         } else {
                           // Fallback to window location if navigation function not provided
-                          window.location.href = '/admin-verification';
+                          window.location.href = '/admin/verification';
                         }
                       }}
                     >
@@ -498,7 +494,6 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
     const [userProfile] = await sql`
       SELECT 
         u.id, u.email, u.name, u."userType", u."accountType",
+        u."businessName", u."businessDescription", u."businessLicenseNumber",
+        u."verificationDocuments",
+        u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
+        u."verificationStatus", u."verificationSubmittedAt",
         up.location, up.phone, up."profileImage",
         uv.verified, uv."phoneVerified"
       FROM users u
@@ -61,7 +65,15 @@ export async function GET(request: NextRequest) {
         phone: userProfile.phone,
         profileImage: userProfile.profileImage,
         verified: userProfile.verified,
-        phoneVerified: userProfile.phoneVerified
+        phoneVerified: userProfile.phoneVerified,
+        businessName: userProfile.businessName,
+        businessDescription: userProfile.businessDescription,
+        businessLicenseNumber: userProfile.businessLicenseNumber,
+        verificationDocuments: userProfile.verificationDocuments,
+        agriLinkVerificationRequested: userProfile.agriLinkVerificationRequested,
+        agriLinkVerificationRequestedAt: userProfile.agriLinkVerificationRequestedAt,
+        verificationStatus: userProfile.verificationStatus,
+        verificationSubmittedAt: userProfile.verificationSubmittedAt
       }
     });
 
@@ -86,7 +98,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { profileImage, location, phone } = body;
+    const { 
+      profileImage, 
+      location, 
+      phone, 
+      phoneVerified,
+      business_name,
+      business_description,
+      business_license_number,
+      business_details_completed,
+      verificationDocuments,
+      agriLinkVerificationRequested,
+      agriLinkVerificationRequestedAt,
+      verificationStatus,
+      verificationSubmittedAt
+    } = body;
 
     // Update user profile
     if (profileImage !== undefined) {
@@ -123,20 +149,107 @@ export async function PUT(request: NextRequest) {
     }
 
     if (phone !== undefined) {
+      // Check if user_profiles record exists
+      const [existingProfile] = await sql`
+        SELECT "userId" FROM user_profiles WHERE "userId" = ${user.userId}
+      `;
+
+      if (existingProfile) {
+        // Update existing record
+        await sql`
+          UPDATE user_profiles 
+          SET phone = ${phone}, "updatedAt" = NOW()
+          WHERE "userId" = ${user.userId}
+        `;
+      } else {
+        // Insert new record with default location
+        await sql`
+          INSERT INTO user_profiles ("userId", phone, location, "updatedAt")
+          VALUES (${user.userId}, ${phone}, '', NOW())
+        `;
+      }
+    }
+
+    // Update phone verification status if phone was verified
+    if (phone !== undefined || phoneVerified === true) {
       await sql`
-        INSERT INTO user_profiles ("userId", phone, "updatedAt")
-        VALUES (${user.userId}, ${phone}, NOW())
+        INSERT INTO user_verification ("userId", "phoneVerified", "updatedAt")
+        VALUES (${user.userId}, true, NOW())
         ON CONFLICT ("userId") 
         DO UPDATE SET 
-          phone = ${phone},
+          "phoneVerified" = true,
           "updatedAt" = NOW()
       `;
+    }
+
+    // Update business details if provided
+    if (business_name !== undefined || business_description !== undefined || business_license_number !== undefined) {
+      await sql`
+        UPDATE users 
+        SET 
+          "businessName" = COALESCE(${business_name}, "businessName"),
+          "businessDescription" = COALESCE(${business_description}, "businessDescription"),
+          "businessLicenseNumber" = COALESCE(${business_license_number}, "businessLicenseNumber"),
+          "updatedAt" = NOW()
+        WHERE id = ${user.userId}
+      `;
+    }
+
+    // Update verification documents if provided
+    if (verificationDocuments !== undefined) {
+      await sql`
+        UPDATE users 
+        SET 
+          "verificationDocuments" = ${JSON.stringify(verificationDocuments)},
+          "updatedAt" = NOW()
+        WHERE id = ${user.userId}
+      `;
+    }
+
+    // Update verification status fields if provided
+    if (agriLinkVerificationRequested !== undefined || 
+        agriLinkVerificationRequestedAt !== undefined || 
+        verificationStatus !== undefined || 
+        verificationSubmittedAt !== undefined) {
+      
+      const updateFields = [];
+      const updateValues = [];
+      
+      if (agriLinkVerificationRequested !== undefined) {
+        updateFields.push('"agriLinkVerificationRequested" = $' + (updateValues.length + 1));
+        updateValues.push(agriLinkVerificationRequested);
+      }
+      
+      if (agriLinkVerificationRequestedAt !== undefined) {
+        updateFields.push('"agriLinkVerificationRequestedAt" = $' + (updateValues.length + 1));
+        updateValues.push(agriLinkVerificationRequestedAt);
+      }
+      
+      if (verificationStatus !== undefined) {
+        updateFields.push('"verificationStatus" = $' + (updateValues.length + 1));
+        updateValues.push(verificationStatus);
+      }
+      
+      if (verificationSubmittedAt !== undefined) {
+        updateFields.push('"verificationSubmittedAt" = $' + (updateValues.length + 1));
+        updateValues.push(verificationSubmittedAt);
+      }
+      
+      updateFields.push('"updatedAt" = NOW()');
+      updateValues.push(user.userId);
+      
+      const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateValues.length}`;
+      await sql.unsafe(updateQuery, updateValues);
     }
 
     // Get updated user profile
     const [updatedProfile] = await sql`
       SELECT 
         u.id, u.email, u.name, u."userType", u."accountType",
+        u."businessName", u."businessDescription", u."businessLicenseNumber",
+        u."verificationDocuments",
+        u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
+        u."verificationStatus", u."verificationSubmittedAt",
         up.location, up.phone, up."profileImage",
         uv.verified, uv."phoneVerified"
       FROM users u
@@ -156,7 +269,15 @@ export async function PUT(request: NextRequest) {
         phone: updatedProfile.phone,
         profileImage: updatedProfile.profileImage,
         verified: updatedProfile.verified,
-        phoneVerified: updatedProfile.phoneVerified
+        phoneVerified: updatedProfile.phoneVerified,
+        businessName: updatedProfile.businessName,
+        businessDescription: updatedProfile.businessDescription,
+        businessLicenseNumber: updatedProfile.businessLicenseNumber,
+        verificationDocuments: updatedProfile.verificationDocuments,
+        agriLinkVerificationRequested: updatedProfile.agriLinkVerificationRequested,
+        agriLinkVerificationRequestedAt: updatedProfile.agriLinkVerificationRequestedAt,
+        verificationStatus: updatedProfile.verificationStatus,
+        verificationSubmittedAt: updatedProfile.verificationSubmittedAt
       },
       message: 'Profile updated successfully'
     });

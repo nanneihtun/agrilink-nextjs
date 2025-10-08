@@ -181,6 +181,27 @@ export const useAuth = () => {
     }
   }, [user]);
 
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('auth-token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        return data.user;
+      }
+    } catch (error) {
+      console.error('❌ User refresh failed:', error);
+    }
+  }, []);
+
   // Check for existing session on mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -220,6 +241,7 @@ export const useAuth = () => {
     signUp,
     signIn,
     signOut,
-    updateProfile
+    updateProfile,
+    refreshUser
   };
 };

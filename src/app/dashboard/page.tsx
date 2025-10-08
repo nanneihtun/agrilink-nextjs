@@ -51,6 +51,34 @@ export default function DashboardPage() {
     }
   };
 
+  const refreshUserData = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch("/api/user/profile", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const updatedUser = data.user;
+        
+        // Update localStorage with fresh data
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        
+        // Update component state
+        setUser(updatedUser);
+        
+        console.log("✅ Dashboard: User data refreshed from API");
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
@@ -74,6 +102,29 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false);
     }
+
+    // Refresh user data when page becomes visible (user navigates back from verification)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshUserData();
+      }
+    };
+
+    const handleFocus = () => {
+      refreshUserData();
+    };
+
+    // Listen for page focus and visibility changes
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also refresh user data on mount to ensure we have the latest data
+    refreshUserData();
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [router]);
 
   const handleLogout = () => {
@@ -100,6 +151,8 @@ export default function DashboardPage() {
   const getVerificationStatus = () => {
     if (user.verified && user.phoneVerified) {
       return { status: "verified", color: "bg-green-100 text-green-800", icon: CheckCircle };
+    } else if (user.verificationStatus === "under_review") {
+      return { status: "under_review", color: "bg-blue-100 text-blue-800", icon: Clock };
     } else if (user.verificationStatus === "pending") {
       return { status: "pending", color: "bg-yellow-100 text-yellow-800", icon: Clock };
     } else {

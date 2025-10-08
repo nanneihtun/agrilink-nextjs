@@ -34,17 +34,37 @@ export default function VerifyPage() {
     router.push("/dashboard");
   };
 
+  const refreshUserData = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch("/api/user/profile", {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const updatedUser = data.user;
+        
+        // Update localStorage with fresh data
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        
+        // Update component state
+        setUser(updatedUser);
+        
+        console.log("✅ User data refreshed from API");
+      }
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
+
   const handleVerificationComplete = () => {
     // Refresh user data after verification
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error("Error parsing user data:", error);
-      }
-    }
+    refreshUserData();
   };
 
   const handleLogout = () => {

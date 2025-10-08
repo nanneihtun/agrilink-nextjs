@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Create business details if business account
     if (accountType === 'business') {
       await sql`
-        INSERT INTO business_details ("userId", "createdAt", "updatedAt")
+        INSERT INTO business_details (user_id, created_at, updated_at)
         VALUES (${newUser.id}, NOW(), NOW())
       `;
     }

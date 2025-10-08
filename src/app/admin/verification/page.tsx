@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AdminVerificationPanel } from "@/components/AdminVerificationPanel";
 import { AppHeader } from "@/components/AppHeader";
-import { AdminDashboard } from "@/components/AdminDashboard";
 
-export default function AdminPage() {
+export default function AdminVerificationPage() {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
@@ -43,8 +43,8 @@ export default function AdminPage() {
     router.push("/");
   };
 
-  const handleNavigateToVerification = () => {
-    router.push("/admin/verification");
+  const handleBack = () => {
+    router.push("/admin");
   };
 
   if (isLoading) {
@@ -52,7 +52,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+          <p className="mt-4 text-gray-600">Loading verification panel...</p>
         </div>
       </div>
     );
@@ -65,10 +65,13 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader currentUser={user} onLogout={handleLogout} />
-      <AdminDashboard 
-        currentAdmin={user}
-        onNavigateToVerification={handleNavigateToVerification}
-      />
+      
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <AdminVerificationPanel 
+          currentAdmin={user} 
+          onBack={handleBack}
+        />
+      </div>
     </div>
   );
 }

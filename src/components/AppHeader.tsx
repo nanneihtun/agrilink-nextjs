@@ -59,7 +59,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
   };
 
   const handleShowAdminVerification = () => {
-    router.push("/admin");
+    router.push("/admin/verification");
   };
 
 
@@ -101,11 +101,11 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
               </Button>
               {currentUser && (
                 <Button
-                  variant={isActive("/dashboard") ? "default" : "ghost"}
-                  onClick={handleGoToDashboard}
+                  variant={currentUser.userType === "admin" ? isActive("/admin") : isActive("/dashboard") ? "default" : "ghost"}
+                  onClick={currentUser.userType === "admin" ? () => router.push("/admin") : handleGoToDashboard}
                   className="px-2 h-8 text-sm"
                 >
-                  Dashboard
+                  {currentUser.userType === "admin" ? "Admin" : "Dashboard"}
                 </Button>
               )}
             </div>
@@ -136,9 +136,9 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
                   )}
                   {currentUser.userType === "admin" && (
                     <Button
-                      variant={isActive("/dashboard") ? "default" : "ghost"}
+                      variant={isActive("/admin") ? "default" : "ghost"}
                       className="h-9 px-4 text-sm"
-                      onClick={handleGoToDashboard}
+                      onClick={() => router.push("/admin")}
                     >
                       Admin Panel
                     </Button>
