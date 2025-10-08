@@ -9,6 +9,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { AppFooter } from "@/components/AppFooter";
 import { Pagination } from "@/components/Pagination";
+import { ChatInterface } from "@/components/ChatInterface";
 
 interface Product {
   id: string;
@@ -38,12 +39,52 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [activeChats, setActiveChats] = useState<any[]>([]); // Array of active chat popups
   const router = useRouter();
 
   useEffect(() => {
     // Start loading products immediately
     loadProducts();
     
+    // Add global event listener for chat popup
+    const handleOpenChatEvent = (event: CustomEvent) => {
+      const { userId, userName, productId, productName, conversationId } = event.detail;
+      
+      // Check if chat is already open
+      const existingChat = activeChats.find(chat => 
+        chat.otherPartyId === userId && chat.productId === productId
+      );
+      
+      if (existingChat) {
+        // Chat already open, bring it to front (you could implement this later)
+        return;
+      }
+
+      // Create new chat popup
+      const newChat = {
+        id: conversationId || `chat_${userId}_${productId}_${Date.now()}`,
+        otherPartyId: userId,
+        otherPartyName: userName,
+        otherPartyType: 'user', // Default type
+        otherPartyLocation: '',
+        otherPartyRating: 0,
+        productName: productName,
+        productId: productId,
+        otherPartyVerified: false,
+        otherPartyProfileImage: '',
+        otherPartyVerificationStatus: {
+          trustLevel: 'unverified',
+          tierLabel: 'Unverified',
+          levelBadge: '!'
+        }
+      };
+
+      setActiveChats(prev => [...prev, newChat]);
+    };
+
+    // Add event listener
+    window.addEventListener('openChat', handleOpenChatEvent as EventListener);
+
     // Check for existing user session (non-blocking)
     const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
@@ -55,6 +96,11 @@ export default function HomePage() {
         console.error("Error parsing user data:", error);
       }
     }
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('openChat', handleOpenChatEvent as EventListener);
+    };
   }, []);
 
   const loadProducts = async () => {
@@ -115,6 +161,48 @@ export default function HomePage() {
     router.push(`/seller/${sellerId}`);
   };
 
+  // Chat popup handlers
+  const handleOpenChat = (sellerId: string, productId: string) => {
+    // Find the product and seller info
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    // Check if chat is already open
+    const existingChat = activeChats.find(chat => 
+      chat.otherPartyId === sellerId && chat.productId === productId
+    );
+    
+    if (existingChat) {
+      // Chat already open, bring it to front (you could implement this later)
+      return;
+    }
+
+    // Create new chat popup
+    const newChat = {
+      id: `chat_${sellerId}_${productId}_${Date.now()}`,
+      otherPartyId: sellerId,
+      otherPartyName: product.seller.name,
+      otherPartyType: product.seller.userType,
+      otherPartyLocation: product.seller.location,
+      otherPartyRating: 0, // We don't have rating in product data
+      productName: product.name,
+      productId: productId,
+      otherPartyVerified: product.seller.verified || false,
+      otherPartyProfileImage: product.seller.profileImage || '',
+      otherPartyVerificationStatus: {
+        trustLevel: product.seller.verified ? 'id-verified' : 'unverified',
+        tierLabel: product.seller.verified ? 'Verified' : 'Unverified',
+        levelBadge: product.seller.verified ? '✓' : '!'
+      }
+    };
+
+    setActiveChats(prev => [...prev, newChat]);
+  };
+
+  const handleCloseChat = (chatId: string) => {
+    setActiveChats(prev => prev.filter(chat => chat.id !== chatId));
+  };
+
   const handleShowAdminVerification = () => {
     router.push("/admin");
   };
@@ -168,7 +256,7 @@ export default function HomePage() {
                 currentUser={currentUser}
                 onProductClick={(productId) => router.push(`/product/${productId}`)}
                 onSellerClick={(sellerId) => router.push(`/seller/${sellerId}`)}
-                onChatClick={(sellerId) => router.push(`/messages?seller=${sellerId}`)}
+                onChatClick={(sellerId) => handleOpenChat(sellerId, product.id)}
                 onOfferClick={(productId) => {
                   // Handle offer click
                   console.log("Make offer for product:", productId);
@@ -209,6 +297,35 @@ export default function HomePage() {
         onShowContactUs={() => router.push("/contact")}
         onShowFAQ={() => router.push("/faq")}
       />
+
+      {/* Chat Popups - Facebook Style */}
+      {activeChats.map((chat, index) => (
+        <div
+          key={chat.id}
+          className="fixed bottom-4 right-4 z-50"
+          style={{ 
+            right: `${16 + (index * 400)}px`, // Stack chats horizontally
+            bottom: '16px'
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-2xl w-96 h-[500px] flex flex-col border border-gray-200">
+            <ChatInterface
+              otherPartyName={chat.otherPartyName}
+              otherPartyType={chat.otherPartyType}
+              otherPartyLocation={chat.otherPartyLocation}
+              otherPartyRating={chat.otherPartyRating}
+              productName={chat.productName}
+              productId={chat.productId}
+              otherPartyId={chat.otherPartyId}
+              onClose={() => handleCloseChat(chat.id)}
+              otherPartyVerified={chat.otherPartyVerified}
+              otherPartyProfileImage={chat.otherPartyProfileImage}
+              otherPartyVerificationStatus={chat.otherPartyVerificationStatus}
+              currentUser={currentUser}
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -17,24 +17,34 @@ export async function GET(
       WHERE "sellerId" = ${sellerId} AND "isActive" = true
     `;
 
-    // Get user ratings
-    const ratingsResult = await sql`
-      SELECT rating, "totalReviews"
-      FROM user_ratings 
-      WHERE "userId" = ${sellerId}
+    // Get reviews from offer_reviews table
+    const reviewsResult = await sql`
+      SELECT 
+        r.id,
+        r.rating,
+        r.comment,
+        r.created_at,
+        u.name as reviewer_name
+      FROM offer_reviews r
+      INNER JOIN users u ON r.reviewer_id = u.id
+      WHERE r.reviewee_id = ${sellerId}
+      ORDER BY r.created_at DESC
+      LIMIT 10
     `;
 
-    // Get recent reviews (if any exist) - skip for now as reviews table might not exist
-    const reviewsResult = [];
+    // Calculate average rating and total reviews from actual review data
+    const totalReviews = reviewsResult.length;
+    const averageRating = totalReviews > 0 
+      ? reviewsResult.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
+      : 0;
 
     const totalProducts = parseInt(productsResult[0]?.total_products || '0');
-    const averageRating = parseFloat(ratingsResult[0]?.rating || '0');
-    const totalReviews = parseInt(ratingsResult[0]?.totalReviews || '0');
     const recentReviews = reviewsResult.map(review => ({
       id: review.id,
       rating: review.rating,
       comment: review.comment,
-      createdAt: review.createdAt
+      createdAt: review.created_at,
+      reviewer_name: review.reviewer_name
     }));
 
     // Calculate completion rate based on profile completeness

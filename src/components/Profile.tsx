@@ -28,6 +28,7 @@ import {
   Clock,
 } from "lucide-react";
 import { formatMemberSinceDate } from "../utils/dates";
+import { AddressManagement } from "./AddressManagement";
 
 interface ProfileProps {
   user: any;
@@ -370,6 +371,9 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
               </div>
             </CardContent>
           </Card>
+
+          {/* Address Management */}
+          <AddressManagement userId={user.id} />
 
           {/* Storefront Management */}
           {(user.userType === 'farmer' || user.userType === 'trader') && (

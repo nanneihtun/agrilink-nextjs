@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { UserBadge, PublicVerificationStatus, getUserVerificationLevel, getUserAccountType } from "./UserBadgeSystem";
 import { Separator } from "./ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ReviewsService, type SellerStats } from "../services/reviews";
 import { analyticsAPI } from "../services/analytics";
 import { 
@@ -56,7 +57,7 @@ interface Product {
   sellerName: string;
   image?: string;
   imageUrl?: string;
-  quantity: string;
+  quantity: number;
   priceChange: number;
   lastUpdated: string;
 }
@@ -116,6 +117,7 @@ export function SellerStorefront({
   // State for seller statistics
   const [sellerStats, setSellerStats] = useState<SellerStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
   
   // Storefront data state - directly use seller prop data
   const [storefrontData, setStorefrontData] = useState(() => ({
@@ -355,7 +357,7 @@ export function SellerStorefront({
                 </div>
 
                 {/* Basic Info */}
-                <div>
+                <div className="group">
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl font-semibold">{seller.name}</h2>
                   </div>
@@ -379,24 +381,33 @@ export function SellerStorefront({
                     {loadingStats ? (
                       <span className="text-sm text-muted-foreground">Loading...</span>
                     ) : (
-                      <>
+                      <div 
+                        className="flex items-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                        onClick={() => sellerStats && sellerStats.totalReviews > 0 && setShowReviewsModal(true)}
+                        title={sellerStats && sellerStats.totalReviews > 0 ? "Click to view all reviews" : ""}
+                      >
                         {[...Array(5)].map((_, i) => (
                           <Star
                             key={i}
                             className={`w-4 h-4 ${
-                              i < Math.floor(sellerStats?.rating || 0)
+                              i < Math.floor(sellerStats?.averageRating || 0)
                                 ? 'text-yellow-400 fill-current'
                                 : 'text-gray-300'
                             }`}
                           />
                         ))}
                         <span className="text-sm font-medium ml-2">
-                          {sellerStats?.rating ? sellerStats.rating.toFixed(1) : '0.0'}
+                          {sellerStats?.averageRating ? sellerStats.averageRating.toFixed(1) : '0.0'}
                         </span>
                         <span className="text-sm text-muted-foreground">
                           ({sellerStats?.totalReviews || 0} {sellerStats?.totalReviews === 1 ? 'review' : 'reviews'})
                         </span>
-                      </>
+                        {sellerStats && sellerStats.totalReviews > 0 && (
+                          <span className="text-xs text-primary ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            View all →
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1225,68 +1236,6 @@ export function SellerStorefront({
             </Card>
           )}
 
-          {/* Reviews Section */}
-          {sellerStats && sellerStats.recentReviews.length > 0 && (
-            <Card className="border-primary/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="w-5 h-5 text-yellow-500" />
-                  Customer Reviews ({sellerStats.totalReviews})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {sellerStats.recentReviews.map((review) => (
-                    <div key={review.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary">
-                              {review.reviewer_name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{review.reviewer_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {getRelativeTime(review.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating
-                                  ? 'text-yellow-400 fill-current'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                          <span className="text-sm font-medium ml-1">
-                            {review.rating}.0
-                          </span>
-                        </div>
-                      </div>
-                      {review.comment && (
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {review.comment}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                  
-                  {sellerStats.totalReviews > sellerStats.recentReviews.length && (
-                    <div className="text-center pt-2">
-                      <p className="text-sm text-muted-foreground">
-                        Showing {sellerStats.recentReviews.length} of {sellerStats.totalReviews} reviews
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Products */}
           <Card className="border-primary/30">
@@ -1336,7 +1285,7 @@ export function SellerStorefront({
 
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <Package className="w-3 h-3" />
-                              <span>{product.quantity}</span>
+                              <span>{product.quantity} available</span>
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -1396,6 +1345,75 @@ export function SellerStorefront({
           </Card>
         </div>
       </div>
+
+      {/* Reviews Modal */}
+      <Dialog open={showReviewsModal} onOpenChange={setShowReviewsModal}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              Customer Reviews ({sellerStats?.totalReviews || 0})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {sellerStats && sellerStats.recentReviews.length > 0 ? (
+              sellerStats.recentReviews.map((review) => (
+                <div key={review.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary">
+                          {review.reviewer_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{review.reviewer_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {getRelativeTime(review.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < review.rating
+                              ? 'text-yellow-400 fill-current'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-sm font-medium ml-1">
+                        {review.rating}.0
+                      </span>
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {review.comment}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No reviews yet</p>
+                <p className="text-sm text-gray-400 mt-1">Be the first to leave a review!</p>
+              </div>
+            )}
+            
+            {sellerStats && sellerStats.totalReviews > sellerStats.recentReviews.length && (
+              <div className="text-center pt-2">
+                <p className="text-sm text-muted-foreground">
+                  Showing {sellerStats.recentReviews.length} of {sellerStats.totalReviews} reviews
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

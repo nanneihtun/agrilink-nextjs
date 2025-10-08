@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getRelativeTime } from "@/utils/dates";
 import { UserBadge, getUserVerificationLevel, getUserAccountType } from "@/components/UserBadgeSystem";
 import { Separator } from "@/components/ui/separator";
 import { AppHeader } from "@/components/AppHeader";
@@ -32,7 +34,6 @@ import {
   FileText,
   CreditCard
 } from "lucide-react";
-import { getRelativeTime } from "@/utils/dates";
 
 interface Product {
   id: string;
@@ -64,6 +65,8 @@ export default function ProductDetailsPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [sellerStats, setSellerStats] = useState<any>(null);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
@@ -90,6 +93,21 @@ export default function ProductDetailsPage() {
       if (response.ok) {
         const data = await response.json();
         setProduct(data.product);
+        
+        // Fetch seller stats if we have a seller ID
+        if (data.product?.sellerId) {
+          console.log('🔍 Product detail - Fetching seller stats for:', data.product.sellerId);
+          const statsResponse = await fetch(`/api/seller/${data.product.sellerId}/stats`);
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            console.log('📊 Product detail - Seller stats received:', statsData.stats);
+            setSellerStats(statsData.stats);
+          } else {
+            console.error('❌ Product detail - Failed to fetch seller stats:', statsResponse.status);
+          }
+        } else {
+          console.log('❌ Product detail - No seller ID found in product data');
+        }
       } else {
         console.error("Failed to load product");
         router.push("/");
@@ -586,9 +604,39 @@ export default function ProductDetailsPage() {
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm">{product.location}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm">No reviews yet</span>
+                  <div 
+                    className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setShowReviewsModal(true)}
+                  >
+                    <div className="flex items-center">
+                      {sellerStats && sellerStats.totalReviews > 0 ? (
+                        Array.from({ length: 5 }, (_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.floor(sellerStats.averageRating)
+                                ? 'fill-yellow-500 text-yellow-500'
+                                : i < sellerStats.averageRating
+                                ? 'fill-yellow-500/50 text-yellow-500'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))
+                      ) : (
+                        <Star className="w-4 h-4 text-gray-300" />
+                      )}
+                    </div>
+                    <span className="text-sm">
+                      {sellerStats && sellerStats.totalReviews > 0 ? (
+                        <>
+                          {sellerStats.averageRating.toFixed(1)} ({sellerStats.totalReviews} {sellerStats.totalReviews === 1 ? 'review' : 'reviews'})
+                        </>
+                      ) : sellerStats && sellerStats.totalReviews === 0 ? (
+                        'No reviews yet'
+                      ) : (
+                        'Loading...'
+                      )}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-muted-foreground" />
@@ -616,6 +664,75 @@ export default function ProductDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Reviews Modal */}
+      <Dialog open={showReviewsModal} onOpenChange={setShowReviewsModal}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              Customer Reviews ({sellerStats?.totalReviews || 0})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {sellerStats && sellerStats.recentReviews && sellerStats.recentReviews.length > 0 ? (
+              sellerStats.recentReviews.map((review: any) => (
+                <div key={review.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary">
+                          {review.reviewer_name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{review.reviewer_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {getRelativeTime(review.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < review.rating
+                              ? 'text-yellow-400 fill-current'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="text-sm font-medium ml-1">
+                        {review.rating}.0
+                      </span>
+                    </div>
+                  </div>
+                  {review.comment && (
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {review.comment}
+                    </p>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Star className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No reviews yet</p>
+                <p className="text-sm text-gray-400 mt-1">Be the first to leave a review!</p>
+              </div>
+            )}
+            
+            {sellerStats && sellerStats.totalReviews > sellerStats.recentReviews.length && (
+              <div className="text-center pt-2">
+                <p className="text-sm text-muted-foreground">
+                  Showing {sellerStats.recentReviews.length} of {sellerStats.totalReviews} reviews
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

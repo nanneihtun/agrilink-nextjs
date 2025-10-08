@@ -297,6 +297,29 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
                 </Button>
               )}
               
+              {/* Offer Management button - Show for buyers, traders, and farmers (all can participate in offers) */}
+              {(() => {
+                console.log('🔍 UserMenu Debug - user:', user);
+                console.log('🔍 UserMenu Debug - userType:', user?.userType);
+                console.log('🔍 UserMenu Debug - should show offer management:', user?.userType === 'buyer' || user?.userType === 'trader' || user?.userType === 'farmer');
+                return user?.userType === 'buyer' || user?.userType === 'trader' || user?.userType === 'farmer';
+              })() && (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2"
+                  onClick={() => {
+                    setShowProfile(false);
+                    window.location.href = '/offers';
+                  }}
+                  id="offer-management-button"
+                  name="offer-management-button"
+                >
+                  <Package className="w-4 h-4" />
+                  Offer Management {/* Updated for traders */}
+                </Button>
+              )}
+              
+              
               {/* Verification button - Only show for non-admin users */}
               {user.userType !== 'admin' && (
                 <Button 

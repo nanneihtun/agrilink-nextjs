@@ -16,7 +16,7 @@ export async function GET(
         p.id, p.name, p.category, p.description, p."isActive", p."createdAt",
         pp.price, pp.unit,
         pi."imageUrl",
-        u.name as seller_name, u."userType" as seller_type,
+        u.id as seller_id, u.name as seller_name, u."userType" as seller_type,
         up.location, up."profileImage",
         uv.verified, uv."phoneVerified", uv."verificationStatus",
         ur.rating, ur."totalReviews"
@@ -50,7 +50,7 @@ export async function GET(
       unit: product.unit,
       imageUrl: product.imageUrl,
       images: product.imageUrl ? [product.imageUrl] : [],
-      sellerId: product.seller_id || 'unknown',
+      sellerId: product.seller_id,
       sellerName: product.seller_name || 'Unknown Seller',
       sellerType: product.seller_type || 'farmer',
       location: product.location || 'Unknown Location',

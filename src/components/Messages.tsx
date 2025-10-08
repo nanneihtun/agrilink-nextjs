@@ -513,18 +513,10 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
 
       {/* Selected Conversation Chat Interface */}
       {selectedConversation && (() => {
-        console.log('🔍 Messages - Looking for conversation:', selectedConversation);
-        console.log('🔍 Messages - Available conversations:', transformedConversations.map(c => ({ id: c.id, name: c.otherParty.name })));
         const conversation = transformedConversations.find(conv => conv.id === selectedConversation);
-        console.log('🔍 Messages - Found conversation:', conversation ? { id: conversation.id, name: conversation.otherParty.name } : 'NOT FOUND');
         if (!conversation) return null;
 
-        console.log('🔍 Messages - Passing to ChatInterface:', {
-          conversationId: conversation.id,
-          sellerName: conversation.otherParty.name,
-          productId: conversation.productId,
-          sellerId: conversation.otherParty.id
-        });
+        // Removed debug logging
 
         return (
           <>

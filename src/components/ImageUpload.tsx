@@ -6,12 +6,14 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 
 interface ImageUploadProps {
-  onImageUpload: (imageUrl: string) => void;
+  onImageUpload?: (imageUrl: string) => void;
+  onImageSelect?: (imageFile: File) => void;
   currentImage?: string;
   className?: string;
+  disabled?: boolean;
 }
 
-export function ImageUpload({ onImageUpload, currentImage, className = "" }: ImageUploadProps) {
+export function ImageUpload({ onImageUpload, onImageSelect, currentImage, className = "", disabled = false }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,8 +40,14 @@ export function ImageUpload({ onImageUpload, currentImage, className = "" }: Ima
       };
       reader.readAsDataURL(file);
 
-      // Upload file
-      uploadFile(file);
+      // Handle file based on callback type
+      if (onImageSelect) {
+        // Pass file directly to parent component
+        onImageSelect(file);
+      } else if (onImageUpload) {
+        // Upload file and pass URL to parent
+        uploadFile(file);
+      }
     }
   };
 
@@ -68,14 +76,20 @@ export function ImageUpload({ onImageUpload, currentImage, className = "" }: Ima
 
   const handleRemove = () => {
     setPreview(null);
-    onImageUpload("");
+    // Only call onImageUpload if it exists (for backward compatibility)
+    // onImageSelect doesn't need to be called on remove since it's for file selection
+    if (onImageUpload) {
+      onImageUpload("");
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const handleClick = () => {
-    fileInputRef.current?.click();
+    if (!disabled) {
+      fileInputRef.current?.click();
+    }
   };
 
   return (
@@ -91,38 +105,64 @@ export function ImageUpload({ onImageUpload, currentImage, className = "" }: Ima
       />
       
       {preview ? (
-        <Card className="relative">
-          <CardContent className="p-0">
-            <div className="relative">
-              <img
-                src={preview}
-                alt="Preview"
-                className="w-full h-48 object-cover rounded-lg"
-              />
-              <div className="absolute top-2 right-2 flex space-x-2">
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={handleRemove}
-                  disabled={isUploading}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-              {isUploading && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                  <div className="text-center text-white">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    <p className="text-sm">Uploading...</p>
-                  </div>
+        <div className="space-y-3">
+          <Card className="relative">
+            <CardContent className="p-0">
+              <div className="relative">
+                <img
+                  src={preview}
+                  alt="Preview"
+                  className="w-full h-48 object-cover rounded-lg"
+                />
+                <div className="absolute top-2 right-2 flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleRemove}
+                    disabled={isUploading || disabled}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
+                    <div className="text-center text-white">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">Uploading...</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Visible action buttons */}
+          <div className="flex gap-2 justify-center">
+            <Button
+              variant="outline"
+              onClick={handleClick}
+              disabled={isUploading || disabled}
+              className="flex items-center gap-2"
+            >
+              <ImageIcon className="h-4 w-4" />
+              Change Image
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRemove}
+              disabled={isUploading || disabled}
+              className="flex items-center gap-2"
+            >
+              <X className="h-4 w-4" />
+              Remove
+            </Button>
+          </div>
+        </div>
       ) : (
         <Card 
-          className="border-2 border-dashed border-gray-300 hover:border-gray-400 cursor-pointer transition-colors"
+          className={`border-2 border-dashed border-gray-300 transition-colors ${
+            disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-gray-400 cursor-pointer'
+          }`}
           onClick={handleClick}
         >
           <CardContent className="p-8 text-center">

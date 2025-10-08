@@ -10,7 +10,9 @@ import { Send, MapPin, Star, Shield, AlertTriangle, CheckCircle, Clock, User, X,
 import { useChat } from "../hooks/useChat";
 import { useAuth } from "../hooks/useAuth";
 import { AccountTypeBadge, getUserVerificationLevel } from "./UserBadgeSystem";
-// Offer-related imports removed for now - will be added later
+import { SimpleOfferModal } from "./SimpleOfferModal";
+import { OfferCardCompact } from "./OfferCardCompact";
+import { SimpleOfferDetailsModal } from "./SimpleOfferDetailsModal";
 
 interface Message {
   id: string;
@@ -66,62 +68,94 @@ export function ChatInterface({
   // Use passed currentUser from App.tsx or fallback to useAuth
   const effectiveCurrentUser = useMemo(() => {
     if (passedCurrentUser?.id) {
-      console.log('✅ ChatInterface using passed user:', passedCurrentUser.email || passedCurrentUser.name);
       return passedCurrentUser;
     }
     
     if (authUser?.id) {
-      console.log('✅ ChatInterface using auth user:', authUser.email || authUser.name);
       return authUser;
     }
     
     if (authLoading) {
-      console.log('⏳ ChatInterface: Auth loading...');
       return null;
     }
     
-    console.log('❌ ChatInterface: No user available - user needs to log in');
     return null;
   }, [passedCurrentUser?.id, authUser?.id, authLoading]);
   
   // Debug current user state - simplified
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 ChatInterface - Authentication status:', {
-        hasPassedUser: !!passedCurrentUser,
-        hasAuthUser: !!authUser,
-        hasEffectiveUser: !!effectiveCurrentUser,
-        effectiveUserId: effectiveCurrentUser?.id,
-        timestamp: new Date().toISOString()
-      });
-    }
+    // Removed debug logging
   }, [passedCurrentUser?.id, authUser?.id, effectiveCurrentUser?.id]);
 
   // Debug otherPartyProfileImage prop
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 ChatInterface - otherPartyProfileImage prop:', {
-        otherPartyProfileImage,
-        otherPartyName,
-        otherPartyId,
-        timestamp: new Date().toISOString()
-      });
-    }
+    // Removed debug logging
   }, [otherPartyProfileImage, otherPartyName, otherPartyId]);
   
   const { messages, sendMessage, startConversation, loadMessages, startPolling } = useChat();
   const [newMessage, setNewMessage] = useState('');
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
+  
+  // Debug conversation ID
+  // Sync conversationId state with initialConversationId prop
+  useEffect(() => {
+    if (initialConversationId && initialConversationId !== conversationId) {
+      setConversationId(initialConversationId);
+    }
+  }, [initialConversationId, conversationId]);
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Offer functionality removed for now - will be added later
 
+  // Offer modal state
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [showOfferDetailsModal, setShowOfferDetailsModal] = useState(false);
+  const [selectedOffer, setSelectedOffer] = useState<any>(null);
+
   // Get current conversation messages - moved up to avoid initialization order issues
   const currentMessages = useMemo(() => {
     const msgs = conversationId ? messages[conversationId] || [] : [];
-    return msgs;
+    // Remove duplicates based on message ID
+    const uniqueMessages = msgs.filter((message, index, self) => 
+      index === self.findIndex(m => m.id === message.id)
+    );
+    // Removed debug logging
+    return uniqueMessages;
   }, [conversationId, messages]);
+
+  // Combine messages and offers and sort chronologically
+  const combinedChatItems = useMemo(() => {
+    const messageItems = currentMessages.map(msg => {
+      const timestamp = new Date(msg.timestamp).getTime();
+      // Removed debug logging
+      return {
+        type: 'message' as const,
+        id: msg.id,
+        timestamp: timestamp,
+        data: msg
+      };
+    });
+
+    const offerItems = offers.map(offer => {
+      const timestamp = new Date(offer.createdAt).getTime();
+      // Removed debug logging
+      return {
+        type: 'offer' as const,
+        id: offer.id,
+        timestamp: timestamp,
+        data: offer
+      };
+    });
+
+    const combined = [...messageItems, ...offerItems];
+    const sorted = combined.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Removed debug logging
+
+    return sorted;
+  }, [currentMessages, offers]);
   
   // Debug conversation ID changes
   useEffect(() => {
@@ -138,9 +172,23 @@ export function ChatInterface({
   useEffect(() => {
     if (conversationId && effectiveCurrentUser?.id) {
       console.log('🔄 Loading messages for conversation:', conversationId);
+      console.log('🔄 Current messages state before loading:', messages[conversationId]?.length || 0);
       loadMessages(conversationId);
+    } else {
+      console.log('🔄 Not loading messages - missing conversationId or user:', {
+        conversationId,
+        userId: effectiveCurrentUser?.id
+      });
     }
   }, [conversationId, effectiveCurrentUser?.id, loadMessages]);
+
+  // Fetch offers when conversationId changes
+  useEffect(() => {
+    if (conversationId && effectiveCurrentUser?.id) {
+      console.log('🔄 Fetching offers for conversation:', conversationId);
+      fetchOffers();
+    }
+  }, [conversationId, effectiveCurrentUser?.id]);
 
   // Start polling for real-time updates
   useEffect(() => {
@@ -527,7 +575,236 @@ export function ChatInterface({
     }
   };*/
 
-  // Offer-related variables removed for now - will be added later
+  // Remove duplicate offers
+  useEffect(() => {
+    const uniqueOffers = offers.filter((offer, index, self) => 
+      index === self.findIndex(o => o.id === offer.id)
+    );
+    
+    // Update offers state if there were duplicates
+    if (uniqueOffers.length !== offers.length) {
+      setOffers(uniqueOffers);
+    }
+  }, [offers]);
+
+  // Fetch offers for this conversation
+  const fetchOffers = async () => {
+    if (!conversationId) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/offers?conversationId=${conversationId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setOffers(data.offers || []);
+      } else if (response.status === 401) {
+        console.error('❌ Authentication failed, user needs to log in again');
+        // Clear invalid token and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('❌ Failed to fetch offers:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching offers:', error);
+    }
+  };
+
+  // Fetch offers for a specific conversation
+  const fetchOffersForConversation = async (targetConversationId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/offers?conversationId=${targetConversationId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setOffers(data.offers || []);
+      } else if (response.status === 401) {
+        console.error('❌ Authentication failed, user needs to log in again');
+        // Clear invalid token and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        console.error('❌ Failed to fetch offers:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching offers:', error);
+    }
+  };
+
+  // Handle offer actions
+  const handleViewOffer = (offerId: string) => {
+    // Navigate to offer details page
+    window.open(`/offers/${offerId}`, '_blank');
+  };
+
+  const handleAcceptOffer = async (offerId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/offers/${offerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'accepted' })
+      });
+      
+      if (response.ok) {
+        await fetchOffers(); // Refresh offers
+        alert('Offer accepted successfully!');
+      } else {
+        const responseText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          errorData = { message: responseText || 'Unknown error' };
+        }
+        
+        console.error('❌ Failed to accept offer:', errorData);
+        alert(`Failed to accept offer: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+      alert('Failed to accept offer. Please try again.');
+    }
+  };
+
+  const handleDeclineOffer = async (offerId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/offers/${offerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+      
+      if (response.ok) {
+        await fetchOffers(); // Refresh offers
+        alert('Offer declined successfully!');
+      } else {
+        const responseText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          errorData = { message: responseText || 'Unknown error' };
+        }
+        
+        console.error('❌ Failed to decline offer:', errorData);
+        alert(`Failed to decline offer: ${errorData.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error declining offer:', error);
+      alert('Failed to decline offer. Please try again.');
+    }
+  };
+
+  // Fetch offers when conversation changes
+  useEffect(() => {
+    if (conversationId) {
+      fetchOffers();
+    }
+  }, [conversationId]);
+
+  // Poll for offer updates every 3 seconds
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const pollOffers = () => {
+      fetchOffers();
+    };
+
+    const interval = setInterval(pollOffers, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [conversationId]);
+
+  // Handle offer submission
+  const handleSubmitOffer = async (offerData: {
+    offerPrice: number;
+    quantity: number;
+    message: string;
+    deliveryAddress?: {
+      addressType: string;
+      label: string;
+      fullName: string;
+      phone: string;
+      addressLine1: string;
+      addressLine2?: string;
+      city: string;
+      state: string;
+      postalCode?: string;
+      country: string;
+    };
+    deliveryOptions: string[];
+    paymentTerms: string[];
+    expirationHours: number;
+  }) => {
+    try {
+      const response = await fetch('/api/offers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          productId,
+          offerPrice: offerData.offerPrice,
+          quantity: offerData.quantity,
+          message: offerData.message,
+          deliveryAddress: offerData.deliveryAddress,
+          deliveryOptions: offerData.deliveryOptions,
+          paymentTerms: offerData.paymentTerms,
+          expirationHours: offerData.expirationHours
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit offer');
+      }
+
+      const result = await response.json();
+      console.log('✅ Offer submitted successfully:', result);
+      
+      // Update conversationId if it was created
+      if (result.offer?.conversationId && result.offer.conversationId !== conversationId) {
+        console.log('🔄 Updating conversationId from offer response:', result.offer.conversationId);
+        setConversationId(result.offer.conversationId);
+      }
+      
+      // Refresh offers to show the new one - use the conversationId from the response
+      const targetConversationId = result.offer?.conversationId || conversationId;
+      if (targetConversationId) {
+        console.log('🔄 Fetching offers for conversationId:', targetConversationId);
+        await fetchOffersForConversation(targetConversationId);
+      }
+      
+      // You could add a success message here
+      alert('Offer submitted successfully!');
+      
+    } catch (error) {
+      console.error('❌ Error submitting offer:', error);
+      alert('Failed to submit offer. Please try again.');
+      throw error;
+    }
+  };
 
   return (
     <Card className="h-full flex flex-col border-0 rounded-none">
@@ -546,7 +823,19 @@ export function ChatInterface({
             </CardTitle>
           </div>
           <div className="flex gap-2">
-            {/* Offer button removed for now - will be added later */}
+            {/* Offer button - show for buyers and traders (they make offers to purchase products) */}
+            {effectiveCurrentUser && 
+             (effectiveCurrentUser.userType === 'buyer' || effectiveCurrentUser.userType === 'trader') && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs"
+                onClick={() => setShowOfferModal(true)}
+              >
+                <Handshake className="w-3 h-3 mr-1" />
+                Make Offer
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={onClose}>
               <X className="w-4 h-4" />
             </Button>
@@ -602,36 +891,25 @@ export function ChatInterface({
 
         <ScrollArea ref={scrollAreaRef} className="h-[220px] p-4">
           <div className="space-y-4 pb-4">
-            {isLoading && currentMessages.length === 0 ? (
+            {isLoading && combinedChatItems.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <div className="animate-pulse">Starting conversation...</div>
               </div>
-            ) : currentMessages.length === 0 ? (
+            ) : combinedChatItems.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 <p>No messages yet. Say hello to start the conversation!</p>
               </div>
             ) : (
               <>
-                {/* Messages */}
-                {currentMessages.map((message) => {
-                  const isOwnMessage = message.senderId === effectiveCurrentUser?.id;
-                  const senderName = isOwnMessage ? effectiveCurrentUser?.name : otherPartyName;
-                  const senderImage = isOwnMessage ? effectiveCurrentUser?.profileImage : otherPartyProfileImage;
-                  
-                  // Debug logging for avatar issue
-                  if (process.env.NODE_ENV === 'development') {
-                    console.log('🔍 Message avatar debug:', {
-                      messageId: message.id,
-                      messageSenderId: message.senderId,
-                      currentUserId: effectiveCurrentUser?.id,
-                      isOwnMessage,
-                      senderName,
-                      expectedAvatar: senderName ? senderName.charAt(0).toUpperCase() : 'U',
-                      otherPartyProfileImage,
-                      senderImage,
-                      effectiveCurrentUserProfileImage: effectiveCurrentUser?.profileImage
-                    });
-                  }
+                {/* Combined Messages and Offers */}
+                {combinedChatItems.map((item, index) => {
+                  if (item.type === 'message') {
+                    const message = item.data;
+                    const isOwnMessage = message.senderId === effectiveCurrentUser?.id;
+                    const senderName = isOwnMessage ? effectiveCurrentUser?.name : otherPartyName;
+                    const senderImage = isOwnMessage ? effectiveCurrentUser?.profileImage : otherPartyProfileImage;
+                    
+                    // Removed debug logging
                   
                   return (
                     <div
@@ -690,9 +968,43 @@ export function ChatInterface({
                       )}
                     </div>
                   );
+                  } else if (item.type === 'offer') {
+                    const offer = item.data;
+                    const isFromCurrentUser = offer.buyer?.id === effectiveCurrentUser?.id;
+                    // Removed debug logging
+                    
+                    return (
+                      <div
+                        key={offer.id}
+                        className={`flex ${isFromCurrentUser ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className="max-w-[80%]">
+                          <OfferCardCompact
+                            offer={{
+                              id: offer.id,
+                              productName: offer.product?.name || productName,
+                              productImage: offer.productImage,
+                              offerPrice: offer.offerPrice,
+                              quantity: offer.quantity,
+                              message: offer.message,
+                              status: offer.status,
+                              deliveryAddress: offer.deliveryAddress,
+                              deliveryOptions: offer.deliveryOptions || [],
+                              paymentTerms: offer.paymentTerms || [],
+                              expiresAt: offer.expiresAt,
+                              createdAt: offer.createdAt,
+                              buyer: offer.buyer,
+                              seller: offer.seller
+                            }}
+                            isFromCurrentUser={isFromCurrentUser}
+                            onViewOffer={handleViewOffer}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
                 })}
-                
-                {/* Offer display removed for now - will be added later */}
               </>
             )}
           </div>
@@ -758,7 +1070,65 @@ export function ChatInterface({
         </div>
       </CardContent>
 
-      {/* Offer modals removed for now - will be added later */}
+      {/* Offer Modal */}
+      <SimpleOfferModal
+        isOpen={showOfferModal}
+        onClose={() => setShowOfferModal(false)}
+        product={{
+          id: productId,
+          name: productName,
+          price: 0, // We don't have product price in this context, could be passed as prop
+          unit: 'kg', // Default unit, could be passed as prop
+          category: 'Agricultural' // Default category, could be passed as prop
+        }}
+        seller={{
+          id: otherPartyId,
+          name: otherPartyName,
+          location: otherPartyLocation
+        }}
+        onSubmit={handleSubmitOffer}
+      />
+
+      {/* Offer Details Modal */}
+      <SimpleOfferDetailsModal
+        isOpen={showOfferDetailsModal}
+        onClose={() => {
+          setShowOfferDetailsModal(false);
+          setSelectedOffer(null);
+        }}
+        offer={selectedOffer}
+        isFromCurrentUser={selectedOffer ? selectedOffer.buyer?.id === effectiveCurrentUser?.id : false}
+        currentUserId={effectiveCurrentUser?.id}
+        onStatusUpdate={async (offerId, newStatus, reason) => {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/offers/${offerId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ 
+                status: newStatus, 
+                cancellationReason: reason 
+              })
+            });
+            
+            if (response.ok) {
+              console.log('✅ Offer status updated successfully');
+              await fetchOffers(); // Refresh offers
+              alert(`Offer ${newStatus} successfully!`);
+            } else {
+              const errorData = await response.json();
+              console.error('❌ Failed to update offer status:', errorData);
+              alert(`Failed to update offer status: ${errorData.message || 'Unknown error'}`);
+            }
+          } catch (error) {
+            console.error('Error updating offer status:', error);
+            alert('Failed to update offer status. Please try again.');
+          }
+        }}
+      />
     </Card>
   );
 }
