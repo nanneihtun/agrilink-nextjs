@@ -1,16 +1,22 @@
+"use client";
+
 import { Leaf, Sprout, Truck, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-interface AppFooterProps {
-  onShowAboutUs: () => void;
-  onShowContactUs: () => void;
-  onShowFAQ: () => void;
-}
+export function AppFooter() {
+  const router = useRouter();
 
-export function AppFooter({
-  onShowAboutUs,
-  onShowContactUs,
-  onShowFAQ,
-}: AppFooterProps) {
+  const handleGoToAbout = () => {
+    router.push("/about");
+  };
+
+  const handleGoToContact = () => {
+    router.push("/contact");
+  };
+
+  const handleGoToFAQ = () => {
+    router.push("/faq");
+  };
   return (
     <footer className="border-t bg-card mt-8">
       <div className="w-full max-w-5xl mx-auto px-4 py-6">
@@ -85,21 +91,21 @@ export function AppFooter({
           {/* Footer Links */}
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <button
-              onClick={onShowAboutUs}
+              onClick={handleGoToAbout}
               className="hover:text-primary transition-colors duration-200"
             >
               About Us
             </button>
             <span>•</span>
             <button
-              onClick={onShowContactUs}
+              onClick={handleGoToContact}
               className="hover:text-primary transition-colors duration-200"
             >
               Contact Us
             </button>
             <span>•</span>
             <button
-              onClick={onShowFAQ}
+              onClick={handleGoToFAQ}
               className="hover:text-primary transition-colors duration-200"
             >
               FAQ

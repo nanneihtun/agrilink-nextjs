@@ -252,7 +252,7 @@ export function FAQ({ onBack, onShowContactUs }: FAQProps) {
       {/* FAQ Categories */}
       <div className="space-y-8">
         {filteredCategories.map((category) => (
-          <Card key={category.id} className="shadow-sm border-border">
+          <Card key={category.id} className="shadow-sm border-gray-200 bg-white">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-lg ${category.color}`}>
@@ -272,14 +272,14 @@ export function FAQ({ onBack, onShowContactUs }: FAQProps) {
                 <Accordion key={index} type="single" collapsible className="w-full">
                   <AccordionItem 
                     value={`${category.id}-${index}`} 
-                    className="border border-border rounded-lg overflow-hidden"
+                    className="border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors bg-white"
                   >
-                    <AccordionTrigger className="text-left hover:no-underline px-6 py-4 hover:bg-muted/20 transition-colors">
+                    <AccordionTrigger className="text-left hover:no-underline px-6 py-4 hover:bg-gray-50 transition-colors">
                       <span className="font-medium text-sm md:text-base pr-4">
                         {faq.question}
                       </span>
                     </AccordionTrigger>
-                    <AccordionContent className="px-6 pb-6 pt-2 border-t border-border">
+                    <AccordionContent className="px-6 pb-6 pt-2 border-t border-gray-200">
                       <div className="text-sm text-muted-foreground leading-relaxed">
                         {faq.answer}
                       </div>

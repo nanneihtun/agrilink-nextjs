@@ -62,6 +62,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
     router.push("/admin");
   };
 
+
   const handleUpdateUser = (updates: any) => {
     // This would typically update the user context
     console.log("Update user:", updates);
@@ -144,6 +145,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
                   )}
                 </>
               )}
+
             </div>
 
             {/* Authentication Buttons */}
