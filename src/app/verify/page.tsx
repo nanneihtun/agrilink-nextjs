@@ -96,7 +96,7 @@ export default function VerifyPage() {
         onShowVerification={() => {}} // Already on verification page
       />
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 py-8">
         <AccountTypeVerification
           currentUser={user}
           onBack={handleBack}

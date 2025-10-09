@@ -40,6 +40,17 @@ export default function EditProductPage() {
   const productId = params.id as string;
 
   useEffect(() => {
+    // Get user data from localStorage
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setCurrentUser(parsedUser);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+      }
+    }
+
     const fetchProduct = async () => {
       try {
         const response = await fetch(`/api/products/${productId}`);
@@ -65,6 +76,20 @@ export default function EditProductPage() {
 
   const handleSave = async (productData: any) => {
     try {
+      console.log('🔄 Saving product data:', {
+        productId,
+        data: {
+          id: productData.id,
+          name: productData.name,
+          category: productData.category,
+          description: productData.description,
+          price: productData.price,
+          unit: productData.unit,
+          location: productData.location,
+          region: productData.region
+        }
+      });
+
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
@@ -74,15 +99,23 @@ export default function EditProductPage() {
         body: JSON.stringify(productData)
       });
 
+      const responseData = await response.json();
+      console.log('📥 API Response:', responseData);
+
       if (!response.ok) {
-        throw new Error('Failed to update product');
+        throw new Error(responseData.message || 'Failed to update product');
       }
 
+      console.log('✅ Product updated successfully, redirecting...');
+      
+      // Show success message briefly before redirecting
+      alert('Product updated successfully!');
+      
       // Redirect back to the product details page
       router.push(`/product/${productId}`);
     } catch (err) {
-      console.error('Error updating product:', err);
-      alert('Failed to update product. Please try again.');
+      console.error('❌ Error updating product:', err);
+      alert(`Failed to update product: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -90,10 +123,16 @@ export default function EditProductPage() {
     router.push(`/product/${productId}`);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <AppHeader />
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="text-center">
             <div className="animate-pulse">Loading product...</div>
@@ -106,7 +145,7 @@ export default function EditProductPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <AppHeader />
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="text-center">
             <div className="text-red-600">{error}</div>
@@ -125,7 +164,7 @@ export default function EditProductPage() {
   if (!product) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <AppHeader />
+        <AppHeader currentUser={currentUser} onLogout={handleLogout} />
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="text-center">
             <div className="text-gray-600">Product not found</div>
@@ -143,7 +182,7 @@ export default function EditProductPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AppHeader />
+      <AppHeader currentUser={currentUser} onLogout={handleLogout} />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <SimplifiedProductForm
           currentUser={currentUser || { id: 'temp', name: 'User', location: 'Myanmar' }}

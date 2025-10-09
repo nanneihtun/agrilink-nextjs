@@ -24,11 +24,12 @@ export async function GET(request: NextRequest) {
         p.name,
         p.category,
         p.description,
-        p.quantity,
         p."createdAt",
         pp.price,
         pp.unit,
         pi."imageUrl",
+        COALESCE(pinv."availableQuantity", 'Contact seller') as quantity,
+        pinv."minimumOrder",
         u.id as seller_id,
         u.name as seller_name,
         u."userType" as seller_type,
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
       FROM products p
       INNER JOIN product_pricing pp ON p.id = pp."productId"
       LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
+      LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
       INNER JOIN users u ON p."sellerId" = u.id
       LEFT JOIN user_profiles up ON u.id = up."userId"
       LEFT JOIN user_verification uv ON u.id = uv."userId"

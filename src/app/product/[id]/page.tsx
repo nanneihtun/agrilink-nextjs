@@ -415,7 +415,7 @@ export default function ProductDetailsPage() {
                           </Button>
                           <Button 
                             variant="outline" 
-                            onClick={() => router.push("/")}
+                            onClick={() => router.push(`/products/${product.id}/price-comparison`)}
                             className="flex-1 h-9 text-sm"
                           >
                             <BarChart3 className="w-3 h-3 mr-1" />
@@ -430,7 +430,7 @@ export default function ProductDetailsPage() {
                           </Button>
                           <Button 
                             variant="outline" 
-                            onClick={() => router.push("/")}
+                            onClick={() => router.push(`/products/${product.id}/price-comparison`)}
                             className="flex-1 h-9 text-sm"
                           >
                             <BarChart3 className="w-3 h-3 mr-1" />

@@ -1,1 +1,0 @@
-ALTER TABLE offers ADD COLUMN IF NOT EXISTS conversation_id UUID;

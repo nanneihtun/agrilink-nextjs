@@ -230,10 +230,12 @@ export default function HomePage() {
           allProducts={isLoading ? [] : products}
         />
         
-        <SearchFilters 
-          products={products}
-          onFilterChange={handleFilterChange}
-        />
+        <div className="mt-6">
+          <SearchFilters 
+            products={products}
+            onFilterChange={handleFilterChange}
+          />
+        </div>
         
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

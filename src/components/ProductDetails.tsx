@@ -493,8 +493,8 @@ export function ProductDetails({
                 {/* Available Quantity */}
                 {product.availableQuantity && (
                   <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Package className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="font-medium flex items-center gap-2" style={{ color: 'var(--primary)' }}>
+                      <Package className="w-4 h-4" style={{ color: 'var(--primary)' }} />
                       Available Stock
                     </h4>
                     <p className="text-sm text-muted-foreground">{product.availableQuantity}</p>
@@ -504,8 +504,8 @@ export function ProductDetails({
                 {/* Minimum Order */}
                 {product.minimumOrder && (
                   <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="font-medium flex items-center gap-2" style={{ color: 'var(--chart-2)' }}>
+                      <Clock className="w-4 h-4" style={{ color: 'var(--chart-2)' }} />
                       Minimum Order
                     </h4>
                     <p className="text-sm text-muted-foreground">{product.minimumOrder}</p>
@@ -518,8 +518,8 @@ export function ProductDetails({
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="font-medium flex items-center gap-2" style={{ color: 'var(--chart-3)' }}>
+                      <CreditCard className="w-4 h-4" style={{ color: 'var(--chart-3)' }} />
                       Payment Terms
                     </h4>
                     <div className="flex flex-wrap gap-2">
@@ -538,8 +538,8 @@ export function ProductDetails({
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="font-medium flex items-center gap-2" style={{ color: 'var(--chart-4)' }}>
+                      <Truck className="w-4 h-4" style={{ color: 'var(--chart-4)' }} />
                       Delivery Options
                     </h4>
                     <div className="flex flex-wrap gap-2">
@@ -558,8 +558,8 @@ export function ProductDetails({
                 <>
                   <Separator />
                   <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <Info className="w-4 h-4 text-muted-foreground" />
+                    <h4 className="font-medium flex items-center gap-2" style={{ color: 'var(--chart-5)' }}>
+                      <Info className="w-4 h-4" style={{ color: 'var(--chart-5)' }} />
                       Additional Information
                     </h4>
                     <div className="p-3 bg-muted/30 rounded-md border border-dashed border-muted-foreground/20">

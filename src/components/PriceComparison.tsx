@@ -8,11 +8,15 @@ import { getRelativeTime } from "../utils/dates";
 
 interface PriceData {
   id: string;
+  name: string; // Full product name
   sellerName: string;
   sellerType: 'farmer' | 'trader';
   price: number;
+  unit: string;
   location: string;
   quantity: string;
+  availableQuantity?: string;
+  minimumOrder?: string;
   lastUpdated: string;
 }
 
@@ -136,49 +140,79 @@ export function PriceComparison({ productName, priceData, unit, onBack, isOwnPro
               sortedData.map((seller, index) => (
                 <div 
                   key={seller.id}
-                  className={`p-4 rounded-lg border transition-colors hover:bg-muted/30 ${
+                  className={`p-3 rounded-lg border transition-colors hover:bg-muted/30 ${
                     index === 0 ? 'bg-green-50 border-green-200' : 'bg-card'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
                       <Badge 
                         variant={seller.sellerType === 'farmer' ? 'default' : 'secondary'}
-                        className="capitalize"
+                        className="capitalize text-xs"
                       >
                         {seller.sellerType}
                       </Badge>
-                      <h3 className="font-medium">{seller.sellerName}</h3>
+                      <h3 className="font-medium text-sm">{seller.sellerName}</h3>
                       {index === 0 && (
-                        <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">
+                        <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200 text-xs">
                           Lowest Price
                         </Badge>
                       )}
                     </div>
                     
                     <div className="text-right">
-                      <p className="text-2xl font-semibold text-primary">
+                      <p className="text-lg font-semibold text-primary">
                         {seller.price.toLocaleString()} MMK
                       </p>
-                      <p className="text-sm text-muted-foreground">per {unit}</p>
+                      <p className="text-xs text-muted-foreground">per {seller.unit || unit}</p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <span>{seller.location}</span>
+                  {/* Product Information */}
+                  <div className="mb-2 p-2 bg-muted/20 rounded-md">
+                    <h4 className="font-medium text-sm mb-1">{seller.name}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {seller.availableQuantity ? 
+                        `${seller.availableQuantity} available` : 
+                        seller.minimumOrder ? 
+                          `Min order: ${seller.minimumOrder}` : 
+                          'Inquire for quantity'
+                      } • {seller.unit || unit}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-sm">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-xs">{seller.location}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Badge variant="outline" className="text-xs">
-                        {seller.quantity}
+                        {seller.availableQuantity ? 
+                          `${seller.availableQuantity} available` : 
+                          seller.minimumOrder ? 
+                            `Min: ${seller.minimumOrder}` : 
+                            'Inquire'
+                        }
                       </Badge>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span>Updated {getRelativeTime(seller.lastUpdated)}</span>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      <span className="text-xs">Updated {getRelativeTime(seller.lastUpdated)}</span>
+                    </div>
+
+                    {/* View Detail Button - Horizontally aligned */}
+                    <div className="flex justify-end">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => window.open(`/product/${seller.id}`, '_blank')}
+                        className="text-xs h-6 px-2"
+                      >
+                        View Detail
+                      </Button>
                     </div>
                   </div>
                 </div>

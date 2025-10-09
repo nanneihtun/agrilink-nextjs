@@ -118,28 +118,24 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     };
   });
 
+  const [availableCustomDeliveryOptions, setAvailableCustomDeliveryOptions] = useState<string[]>(() => {
+    const storedCustomDelivery = localStorage.getItem('agriconnect-custom-delivery-options');
+    return storedCustomDelivery ? JSON.parse(storedCustomDelivery) : [];
+  });
+
   // Get unique available delivery options with custom additions
   const availableDeliveryOptions = useMemo(() => {
     const baseOptions = [
       'Pickup',
-      'Local Delivery (Within 10km)',
+      'Local Delivery',
       'Regional Delivery', 
-      'Nationwide Shipping',
       'Express Delivery',
+      'Nationwide Shipping',
       'Cold Chain Transport'
     ];
     
-    // Get custom delivery options from localStorage
-    const storedCustomDelivery = localStorage.getItem('agriconnect-custom-delivery-options');
-    const customOptions = storedCustomDelivery ? JSON.parse(storedCustomDelivery) : [];
-    
-    return [...baseOptions, ...customOptions];
-  }, []);
-
-  const availableCustomDeliveryOptions = useMemo(() => {
-    const storedCustomDelivery = localStorage.getItem('agriconnect-custom-delivery-options');
-    return storedCustomDelivery ? JSON.parse(storedCustomDelivery) : [];
-  }, []);
+    return [...baseOptions, ...availableCustomDeliveryOptions];
+  }, [availableCustomDeliveryOptions]);
 
   // Check if form data has been modified (for edit mode)
   const hasFormChanges = useMemo(() => {
@@ -198,28 +194,24 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     localStorage.setItem('agriconnect-custom-delivery-options', JSON.stringify(options));
   }, []);
 
+  const [availableCustomPaymentTerms, setAvailableCustomPaymentTerms] = useState<string[]>(() => {
+    const storedCustomPayment = localStorage.getItem('agriconnect-custom-payment-terms');
+    return storedCustomPayment ? JSON.parse(storedCustomPayment) : [];
+  });
+
   // Get unique available payment terms with custom additions
   const availablePaymentTerms = useMemo(() => {
     const baseOptions = [
+      'Cash on Pickup',
       'Cash on Delivery',
       'Bank Transfer',
       'Mobile Payment',
-      'Cash on Pickup',
       '50% Advance, 50% on Delivery',
       '30% Advance, 70% on Delivery'
     ];
     
-    // Get custom payment terms from localStorage
-    const storedCustomPayment = localStorage.getItem('agriconnect-custom-payment-terms');
-    const customOptions = storedCustomPayment ? JSON.parse(storedCustomPayment) : [];
-    
-    return [...baseOptions, ...customOptions];
-  }, []);
-
-  const availableCustomPaymentTerms = useMemo(() => {
-    const storedCustomPayment = localStorage.getItem('agriconnect-custom-payment-terms');
-    return storedCustomPayment ? JSON.parse(storedCustomPayment) : [];
-  }, []);
+    return [...baseOptions, ...availableCustomPaymentTerms];
+  }, [availableCustomPaymentTerms]);
 
   // Save custom payment terms to localStorage
   const saveCustomPaymentTermsToStorage = useCallback((options: string[]) => {
@@ -299,6 +291,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     if (!newCustomDelivery.trim()) return;
     
     const newOptions = [...availableCustomDeliveryOptions, newCustomDelivery.trim()];
+    setAvailableCustomDeliveryOptions(newOptions);
     saveCustomDeliveryToStorage(newOptions);
     setNewCustomDelivery('');
   }, [newCustomDelivery, availableCustomDeliveryOptions, saveCustomDeliveryToStorage]);
@@ -306,6 +299,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   // Remove custom delivery option
   const removeCustomDeliveryOption = useCallback((option: string) => {
     const newOptions = availableCustomDeliveryOptions.filter(o => o !== option);
+    setAvailableCustomDeliveryOptions(newOptions);
     saveCustomDeliveryToStorage(newOptions);
     
     // Also remove from current form if selected
@@ -320,6 +314,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     if (!newCustomPayment.trim()) return;
     
     const newOptions = [...availableCustomPaymentTerms, newCustomPayment.trim()];
+    setAvailableCustomPaymentTerms(newOptions);
     saveCustomPaymentTermsToStorage(newOptions);
     setNewCustomPayment('');
   }, [newCustomPayment, availableCustomPaymentTerms, saveCustomPaymentTermsToStorage]);
@@ -327,6 +322,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   // Remove custom payment option
   const removeCustomPaymentOption = useCallback((term: string) => {
     const newOptions = availableCustomPaymentTerms.filter(o => o !== term);
+    setAvailableCustomPaymentTerms(newOptions);
     saveCustomPaymentTermsToStorage(newOptions);
     
     // Also remove from current form if selected

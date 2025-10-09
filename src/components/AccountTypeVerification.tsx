@@ -1394,9 +1394,12 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     )}
                   </div>
                 </div>
-                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200 flex-shrink-0">
-                  Verified
-                </Badge>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                    Verified
+                  </Badge>
+                  <div className="w-8 h-8 flex-shrink-0"></div>
+                </div>
               </div>
             </CardContent>
           </Card>

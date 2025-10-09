@@ -1,5 +1,5 @@
 import { Badge } from "./ui/badge";
-import { UserBadge, getUserVerificationLevel, getUserAccountType } from "./UserBadgeSystem";
+import { UserBadge, getUserVerificationLevel, getUserAccountType, VERIFICATION_LEVELS } from "./UserBadgeSystem";
 import { myanmarRegions } from "../utils/regions";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -261,18 +261,23 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
               </div>
               
               {/* Verification Actions */}
-              {user.userType !== 'admin' && (
-                <div className="space-y-3">
-                  <Button 
-                    variant="outline" 
-                    className="w-full h-11 font-medium"
-                    onClick={() => onShowVerification(1)}
-                  >
-                    <Shield className="w-4 h-4 mr-2" />
-                    View Verification Details
-                  </Button>
-                </div>
-              )}
+              {user.userType !== 'admin' && (() => {
+                const verificationLevel = getUserVerificationLevel(user);
+                const verificationConfig = VERIFICATION_LEVELS[verificationLevel] || VERIFICATION_LEVELS.unverified;
+                
+                return (
+                  <div className="space-y-3">
+                    <Button 
+                      variant="outline" 
+                      className={`w-full h-11 font-medium ${verificationConfig.borderColor} ${verificationConfig.color} hover:${verificationConfig.bgColor}`}
+                      onClick={() => onShowVerification(1)}
+                    >
+                      <Shield className={`w-4 h-4 mr-2 ${verificationConfig.color}`} />
+                      View Verification Details
+                    </Button>
+                  </div>
+                );
+              })()}
             </CardHeader>
           </Card>
 
