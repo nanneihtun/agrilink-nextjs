@@ -79,8 +79,8 @@ export async function GET(
       
       // Check for meaningful word matches (exclude common words like "fresh", "organic", "premium")
       const commonWords = ['fresh', 'organic', 'premium', 'quality', 'grade', 'a', 'the', 'and', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by'];
-      const searchWords = searchTerm.split(' ').filter(word => word.length > 2 && !commonWords.includes(word));
-      const itemWords = itemName.split(' ').filter(word => word.length > 2 && !commonWords.includes(word));
+      const searchWords = searchTerm.split(' ').filter((word: string) => word.length > 2 && !commonWords.includes(word));
+      const itemWords = itemName.split(' ').filter((word: string) => word.length > 2 && !commonWords.includes(word));
       
       // Must have at least one meaningful word in common
       const hasCommonWords = searchWords.some(searchWord => 
