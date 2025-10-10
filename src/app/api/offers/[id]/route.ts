@@ -99,7 +99,7 @@ export async function PUT(
     
     if (status === 'to_receive') {
       // Check if pickup is in delivery options to determine workflow (case-insensitive)
-      const isPickup = currentOffer.delivery_options && currentOffer.delivery_options.some(option => 
+      const isPickup = currentOffer.delivery_options && currentOffer.delivery_options.some((option: string) => 
         option.toLowerCase() === 'pickup'
       );
       
