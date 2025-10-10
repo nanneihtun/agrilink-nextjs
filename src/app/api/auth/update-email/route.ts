@@ -137,6 +137,9 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
+    // Create verification link
+    const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email-change?token=${emailChangeToken}`;
+
     // Check if Resend API key is available
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json({ 
@@ -144,9 +147,6 @@ export async function POST(request: NextRequest) {
         verificationUrl: verificationLink
       }, { status: 200 });
     }
-
-    // Create verification link
-    const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email-change?token=${emailChangeToken}`;
     
 
     // Send verification email to new email address
