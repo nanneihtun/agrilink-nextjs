@@ -15,7 +15,6 @@ interface UserProfileData {
   joinedDate: string;
   location: string;
   profileImage?: string;
-  experience?: string;
   phone?: string;
   website?: string;
   businessName?: string;
@@ -184,7 +183,7 @@ export default function UserProfilePage() {
             type: userProfile.userType,
             accountType: userProfile.accountType,
             location: userProfile.location || '',
-            description: userProfile.experience || '',
+            description: userProfile.description || '',
             image: userProfile.profileImage || '',
             rating: userProfile.ratings?.rating || 0,
             totalReviews: userProfile.ratings?.totalReviews || 0,

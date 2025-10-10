@@ -152,7 +152,7 @@ export function SimpleOfferModal({
     }
   };
 
-  // Comprehensive options from all product forms (SimplifiedProductForm + products/new + AddListingPage)
+  // Comprehensive options from product forms
   const deliveryOptionsList = [
     // From SimplifiedProductForm
     'Pickup',
@@ -165,7 +165,7 @@ export function SimpleOfferModal({
     'Delivery',
     'Shipping',
     'Local Transport',
-    // From AddListingPage
+    // Additional delivery options
     'Farm Pickup',
     'Local Delivery',
     'Regional Transport',
@@ -185,7 +185,7 @@ export function SimpleOfferModal({
     // From products/new page
     'Credit',
     'Installments',
-    // From AddListingPage
+    // Additional delivery options
     'Advance Payment',
     '30 Days Credit',
     '15 Days Credit',
@@ -273,7 +273,7 @@ export function SimpleOfferModal({
         'Local Delivery (Within 10km)', 'Regional Delivery', 'Nationwide Shipping', 'Express Delivery', 'Cold Chain Transport',
         // From products/new page
         'Delivery', 'Shipping', 'Local Transport',
-        // From AddListingPage
+        // Additional delivery options
         'Local Delivery', 'Regional Transport', 'Cold Chain Delivery', 'Bulk Transport', 'Custom Logistics'
       ].includes(selectedDeliveryOption);
     
@@ -508,7 +508,7 @@ export function SimpleOfferModal({
              'Local Delivery (Within 10km)', 'Regional Delivery', 'Nationwide Shipping', 'Express Delivery', 'Cold Chain Transport',
              // From products/new page
              'Delivery', 'Shipping', 'Local Transport',
-             // From AddListingPage
+             // Additional delivery options
              'Local Delivery', 'Regional Transport', 'Cold Chain Delivery', 'Bulk Transport', 'Custom Logistics'
            ].includes(deliveryOptions[0]) && (
             <div className="space-y-3">

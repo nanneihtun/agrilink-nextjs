@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     if (process.env.RESEND_API_KEY) {
       try {
       await resend.emails.send({
-        from: 'AgriLink <noreply@agrilink.vercel.app>',
+        from: 'AgriLink <noreply@hthheh.com>',
           to: [user.email],
           subject: 'Reset Your AgriLink Password',
           html: `
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
         
         console.log('✅ Password reset email sent to:', user.email);
         console.log('📧 Email details:', {
-          from: 'AgriLink <onboarding@resend.dev>',
+          from: 'AgriLink <noreply@hthheh.com>',
           to: user.email,
           subject: 'Reset Your AgriLink Password'
         });
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       })
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Password reset request error:', error);
     console.error('❌ Error details:', error.message);
     console.error('❌ Error stack:', error.stack);

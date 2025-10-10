@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (process.env.RESEND_API_KEY) {
       try {
         await resend.emails.send({
-          from: 'AgriLink <onboarding@resend.dev>',
+          from: 'AgriLink <noreply@hthheh.com>',
           to: [user.email],
           subject: 'Verify Your AgriLink Account',
           html: `
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         
         console.log('✅ Email verification email sent to:', user.email);
         console.log('📧 Email details:', {
-          from: 'AgriLink <onboarding@resend.dev>',
+          from: 'AgriLink <noreply@hthheh.com>',
           to: user.email,
           subject: 'Verify Your AgriLink Account'
         });

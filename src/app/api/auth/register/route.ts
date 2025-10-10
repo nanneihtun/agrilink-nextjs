@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
       name, 
       userType, 
       accountType, 
-      location 
+      location,
+      phone 
     } = await request.json();
 
     if (!email || !password || !name || !userType || !accountType || !location) {
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
 
     // Create user profile
     await sql`
-      INSERT INTO user_profiles ("userId", location, "createdAt", "updatedAt")
-      VALUES (${newUser.id}, ${location}, NOW(), NOW())
+      INSERT INTO user_profiles ("userId", location, phone, "createdAt", "updatedAt")
+      VALUES (${newUser.id}, ${location}, ${phone || ''}, NOW(), NOW())
     `;
 
     // Create verification record
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       try {
         console.log('📧 Attempting to send verification email...');
         const emailResult = await resend.emails.send({
-          from: 'AgriLink <noreply@agrilink.vercel.app>',
+          from: 'AgriLink <noreply@hthheh.com>',
           to: [newUser.email],
           subject: 'Verify Your AgriLink Account',
           html: `
@@ -150,6 +151,7 @@ export async function POST(request: NextRequest) {
       userType: newUser.userType,
       accountType: newUser.accountType,
       location,
+      phone: phone || '',
       emailVerified: false,
       verified: false,
       phoneVerified: false,

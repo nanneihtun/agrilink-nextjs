@@ -33,7 +33,6 @@ interface User {
   phone?: string;
   businessName?: string;
   businessDescription?: string;
-  experience?: string;
   qualityCertifications?: string[];
   farmingMethods?: string[];
   verified: boolean;
@@ -64,7 +63,6 @@ export function EditProfile({ user, onClose, onSave }: EditProfileProps) {
     phone: user.phone || '',
     businessName: user.businessName || '',
     businessDescription: user.businessDescription || '',
-    experience: user.experience || '',
     qualityCertifications: user.qualityCertifications || [],
     farmingMethods: user.farmingMethods || [],
     profileImage: user.profileImage || '',
@@ -350,15 +348,6 @@ export function EditProfile({ user, onClose, onSave }: EditProfileProps) {
                   {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="experience">Experience</Label>
-                  <Input
-                    id="experience"
-                    value={formData.experience}
-                    onChange={(e) => setFormData(prev => ({ ...prev, experience: e.target.value }))}
-                    placeholder="e.g., 5 years"
-                  />
-                </div>
               </div>
             </div>
 

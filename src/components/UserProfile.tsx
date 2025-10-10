@@ -43,7 +43,6 @@ interface UserProfileData {
   joinedDate: string;
   location?: string;
   profileImage?: string;
-  experience?: string;
   phone?: string;
   website?: string;
   businessName?: string;
@@ -108,7 +107,7 @@ export function UserProfile({
   
   // Profile data state - directly use userProfile prop data
   const [profileData, setProfileData] = useState(() => ({
-    description: userProfile.experience || '',
+    description: userProfile.description || '',
     businessHours: userProfile.businessHours || '',
     phone: userProfile.phone || '',
     email: userProfile.email || '',

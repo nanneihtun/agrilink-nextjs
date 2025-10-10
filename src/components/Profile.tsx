@@ -1,4 +1,5 @@
 import { Badge } from "./ui/badge";
+import { Alert, AlertDescription } from "./ui/alert";
 import { UserBadge, getUserVerificationLevel, getUserAccountType, VERIFICATION_LEVELS } from "./UserBadgeSystem";
 import { myanmarRegions, getRegionFromCity } from "../utils/regions";
 import { Button } from "./ui/button";
@@ -29,6 +30,7 @@ import {
   Key,
   Eye,
   EyeOff,
+  Loader2,
 } from "lucide-react";
 import { formatMemberSinceDate } from "../utils/dates";
 
@@ -73,14 +75,55 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
   });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
-  const [showEmailChange, setShowEmailChange] = useState(false);
-  const [emailData, setEmailData] = useState({
-    newEmail: '',
-    currentPassword: ''
-  });
-  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
+
+  const handleEmailChange = async () => {
+    if (!newEmail || !emailPassword) {
+      setEmailError('Please enter both new email and current password');
+      return;
+    }
+
+    setEmailLoading(true);
+    setEmailError('');
+    setEmailSuccess('');
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setEmailError('Authentication token not found. Please log in again.');
+        return;
+      }
+
+      const response = await fetch('/api/auth/update-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newEmail, currentPassword: emailPassword }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setEmailSuccess(`We've sent a verification email to ${newEmail}. Please check your inbox and click the verification link.`);
+        setNewEmail('');
+        setEmailPassword('');
+        setEditingEmail(false);
+      } else {
+        setEmailError(data.message || 'Failed to update email address');
+      }
+    } catch (error) {
+      setEmailError('Network error. Please try again.');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
   const [formData, setFormData] = useState(() => {
     return {
       name: user.name || '',
@@ -268,83 +311,6 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
     setShowPasswordChange(false);
   };
 
-  const handleEmailChange = async () => {
-    setEmailError('');
-    setEmailSuccess('');
-
-    // Validation
-    if (!emailData.newEmail || !emailData.currentPassword) {
-      setEmailError('All fields are required');
-      return;
-    }
-
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailData.newEmail)) {
-      setEmailError('Please enter a valid email address');
-      return;
-    }
-
-    // Check if new email is different from current
-    if (emailData.newEmail === user.email) {
-      setEmailError('New email must be different from current email');
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/auth/update-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          newEmail: emailData.newEmail,
-          currentPassword: emailData.currentPassword
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setEmailError('Your session has expired. Please log in again.');
-        } else if (response.status === 404) {
-          setEmailError('User not found. Please refresh the page and try again.');
-        } else {
-          setEmailError(data.message || 'Failed to update email. Please try again.');
-        }
-        return;
-      }
-
-      if (data.isDemoAccount) {
-        setEmailError('Demo accounts cannot change email addresses');
-        return;
-      }
-
-      setEmailSuccess(`Verification email sent to ${emailData.newEmail}. Please check your inbox and click the verification link.`);
-      setEmailData({ newEmail: '', currentPassword: '' });
-      setShowEmailChange(false);
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => setEmailSuccess(''), 5000);
-
-    } catch (error) {
-      console.error('Failed to update email:', error);
-      setEmailError('Network error. Please check your connection and try again.');
-    }
-  };
-
-  const toggleEmailPasswordVisibility = () => {
-    setShowEmailPassword(prev => !prev);
-  };
-
-  const cancelEmailChange = () => {
-    setShowEmailChange(false);
-    setEmailData({ newEmail: '', currentPassword: '' });
-    setEmailError('');
-    setEmailSuccess('');
-  };
 
   return (
     <div className="space-y-6">
@@ -364,48 +330,6 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
       </div>
 
 
-      {/* Storefront Info Section for Sellers */}
-      {(user.userType === 'farmer' || user.userType === 'trader') && onViewStorefront && (
-        <Card className="border-primary/30">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Your Storefront</CardTitle>
-                <CardDescription>
-                  Manage your business presence on AgriLink
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Your storefront is how customers discover and interact with your business. 
-              Manage your products, showcase your expertise, and build customer trust.
-            </p>
-            <div className="flex gap-3">
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => onViewStorefront(user.id)}
-              >
-                <Store className="w-4 h-4 mr-2" />
-                View Storefront
-              </Button>
-              <Button 
-                size="sm" 
-                variant="ghost"
-                onClick={() => onViewStorefront(user.id)}
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Manage Content
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Profile Overview */}
@@ -527,16 +451,16 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                 const verificationConfig = VERIFICATION_LEVELS[verificationLevel] || VERIFICATION_LEVELS.unverified;
                 
                 return (
-                  <div className="space-y-3">
-                    <Button 
-                      variant="outline" 
+                <div className="space-y-3">
+                  <Button 
+                    variant="outline" 
                       className={`w-full h-11 font-medium ${verificationConfig.borderColor} ${verificationConfig.color} hover:${verificationConfig.bgColor}`}
-                      onClick={() => onShowVerification(1)}
-                    >
+                    onClick={() => onShowVerification(1)}
+                  >
                       <Shield className={`w-4 h-4 mr-2 ${verificationConfig.color}`} />
-                      View Verification Details
-                    </Button>
-                  </div>
+                    View Verification Details
+                  </Button>
+                </div>
                 );
               })()}
             </CardHeader>
@@ -587,16 +511,97 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     <Mail className="w-4 h-4" />
                     Email Address
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium flex-1">
-                      {user.email}
-                    </p>
-                  </div>
-                  {user.emailVerified && (
-                    <Badge variant="outline" className="text-xs text-green-600 border-green-200">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Verified
-                    </Badge>
+                  
+                  {!editingEmail ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium flex-1">
+                          {user.email}
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingEmail(true)}
+                          className="h-8 w-8 p-0 hover:bg-gray-100"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {user.emailVerified && (
+                        <Badge variant="outline" className="text-xs text-green-600 border-green-200">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-email">New Email Address</Label>
+                        <Input
+                          id="new-email"
+                          type="email"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="Enter new email address"
+                          disabled={emailLoading}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email-password">Current Password</Label>
+                        <Input
+                          id="email-password"
+                          type="password"
+                          value={emailPassword}
+                          onChange={(e) => setEmailPassword(e.target.value)}
+                          placeholder="Enter your current password"
+                          disabled={emailLoading}
+                        />
+                      </div>
+                      
+                      {emailError && (
+                        <Alert variant="destructive">
+                          <AlertDescription>{emailError}</AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      {emailSuccess && (
+                        <Alert className="border-green-200 bg-green-50 text-green-800">
+                          <AlertDescription>{emailSuccess}</AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleEmailChange}
+                          disabled={emailLoading || !newEmail || !emailPassword}
+                          className="flex-1"
+                        >
+                          {emailLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            'Send Verification Email'
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditingEmail(false);
+                            setNewEmail('');
+                            setEmailPassword('');
+                            setEmailError('');
+                            setEmailSuccess('');
+                          }}
+                          disabled={emailLoading}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
 
@@ -628,19 +633,19 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium flex-1">
-                        {formData.phone || 'Add phone number'}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium flex-1">
+                      {formData.phone || 'Add phone number'}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                         onClick={() => setEditing({ field: 'phone', value: formData.phone })}
-                        className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
+                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
                   )}
                   {user.phoneVerified && (
                     <Badge variant="outline" className="text-xs text-green-600 border-green-200">
@@ -718,27 +723,27 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium flex-1">
                         {formData.location ? (() => {
                           // Find the region for this city
                           const regionKey = getRegionFromCity(formData.location);
                           const regionName = regionKey ? myanmarRegions[regionKey as keyof typeof myanmarRegions]?.name : '';
                           return regionName ? `${formData.location}, ${regionName}` : formData.location;
                         })() : 'Add location'}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                         onClick={() => {
                           initializeLocationEditing();
                           startEditing('location', formData.location);
                         }}
-                        className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
+                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
                   )}
                 </div>
               </div>
@@ -913,129 +918,6 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
             </CardContent>
           </Card>
 
-          {/* Email Change */}
-          <Card className="border-primary/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="w-5 h-5" />
-                Email Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!showEmailChange ? (
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="font-medium">Email Address</p>
-                    <p className="text-sm text-muted-foreground">
-                      Change your account email address
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowEmailChange(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Change Email
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Change Email Address</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={cancelEmailChange}
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {/* Success Message */}
-                  {emailSuccess && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">{emailSuccess}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Error Message */}
-                  {emailError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center gap-2 text-red-700">
-                        <AlertCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">{emailError}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    {/* New Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="newEmail">New Email Address</Label>
-                      <Input
-                        id="newEmail"
-                        type="email"
-                        value={emailData.newEmail}
-                        onChange={(e) => setEmailData(prev => ({ ...prev, newEmail: e.target.value }))}
-                        placeholder="Enter your new email address"
-                      />
-                    </div>
-
-                    {/* Current Password */}
-                    <div className="space-y-2">
-                      <Label htmlFor="currentEmailPassword">Current Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="currentEmailPassword"
-                          type={showEmailPassword ? "text" : "password"}
-                          value={emailData.currentPassword}
-                          onChange={(e) => setEmailData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                          className="pr-10"
-                          placeholder="Enter your current password"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={toggleEmailPasswordVisibility}
-                        >
-                          {showEmailPassword ? (
-                            <EyeOff className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-2">
-                      <Button
-                        onClick={handleEmailChange}
-                        className="flex-1"
-                        disabled={!emailData.newEmail || !emailData.currentPassword}
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Update Email
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={cancelEmailChange}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {/* Address Management - Removed for now, using simple location editing above */}
 
@@ -1106,6 +988,7 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
           )}
         </div>
       </div>
+
     </div>
   );
 }

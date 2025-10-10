@@ -65,7 +65,6 @@ interface ProductDetailsProps {
     businessName?: string;
     userType?: string;
     location: string;
-    experience?: string;
     joinedDate?: string;
     rating?: number;
     totalReviews?: number;
@@ -143,7 +142,7 @@ export function ProductDetails({
   const sellerDetails = {
     rating: sellerStats?.rating || 0, // Only use real database data, no hardcoded fallbacks
     totalReviews: sellerStats?.totalReviews || 0, // Only use real database data, no hardcoded fallbacks
-    yearsActive: sellerProfile?.yearsActive || (sellerProfile?.experience ? parseInt(sellerProfile.experience.split(' ')[0]) || 1 : (product.sellerType === 'farmer' ? 5 : 8)),
+    yearsActive: sellerProfile?.yearsActive || (product.sellerType === 'farmer' ? 5 : 8),
     responseTime: sellerStats?.responseTime || sellerProfile?.responseTime || 'Within 24 hours'
   };
 

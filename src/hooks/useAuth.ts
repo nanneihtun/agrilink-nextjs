@@ -15,7 +15,6 @@ export interface User {
   businessName?: string;
   businessDescription?: string;
   businessLicenseNumber?: string;
-  experience: string;
   qualityCertifications?: string[];
   farmingMethods?: string[];
   profileImage?: string;

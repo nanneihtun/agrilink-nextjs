@@ -123,7 +123,6 @@ interface ProductDetailsProps {
     businessName?: string;
     userType?: string;
     location: string;
-    experience?: string;
     joinedDate?: string;
     rating?: number;
     totalReviews?: number;
@@ -172,7 +171,7 @@ export function ProductDetails({
   const sellerDetails = {
     rating: sellerProfile?.rating || 4.2,
     totalReviews: sellerProfile?.totalReviews || (product.sellerType === 'farmer' ? 15 : 28),
-    yearsActive: sellerProfile?.yearsActive || (sellerProfile?.experience ? parseInt(sellerProfile.experience.split(' ')[0]) || 1 : (product.sellerType === 'farmer' ? 5 : 8)),
+    yearsActive: sellerProfile?.yearsActive || (product.sellerType === 'farmer' ? 5 : 8),
     responseTime: sellerProfile?.responseTime || (product.sellerType === 'farmer' ? '3 hours' : '1 hour')
   };
 

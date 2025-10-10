@@ -14,7 +14,7 @@ export async function GET(
     const sellerData = await sql`
       SELECT 
         u.id, u.name, u."userType" as type, u."accountType", u."createdAt" as "joinedDate",
-        up.location, up."profileImage", up.experience, up.phone, up.website,
+        up.location, up."profileImage", up.phone, up.website,
         bd."business_name", bd."business_description", bd."business_hours", bd.specialties, bd.policies,
         us.facebook, us.instagram, us.telegram, us.whatsapp, us.tiktok,
         uv.verified, uv."phoneVerified", uv."verificationStatus",

@@ -76,7 +76,6 @@ export async function GET(request: NextRequest) {
       verifiedAt: null,
       agriLinkVerificationRequested: false,
       agriLinkVerificationRequestedAt: null,
-      experience: 'Unknown',
       totalReviews: 0
     };
 

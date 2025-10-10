@@ -88,18 +88,6 @@ export function calculateYearsActive(joinDateString: string): number {
   return Math.max(1, Math.floor(yearsDiff)); // At least 1 year, rounded down
 }
 
-/**
- * Generates experience text based on user type and years active
- */
-export function generateExperience(userType: string, yearsActive: number): string {
-  if (userType === 'farmer') {
-    return `${yearsActive} ${yearsActive === 1 ? 'year' : 'years'} farming`;
-  } else if (userType === 'trader') {
-    return `${yearsActive} ${yearsActive === 1 ? 'year' : 'years'} trading`;
-  } else {
-    return `${yearsActive} ${yearsActive === 1 ? 'year' : 'years'} experience`;
-  }
-}
 
 /**
  * Formats a date string or ISO timestamp to a readable format for display

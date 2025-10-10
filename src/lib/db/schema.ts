@@ -35,7 +35,6 @@ export const userProfiles = pgTable('user_profiles', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   location: text('location').notNull(),
   phone: text('phone'),
-  experience: text('experience'),
   profileImage: text('profile_image'),
   storefrontImage: text('storefront_image'),
   website: text('website'),

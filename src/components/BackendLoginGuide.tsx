@@ -39,7 +39,6 @@ export function BackendLoginGuide({ onCreateAccount, onLogin, onClose }: Backend
     phone: '',
     businessName: '',
     businessDescription: '',
-    experience: '',
     qualityCertifications: [] as string[],
     farmingMethods: [] as string[]
   });
@@ -272,15 +271,6 @@ export function BackendLoginGuide({ onCreateAccount, onLogin, onClose }: Backend
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="experience">Experience</Label>
-                      <Input
-                        id="experience"
-                        value={formData.experience}
-                        onChange={(e) => setFormData(prev => ({ ...prev, experience: e.target.value }))}
-                        placeholder="e.g., 5 years in agriculture"
-                      />
-                    </div>
                   </>
                 )}
 

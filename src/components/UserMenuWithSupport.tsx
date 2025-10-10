@@ -213,12 +213,6 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
                       <div className="text-muted-foreground">{user.businessDescription}</div>
                     </div>
                   )}
-                  {user.experience && (
-                    <div>
-                      <span className="font-medium">Experience:</span>
-                      <div className="text-muted-foreground">{user.experience}</div>
-                    </div>
-                  )}
                   {user.specialization && (
                     <div>
                       <span className="font-medium">Specialization:</span>

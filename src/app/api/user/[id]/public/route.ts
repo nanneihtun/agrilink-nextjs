@@ -20,7 +20,7 @@ export async function GET(
         SELECT 
           u.id, u.name, u."userType", u."accountType", u."createdAt" as "joinedDate",
           u."businessName", u."businessDescription",
-          up.location, up."profileImage", up.experience, up.phone, up.website,
+          up.location, up."profileImage", up.phone, up.website,
           uv.verified, uv."phoneVerified", uv."verificationStatus"
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
@@ -33,7 +33,7 @@ export async function GET(
         SELECT 
           u.id, u.name, u."userType", u."accountType", u."createdAt" as "joinedDate",
           u."businessName", u."businessDescription",
-          up.location, up."profileImage", up.experience, up.phone, up.website,
+          up.location, up."profileImage", up.phone, up.website,
           uv.verified, uv."phoneVerified", uv."verificationStatus"
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
@@ -136,7 +136,6 @@ export async function GET(
       joinedDate: user.joinedDate,
       location: user.location,
       profileImage: user.profileImage,
-      experience: user.experience,
       phone: user.phone,
       website: user.website,
       

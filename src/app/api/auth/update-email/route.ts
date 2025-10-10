@@ -8,7 +8,10 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 UPDATE EMAIL API ENTRY POINT REACHED');
   try {
+    console.log('📧 Update email API called');
+    console.log('🔍 Request headers:', Object.fromEntries(request.headers.entries()));
     const authHeader = request.headers.get('authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -24,12 +27,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
       }
       
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
-      userId = decoded.userId;
-      
-      if (!userId) {
-        return NextResponse.json({ message: 'Invalid token payload' }, { status: 401 });
-      }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+        userId = decoded.userId;
+        console.log('🔐 JWT decoded successfully, userId:', userId);
+        
+        if (!userId) {
+          console.log('❌ No userId in JWT payload');
+          return NextResponse.json({ message: 'Invalid token payload' }, { status: 401 });
+        }
     } catch (error) {
       return NextResponse.json({ 
         message: error instanceof jwt.JsonWebTokenError ? 'Invalid or expired token' : 'Token verification failed' 
@@ -38,6 +43,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const { newEmail, currentPassword } = await request.json();
+    console.log('📝 Request body received:', { newEmail, hasCurrentPassword: !!currentPassword });
 
     if (!newEmail || !currentPassword) {
       return NextResponse.json({ message: 'New email and current password are required' }, { status: 400 });
@@ -113,6 +119,7 @@ export async function POST(request: NextRequest) {
 
     // Save email change token and new email to database
     try {
+      console.log('💾 Updating database with email change request...');
       await sql`
         UPDATE users 
         SET email_verification_token = ${emailChangeToken}, 
@@ -121,14 +128,20 @@ export async function POST(request: NextRequest) {
             "updatedAt" = NOW()
         WHERE id = ${userId}
       `;
+      console.log('✅ Database updated successfully for user:', userId);
     } catch (error) {
-      return NextResponse.json({ message: 'Failed to save email change request' }, { status: 500 });
+      console.error('❌ Database update error:', error);
+      return NextResponse.json({ 
+        message: 'Failed to save email change request',
+        error: error instanceof Error ? error.message : 'Unknown database error'
+      }, { status: 500 });
     }
 
     // Check if Resend API key is available
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json({ 
-        message: 'Email change verification sent (email sending disabled)'
+        message: 'Email change verification sent (email sending disabled)',
+        verificationUrl: verificationLink
       }, { status: 200 });
     }
 
@@ -137,9 +150,12 @@ export async function POST(request: NextRequest) {
     
 
     // Send verification email to new email address
+    console.log('📧 Sending email change verification email to:', newEmail);
+    console.log('🔗 EMAIL CHANGE VERIFICATION URL FOR TESTING:', verificationLink);
+    
     try {
       const { data, error } = await resend.emails.send({
-        from: 'AgriLink <noreply@agrilink.vercel.app>', // Use your Vercel domain
+        from: 'AgriLink <noreply@hthheh.com>',
         to: [newEmail],
         subject: 'Confirm your new email address - AgriLink',
         html: `
@@ -168,7 +184,13 @@ export async function POST(request: NextRequest) {
       });
 
       if (error) {
-        return NextResponse.json({ message: 'Failed to send verification email' }, { status: 500 });
+        console.error('❌ Resend email error:', error);
+        // Still return success since we have the verification URL for testing
+        return NextResponse.json({ 
+          message: 'Email change request saved. Check terminal for verification URL.',
+          verificationUrl: verificationLink,
+          emailError: error
+        }, { status: 200 });
       }
 
       return NextResponse.json({ 
@@ -178,12 +200,18 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
 
     } catch (error) {
-      return NextResponse.json({ message: 'Failed to send verification email' }, { status: 500 });
+      console.error('❌ Email sending catch error:', error);
+      return NextResponse.json({ 
+        message: 'Failed to send verification email',
+        error: error instanceof Error ? error.message : 'Unknown email error'
+      }, { status: 500 });
     }
 
   } catch (error) {
+    console.error('❌ Update email API error:', error);
     return NextResponse.json({ 
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }

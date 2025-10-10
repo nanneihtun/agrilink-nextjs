@@ -113,7 +113,6 @@ export default function RegisterPage() {
         phone: formData.phone,
         businessName: '', // Will be filled later during profile completion
         businessDescription: '',
-        experience: '1 year', // Default value
         qualityCertifications: [],
         farmingMethods: formData.userType === 'farmer' ? ['Traditional'] : []
       };
