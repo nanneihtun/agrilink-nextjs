@@ -158,7 +158,7 @@ export default function Marketplace() {
   };
 
   const handleViewStorefront = (sellerId: string) => {
-    router.push(`/seller/${sellerId}`);
+    router.push(`/user/${sellerId}`);
   };
 
   // Chat popup handlers
@@ -257,7 +257,7 @@ export default function Marketplace() {
                 product={product}
                 currentUser={currentUser}
                 onProductClick={(productId) => router.push(`/product/${productId}`)}
-                onSellerClick={(sellerId) => router.push(`/seller/${sellerId}`)}
+                onSellerClick={(sellerId) => router.push(`/user/${sellerId}`)}
                 onChatClick={(sellerId) => handleOpenChat(sellerId, product.id)}
                 onOfferClick={(productId) => {
                   // Handle offer click

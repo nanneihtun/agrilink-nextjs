@@ -410,7 +410,12 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-medium truncate">{conversation.otherParty.name}</h3>
+                        <button 
+                          onClick={() => window.open(`/user/${conversation.otherParty.id}`, '_blank')}
+                          className="font-medium truncate hover:text-primary transition-colors text-left"
+                        >
+                          {conversation.otherParty.name}
+                        </button>
                         <UserBadge 
                           userType={conversation.otherParty.type}
                           accountType={getUserAccountType(conversation.otherParty)}

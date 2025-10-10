@@ -143,15 +143,6 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
     fetchAdminData();
   }, []);
 
-  // Refresh data when window regains focus (e.g., when returning from verification panel)
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchAdminData();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, []);
 
   const handleProductAction = (productId: string, action: string) => {
     console.log(`${action} product ${productId}`);

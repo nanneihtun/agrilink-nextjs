@@ -2,12 +2,20 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Alert, AlertDescription } from "./ui/alert";
 import {
   Heart,
   MessageCircle,
   TrendingDown,
   Bell,
-  Eye
+  Eye,
+  Shield,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  MessageSquare,
+  Store,
+  XCircle
 } from "lucide-react";
 import { Product } from "../data/products";
 
@@ -36,6 +44,7 @@ interface BuyerDashboardProps {
   onViewProduct: (productId: string) => void;
   onStartChat: (productId: string, sellerId: string) => void;
   onViewMessages: () => void;
+  onShowVerification?: () => void;
 }
 
 interface SavedProduct {
@@ -57,7 +66,8 @@ export function BuyerDashboard({
   onGoToMarketplace,
   onViewProduct,
   onStartChat,
-  onViewMessages
+  onViewMessages,
+  onShowVerification
 }: BuyerDashboardProps) {
 
 
@@ -110,6 +120,187 @@ export function BuyerDashboard({
         <p className="text-muted-foreground">Your AgriLink buying dashboard</p>
       </div>
 
+      {/* Verification Status Alert */}
+      {(() => {
+        // Helper function to determine verification progress for buyers
+        const getVerificationProgress = () => {
+          if (user.verified && user.phoneVerified) {
+            return 'verified';
+          }
+          
+          // Check for rejection status first
+          if (user.verificationStatus === 'rejected') {
+            return 'rejected';
+          }
+          
+          if (user.verificationStatus === 'under_review' || user.verificationSubmitted) {
+            return 'under-review';
+          }
+          
+          // For buyers, phone verification is the main requirement
+          if (user.phoneVerified) {
+            return 'in-progress';
+          }
+          
+          return 'not-started';
+        };
+
+        const verificationStatus = getVerificationProgress();
+
+        if (verificationStatus === 'verified') {
+          return (
+            <Alert className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-emerald-100">
+              <CheckCircle className="h-5 w-5" style={{ color: '#059669' }} />
+              <AlertDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-emerald-700">AgriLink Verification Complete</span>
+                    </div>
+                    <p className="text-sm text-emerald-600">
+                      Your account is fully verified! You now have enhanced buyer trust and credibility on the platform.
+                    </p>
+                  </div>
+                  <div className="flex justify-end sm:justify-start">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 shrink-0"
+                      onClick={() => {
+                        console.log('👀 View Verification clicked');
+                        onShowVerification?.();
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          );
+        }
+        
+        if (verificationStatus === 'under-review') {
+          return (
+            <Alert className="border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
+              <Shield className="h-5 w-5" style={{ color: '#2563eb' }} />
+              <AlertDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-blue-700">Verification Under Review</span>
+                    </div>
+                    <p className="text-sm text-blue-600">
+                      Your verification documents have been submitted. AgriLink team will review within 1-2 business days.
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 shrink-0"
+                    onClick={() => {
+                      console.log('🔍 Check Status clicked');
+                      onShowVerification?.();
+                    }}
+                  >
+                    Check Status
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          );
+        }
+        
+        if (verificationStatus === 'rejected') {
+          return (
+            <Alert className="border-red-200 bg-gradient-to-r from-red-50 to-red-100">
+              <XCircle className="h-5 w-5" style={{ color: '#dc2626' }} />
+              <AlertDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-red-700">Verification Rejected</span>
+                    </div>
+                    <p className="text-sm text-red-600">
+                      Your verification documents were rejected. Please review the feedback and resubmit with corrected documents.
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-red-600 hover:bg-red-700 text-white shrink-0"
+                    onClick={() => {
+                      console.log('🔄 Redo Verification clicked');
+                      onShowVerification?.();
+                    }}
+                  >
+                    Redo Verification
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          );
+        }
+        
+        if (verificationStatus === 'in-progress') {
+          return (
+            <Alert className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-yellow-100">
+              <Shield className="h-5 w-5" style={{ color: '#d97706' }} />
+              <AlertDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-yellow-700">Complete Your Verification</span>
+                    </div>
+                    <p className="text-sm text-yellow-600">
+                      Your phone is verified! Complete ID verification to get the green verified badge and boost buyer trust.
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white shrink-0"
+                    onClick={() => {
+                      console.log('📋 Continue Verification clicked');
+                      onShowVerification?.();
+                    }}
+                  >
+                    Continue Setup
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          );
+        }
+        
+        // Default: Not started
+        return (
+          <Alert className="border-red-200 bg-gradient-to-r from-red-50 to-red-100">
+            <Shield className="h-5 w-5" style={{ color: '#dc2626' }} />
+            <AlertDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-red-700">Boost Your Buying Experience!</span>
+                  </div>
+                  <p className="text-sm text-red-600">
+                    Verified buyers get priority access to premium sellers and exclusive deals.
+                  </p>
+                </div>
+                <Button 
+                  size="sm" 
+                  className="bg-red-600 hover:bg-red-700 text-white shrink-0"
+                  onClick={() => {
+                    console.log('🚀 Start Verification clicked');
+                    onShowVerification?.();
+                  }}
+                >
+                  Start Verification
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        );
+      })()}
+
       {/* Simple Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -153,6 +344,44 @@ export function BuyerDashboard({
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Button 
+          onClick={() => {
+            console.log('🏪 Browse Marketplace clicked');
+            onGoToMarketplace?.();
+          }}
+          className="h-12 justify-start gap-3 bg-primary hover:bg-primary/90"
+        >
+          <Store className="w-5 h-5" />
+          Browse Marketplace
+        </Button>
+        
+        <Button 
+          onClick={() => {
+            console.log('💬 Check Messages clicked');
+            onViewMessages?.();
+          }}
+          variant="outline"
+          className="h-12 justify-start gap-3"
+        >
+          <MessageSquare className="w-5 h-5" />
+          Check Messages
+        </Button>
+        
+        <Button 
+          onClick={() => {
+            console.log('🔔 Price Alerts clicked');
+            // Could open a price alerts management modal
+          }}
+          variant="outline"
+          className="h-12 justify-start gap-3"
+        >
+          <Bell className="w-5 h-5" />
+          Manage Alerts
+        </Button>
       </div>
 
       {/* Saved Products - Main Content */}

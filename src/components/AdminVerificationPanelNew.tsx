@@ -138,9 +138,6 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
     };
 
     loadRequests();
-    // Refresh every 30 seconds to catch new requests
-    const interval = setInterval(loadRequests, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleApprove = async (requestId: string) => {

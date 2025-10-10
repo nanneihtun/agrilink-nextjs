@@ -17,16 +17,19 @@ export async function GET(
       WHERE "sellerId" = ${sellerId} AND "isActive" = true
     `;
 
-    // Get reviews from offer_reviews table
+    // Get reviews from offer_reviews table with product information
     const reviewsResult = await sql`
       SELECT 
         r.id,
         r.rating,
         r.comment,
         r.created_at,
-        u.name as reviewer_name
+        u.name as reviewer_name,
+        p.name as product_name
       FROM offer_reviews r
       INNER JOIN users u ON r.reviewer_id = u.id
+      INNER JOIN offers o ON r.offer_id = o.id
+      INNER JOIN products p ON o.product_id = p.id
       WHERE r.reviewee_id = ${sellerId}
       ORDER BY r.created_at DESC
       LIMIT 10
@@ -44,7 +47,8 @@ export async function GET(
       rating: review.rating,
       comment: review.comment,
       createdAt: review.created_at,
-      reviewer_name: review.reviewer_name
+      reviewer_name: review.reviewer_name,
+      product_name: review.product_name
     }));
 
     // Calculate completion rate based on profile completeness

@@ -31,9 +31,10 @@ interface Product {
 
 interface ProductPageClientProps {
   product: Product;
+  currentUser?: any;
 }
 
-export function ProductPageClient({ product }: ProductPageClientProps) {
+export function ProductPageClient({ product, currentUser }: ProductPageClientProps) {
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
 
   return (
@@ -108,14 +109,19 @@ export function ProductPageClient({ product }: ProductPageClientProps) {
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Chat with Seller
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => setIsOfferModalOpen(true)}
-                >
-                  <Package className="h-4 w-4 mr-2" />
-                  Make Offer
-                </Button>
+                {/* Show Make Offer button only for buyers and traders, and only when seller is a farmer or trader */}
+                {currentUser && 
+                 (currentUser.userType === 'buyer' || currentUser.userType === 'trader') && 
+                 (product.sellerType === 'farmer' || product.sellerType === 'trader') && (
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => setIsOfferModalOpen(true)}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Make Offer
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

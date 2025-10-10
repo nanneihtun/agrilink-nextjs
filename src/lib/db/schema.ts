@@ -11,6 +11,18 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   userType: text('user_type').notNull(), // farmer, trader, buyer, admin
   accountType: text('account_type').notNull(), // individual, business
+  emailVerified: boolean('email_verified').default(false),
+  emailVerificationToken: text('email_verification_token'),
+  emailVerificationExpires: timestamp('email_verification_expires', { withTimezone: true }),
+  pendingEmail: text('pending_email'),
+  agriLinkVerificationRequested: boolean('agri_link_verification_requested').default(false),
+  agriLinkVerificationRequestedAt: timestamp('agri_link_verification_requested_at', { withTimezone: true }),
+  verificationDocuments: jsonb('verification_documents'),
+  rejectedDocuments: jsonb('rejected_documents'),
+  businessName: text('business_name'),
+  businessDescription: text('business_description'),
+  passwordResetToken: text('password_reset_token'),
+  passwordResetExpires: timestamp('password_reset_expires', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
@@ -252,3 +264,20 @@ export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
+
+// ============================================================================
+// SAVED PRODUCTS TABLE (Buyer's saved products)
+// ============================================================================
+export const savedProducts = pgTable('saved_products', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  savedDate: timestamp('saved_date', { withTimezone: true }).defaultNow(),
+  priceWhenSaved: decimal('price_when_saved', { precision: 10, scale: 2 }),
+  alerts: jsonb('alerts').default({ priceAlert: false, stockAlert: false }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export type SavedProduct = typeof savedProducts.$inferSelect;
+export type NewSavedProduct = typeof savedProducts.$inferInsert;

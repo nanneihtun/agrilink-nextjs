@@ -32,20 +32,31 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user profile data
+    console.log('🔍 Querying database for userId:', user.userId);
+    
     const [userProfile] = await sql`
       SELECT 
         u.id, u.email, u.name, u."userType", u."accountType",
-        u."businessName", u."businessDescription", u."businessLicenseNumber",
-        u."verificationDocuments",
+        u."businessName", u."businessDescription",
+        u."verificationDocuments", u."rejectedDocuments",
         u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
-        u."verificationStatus", u."verificationSubmittedAt",
         up.location, up.phone, up."profileImage",
-        uv.verified, uv."phoneVerified"
+        uv.verified, uv."phoneVerified", uv."verificationStatus", uv."verificationSubmitted"
       FROM users u
       LEFT JOIN user_profiles up ON u.id = up."userId"
       LEFT JOIN user_verification uv ON u.id = uv."userId"
       WHERE u.id = ${user.userId}
     `;
+    
+    console.log('🔍 Database query completed. Result:', !!userProfile);
+    if (userProfile) {
+      console.log('📊 User verification status from DB:', {
+        verified: userProfile.verified,
+        phoneVerified: userProfile.phoneVerified,
+        verificationStatus: userProfile.verificationStatus,
+        verificationSubmitted: userProfile.verificationSubmitted
+      });
+    }
 
     if (!userProfile) {
       return NextResponse.json(
@@ -53,6 +64,19 @@ export async function GET(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    console.log('🔍 API /user/profile - Raw database result:', {
+      id: userProfile.id,
+      location: userProfile.location,
+      phone: userProfile.phone,
+      name: userProfile.name
+    });
+    
+    // Check if user_profiles record exists separately
+    const [profileRecord] = await sql`
+      SELECT * FROM user_profiles WHERE "userId" = ${user.userId}
+    `;
+    console.log('🔍 Separate user_profiles query result:', profileRecord);
 
     return NextResponse.json({
       user: {
@@ -70,10 +94,11 @@ export async function GET(request: NextRequest) {
         businessDescription: userProfile.businessDescription,
         businessLicenseNumber: userProfile.businessLicenseNumber,
         verificationDocuments: userProfile.verificationDocuments,
+        rejectedDocuments: userProfile.rejectedDocuments,
         agriLinkVerificationRequested: userProfile.agriLinkVerificationRequested,
         agriLinkVerificationRequestedAt: userProfile.agriLinkVerificationRequestedAt,
         verificationStatus: userProfile.verificationStatus,
-        verificationSubmittedAt: userProfile.verificationSubmittedAt
+        verificationSubmitted: userProfile.verificationSubmitted
       }
     });
 
@@ -206,11 +231,9 @@ export async function PUT(request: NextRequest) {
       `;
     }
 
-    // Update verification status fields if provided
-    if (agriLinkVerificationRequested !== undefined || 
-        agriLinkVerificationRequestedAt !== undefined || 
-        verificationStatus !== undefined || 
-        verificationSubmittedAt !== undefined) {
+    // Update AgriLink verification request fields if provided
+    if (agriLinkVerificationRequested !== undefined || agriLinkVerificationRequestedAt !== undefined) {
+      console.log('🔄 Updating AgriLink verification request fields...');
       
       const updateFields = [];
       const updateValues = [];
@@ -225,21 +248,36 @@ export async function PUT(request: NextRequest) {
         updateValues.push(agriLinkVerificationRequestedAt);
       }
       
+      if (updateFields.length > 0) {
+        updateFields.push('"updatedAt" = NOW()');
+        updateValues.push(user.userId);
+        
+        const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateValues.length}`;
+        await sql.unsafe(updateQuery, updateValues);
+        console.log('✅ AgriLink verification request fields updated');
+      }
+    }
+
+    // Update verification status fields in user_verification table if provided
+    if (verificationStatus !== undefined) {
+      console.log('🔄 Updating user verification status...');
+      
+      const updateFields = [];
+      const updateValues = [];
+      
       if (verificationStatus !== undefined) {
         updateFields.push('"verificationStatus" = $' + (updateValues.length + 1));
         updateValues.push(verificationStatus);
       }
       
-      if (verificationSubmittedAt !== undefined) {
-        updateFields.push('"verificationSubmittedAt" = $' + (updateValues.length + 1));
-        updateValues.push(verificationSubmittedAt);
+      if (updateFields.length > 0) {
+        updateFields.push('"updatedAt" = NOW()');
+        updateValues.push(user.userId);
+        
+        const updateQuery = `UPDATE user_verification SET ${updateFields.join(', ')} WHERE "userId" = $${updateValues.length}`;
+        await sql.unsafe(updateQuery, updateValues);
+        console.log('✅ User verification status updated');
       }
-      
-      updateFields.push('"updatedAt" = NOW()');
-      updateValues.push(user.userId);
-      
-      const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateValues.length}`;
-      await sql.unsafe(updateQuery, updateValues);
     }
 
     // Get updated user profile

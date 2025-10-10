@@ -191,9 +191,6 @@ export async function POST(request: NextRequest) {
         "buyerId",
         "sellerId", 
         "productId",
-        "productName",
-        "buyerName",
-        "sellerName",
         "lastMessage",
         "lastMessageTime",
         "unreadCount"
@@ -201,9 +198,6 @@ export async function POST(request: NextRequest) {
         ${buyerId},
         ${sellerId},
         ${productId},
-        ${productData[0]?.name || 'Unknown Product'},
-        ${buyerData[0]?.name || 'Unknown Buyer'},
-        ${sellerData[0]?.name || 'Unknown Seller'},
         null,
         null,
         0

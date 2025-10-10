@@ -20,6 +20,7 @@ import {
   Shield
 } from "lucide-react";
 import { FreshDashboard } from "@/components/FreshDashboard";
+import { BuyerDashboard } from "@/components/BuyerDashboard";
 import { AppHeader } from "@/components/AppHeader";
 
 interface User {
@@ -36,6 +37,8 @@ interface User {
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [userProducts, setUserProducts] = useState<any[]>([]);
+  const [savedProducts, setSavedProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -48,6 +51,35 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error fetching user products:", error);
+    }
+  };
+
+  const fetchSavedProducts = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/user/saved-products?userId=${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSavedProducts(data.savedProducts || []);
+      }
+    } catch (error) {
+      console.error("Error fetching saved products:", error);
+    }
+  };
+
+  const fetchAllProducts = async () => {
+    try {
+      const response = await fetch("/api/products");
+      if (response.ok) {
+        const data = await response.json();
+        setAllProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error("Error fetching all products:", error);
     }
   };
 
@@ -92,9 +124,14 @@ export default function DashboardPage() {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       
-      // Fetch user's products
+      // Fetch data based on user type
       if (parsedUser.id) {
-        fetchUserProducts(parsedUser.id);
+        if (parsedUser.userType === 'buyer') {
+          fetchSavedProducts(parsedUser.id);
+          fetchAllProducts();
+        } else {
+          fetchUserProducts(parsedUser.id);
+        }
       }
     } catch (error) {
       console.error("Error parsing user data:", error);
@@ -168,21 +205,37 @@ export default function DashboardPage() {
       <AppHeader currentUser={user} onLogout={handleLogout} />
       
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <FreshDashboard
-          user={user}
-          userProducts={userProducts}
-          onAddListing={() => router.push("/products/new")}
-          onEditListing={(product) => router.push(`/product/${product.id}/edit`)}
-          onDeleteListing={(productId) => {
-            // Handle delete
-            console.log("Delete product:", productId);
-          }}
-          onViewStorefront={() => router.push(`/seller/${user.id}`)}
-          onGoToMarketplace={() => router.push("/")}
-          onViewProduct={(productId) => router.push(`/product/${productId}`)}
-          onShowVerification={() => router.push("/verify")}
-          onViewMessages={() => router.push("/messages")}
-        />
+        {user.userType === 'buyer' ? (
+          <BuyerDashboard
+            user={user}
+            allProducts={allProducts}
+            savedProducts={savedProducts}
+            onGoToMarketplace={() => router.push("/")}
+            onViewProduct={(productId) => router.push(`/product/${productId}`)}
+            onStartChat={(productId, sellerId) => {
+              // Handle chat functionality
+              console.log("Start chat:", productId, sellerId);
+            }}
+            onViewMessages={() => router.push("/messages")}
+            onShowVerification={() => router.push("/verify")}
+          />
+        ) : (
+          <FreshDashboard
+            user={user}
+            userProducts={userProducts}
+            onAddListing={() => router.push("/products/new")}
+            onEditListing={(product) => router.push(`/product/${product.id}/edit`)}
+            onDeleteListing={(productId) => {
+              // Handle delete
+              console.log("Delete product:", productId);
+            }}
+            onViewStorefront={() => router.push(`/seller/${user.id}`)}
+            onGoToMarketplace={() => router.push("/")}
+            onViewProduct={(productId) => router.push(`/product/${productId}`)}
+            onShowVerification={() => router.push("/verify")}
+            onViewMessages={() => router.push("/messages")}
+          />
+        )}
       </div>
     </div>
   );

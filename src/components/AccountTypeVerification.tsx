@@ -14,7 +14,9 @@ import {
   Edit,
   Shield,
   X,
-  Eye
+  Eye,
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 
 interface User {
@@ -84,7 +86,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       if (userDocs.idCard && typeof userDocs.idCard === 'object' && userDocs.idCard.status && userDocs.idCard.status !== 'pending') {
         documents.idCard = {
           file: null,
-          url: '', // We can't restore the file URL, but we know it was uploaded
+          url: userDocs.idCard.data || '', // Use data field for preview
           name: userDocs.idCard.name || 'ID Card Document',
           verified: userDocs.idCard.status === 'verified',
           status: userDocs.idCard.status
@@ -95,7 +97,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       if (userDocs.businessLicense && typeof userDocs.businessLicense === 'object' && userDocs.businessLicense.status && userDocs.businessLicense.status !== 'pending') {
         documents.businessLicense = {
           file: null,
-          url: '',
+          url: userDocs.businessLicense.data || '', // Use data field for preview
           name: userDocs.businessLicense.name || 'Business License Document',
           verified: userDocs.businessLicense.status === 'verified',
           status: userDocs.businessLicense.status
@@ -109,36 +111,44 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
   // Sync uploadedDocuments state when currentUser.verificationDocuments changes
   useEffect(() => {
     const userDocs = (currentUser as any).verificationDocuments;
-    if (userDocs) {
-      setUploadedDocuments(prev => {
-        const updated = { ...prev };
-        
-        // Sync ID Card status
-        if (userDocs.idCard && typeof userDocs.idCard === 'object' && userDocs.idCard.status && userDocs.idCard.status !== 'pending') {
-          updated.idCard = {
-            file: null,
-            url: '',
-            name: userDocs.idCard.name || 'ID Card Document',
-            verified: userDocs.idCard.status === 'verified',
-            status: userDocs.idCard.status
-          };
-        }
-        
-        // Sync Business License status  
-        if (userDocs.businessLicense && typeof userDocs.businessLicense === 'object' && userDocs.businessLicense.status && userDocs.businessLicense.status !== 'pending') {
-          updated.businessLicense = {
-            file: null,
-            url: '',
-            name: userDocs.businessLicense.name || 'Business License Document',
-            verified: userDocs.businessLicense.status === 'verified',
-            status: userDocs.businessLicense.status
-          };
-        }
-        
-        return updated;
-      });
+    console.log('🔄 Document sync useEffect triggered:', { userDocs, agriLinkVerificationRequested });
+    
+    // If verification documents are null (after reset), clear the local state
+    if (!userDocs) {
+      console.log('📝 No user documents found, clearing local state');
+      setUploadedDocuments({});
+      return;
     }
-  }, [currentUser.verificationDocuments]);
+    
+    // If verification documents exist, sync with them
+    setUploadedDocuments(prev => {
+      const updated = { ...prev };
+      
+      // Sync ID Card status
+      if (userDocs.idCard && typeof userDocs.idCard === 'object' && userDocs.idCard.status && userDocs.idCard.status !== 'pending') {
+        updated.idCard = {
+          file: null,
+          url: userDocs.idCard.data || '', // Use data field for preview
+          name: userDocs.idCard.name || 'ID Card Document',
+          verified: userDocs.idCard.status === 'verified',
+          status: userDocs.idCard.status
+        };
+      }
+      
+      // Sync Business License status  
+      if (userDocs.businessLicense && typeof userDocs.businessLicense === 'object' && userDocs.businessLicense.status && userDocs.businessLicense.status !== 'pending') {
+        updated.businessLicense = {
+          file: null,
+          url: userDocs.businessLicense.data || '', // Use data field for preview
+          name: userDocs.businessLicense.name || 'Business License Document',
+          verified: userDocs.businessLicense.status === 'verified',
+          status: userDocs.businessLicense.status
+        };
+      }
+      
+      return updated;
+    });
+  }, [(currentUser as any).verificationDocuments]);
   
   
   // Business form state
@@ -189,7 +199,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     
     setShowSuccessMessage(hasRequestedVerification && isUnderReview && isNotYetVerified);
   }, [currentUser.verificationStatus, currentUser.verified, (currentUser as any).agriLinkVerificationRequested]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Monitor verification status changes to hide success message when status changes
   useEffect(() => {
@@ -200,6 +209,36 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       }
     }
   }, [currentUser.verified, currentUser.verificationStatus, showSuccessMessage]);
+
+  // Fetch rejection details when user has rejected status
+  useEffect(() => {
+    const fetchRejectionDetails = async () => {
+      if (currentUser.verificationStatus === 'rejected') {
+        try {
+          const response = await fetch('/api/user/verification-status', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📋 Verification request status:', data.verificationRequest?.status);
+            if (data.verificationRequest && data.verificationRequest.status === 'rejected') {
+              setRejectionDetails({
+                review_notes: data.verificationRequest.review_notes,
+                reviewed_at: data.verificationRequest.reviewed_at
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch rejection details:', error);
+        }
+      }
+    };
+
+    fetchRejectionDetails();
+  }, [currentUser.verificationStatus]);
   
   // Phone verification state
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
@@ -210,6 +249,23 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
   // Business details state  
   const [showBusinessDetail, setShowBusinessDetail] = useState(false);
   
+  // Document preview modal state
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<{
+    name: string;
+    data: string;
+    type: string;
+    originalData?: string;
+  } | null>(null);
+  
+  // Rejection review state
+  const [showRejectionReview, setShowRejectionReview] = useState(false);
+  const [rejectionDetails, setRejectionDetails] = useState<{
+    review_notes?: string;
+    reviewed_at?: string;
+  } | null>(null);
+  
+  
   // Determine account type
   const isBusinessAccount = currentUser.accountType === 'business';
   
@@ -217,53 +273,104 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
   const getDocumentCompletionStatus = useMemo(() => {
     const userDocs = (currentUser as any).verificationDocuments;
     
-    const hasIdCard = uploadedDocuments.idCard || 
-                     (userDocs?.idCard && userDocs.idCard !== 'pending');
-    
-    // For BOTH individual and business accounts: Identity Documents only requires ID card
-    // Business license is handled in separate Business Details step for business accounts
-    const isComplete = hasIdCard;
-    
-    return { hasIdCard, hasBusinessLicense: false, isComplete };
-  }, [uploadedDocuments.idCard, currentUser.verificationDocuments, isBusinessAccount]);
+    // Documents are only considered complete if user is verified by admin
+    // If user is rejected or not verified, documents should show as "Required" even if visible
+    if (currentUser.verified) {
+      // User is verified - documents are complete
+      const hasIdCard = (userDocs?.idCard && userDocs.idCard.status === 'uploaded') || uploadedDocuments.idCard;
+      return { hasIdCard, hasBusinessLicense: false, isComplete: true };
+    } else if (currentUser.verificationStatus === 'rejected') {
+      // User was rejected - show documents as complete if uploaded for resubmission
+      const hasIdCard = (userDocs?.idCard && userDocs.idCard.status === 'uploaded') || uploadedDocuments.idCard;
+      return { hasIdCard, hasBusinessLicense: false, isComplete: hasIdCard };
+    } else if (agriLinkVerificationRequested) {
+      // Verification submitted but not yet approved - documents are complete for submission
+      const hasIdCard = (userDocs?.idCard && userDocs.idCard.status === 'uploaded') || uploadedDocuments.idCard;
+      return { hasIdCard, hasBusinessLicense: false, isComplete: true };
+    } else {
+      // Not submitted yet - only check local uploaded documents
+      const hasIdCard = uploadedDocuments.idCard;
+      return { hasIdCard, hasBusinessLicense: false, isComplete: hasIdCard };
+    }
+  }, [uploadedDocuments.idCard, currentUser.verificationDocuments, currentUser.verified, currentUser.verificationStatus, agriLinkVerificationRequested]);
   
-  // Calculate progress more comprehensively
+  // Calculate progress based on what the UI actually shows as complete
   const getProgress = () => {
     let completed = 0;
-    let total = isBusinessAccount ? 3 : 2; // Phone, Documents, Business (if business account)
+    let total = isBusinessAccount ? 4 : 3; // Phone, Documents, Business (if business account), AgriLink Verification
 
-    // 1. Phone verification
+    // 1. Phone verification - count as complete if phone is verified
     if (currentUser.phoneVerified) completed++;
     
-    // 2. Documents verification (Identity Documents)
-    const userDocs = (currentUser as any).verificationDocuments;
-    const hasIdCard = uploadedDocuments.idCard || (userDocs?.idCard && userDocs.idCard !== 'pending');
+    // 2. Documents verification - count as complete if documents are uploaded (matches UI logic)
+    if (getDocumentCompletionStatus.isComplete) completed++;
     
-    // For BOTH individual and business accounts, Identity Documents step only requires ID card
-    // Business license is handled separately in the Business Details step
-    if (hasIdCard) {
-      completed++;
-    }
-    
-    // 3. Business details (only for business accounts)
+    // 3. Business details (only for business accounts) - count as complete if business info is filled
     if (isBusinessAccount) {
-      // Business details are complete if business name is filled (business description is optional)
-      const hasBusinessInfo = currentUser.businessName && currentUser.businessName.trim() !== '';
-      const hasBusinessLicense = (currentUser as any).verificationDocuments?.businessLicense && 
-                                (currentUser as any).verificationDocuments.businessLicense.status &&
-                                (currentUser as any).verificationDocuments.businessLicense.status !== 'pending';
-      if (hasBusinessInfo && hasBusinessLicense) completed++;
+      const hasBusinessInfo = Boolean(currentUser.businessName);
+      if (hasBusinessInfo) completed++;
     }
     
-    // If all required steps are completed, show 100% progress
-    // AgriLink verification is handled separately and doesn't affect user completion progress
+    // 4. AgriLink Verification - count as complete if user is verified by admin
+    if (currentUser.verified) completed++;
+    
     const progress = Math.round((completed / total) * 100);
     
     // Ensure progress doesn't exceed 100%
     return Math.min(progress, 100);
   };
 
+  // Cleanup blob URLs on component unmount
+  useEffect(() => {
+    return () => {
+      if (previewDocument && previewDocument.data.startsWith('blob:')) {
+        URL.revokeObjectURL(previewDocument.data);
+      }
+    };
+  }, [previewDocument]);
+
   // Handler functions
+  
+  const handleDocumentPreview = async (documentData: string, documentName: string) => {
+    try {
+      if (!documentData || !documentData.startsWith('data:')) {
+        alert('Invalid document data');
+        return;
+      }
+
+      // Convert Data URL to Blob URL for safer display
+      const [header, base64Data] = documentData.split(',');
+      const mimeType = header.match(/data:([^;]+)/)?.[1] || 'application/octet-stream';
+      
+      // Clean and fix base64 data
+      let cleanBase64 = base64Data.replace(/[^A-Za-z0-9+/]/g, '');
+      while (cleanBase64.length % 4) {
+        cleanBase64 += '=';
+      }
+
+      // Convert to binary
+      const binaryString = atob(cleanBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Create blob and blob URL
+      const blob = new Blob([bytes], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+
+      setPreviewDocument({
+        name: documentName,
+        data: blobUrl,
+        type: mimeType.startsWith('image/') ? 'image' : 'document',
+        originalData: documentData // Keep original for cleanup
+      });
+      setShowDocumentPreview(true);
+    } catch (error) {
+      console.error('Error preparing document preview:', error);
+      alert('Unable to preview document - invalid format');
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, documentType: string) => {
     const file = event.target.files?.[0];
@@ -281,7 +388,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       return;
     }
 
-    setIsSubmitting(true);
     try {
       // Create object URL for preview
       const url = URL.createObjectURL(file);
@@ -348,7 +454,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       console.error('Upload failed:', error);
       alert('Upload failed. Please try again.');
     } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -360,13 +465,47 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     });
   };
 
+  const handleResubmitVerification = async () => {
+    try {
+      // Reset verification status in user_verification table
+      const response = await fetch('/api/user/reset-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        console.log('✅ Reset API successful, updating local state...');
+        
+        // Reset local state immediately
+        setAgriLinkVerificationRequested(false);
+        setUploadedDocuments({});
+        
+        console.log('🔄 Local state reset, calling onVerificationComplete...');
+        
+        // Call verification complete callback to refresh user data
+        if (onVerificationComplete) {
+          onVerificationComplete();
+        }
+        
+        console.log('✅ Verification status and documents reset for resubmission');
+      } else {
+        throw new Error('Failed to reset verification status');
+      }
+    } catch (error) {
+      console.error('Failed to reset verification status:', error);
+      alert('Failed to reset verification status. Please try again.');
+    }
+  };
+
+  // Handle reset verification for resubmission (preserves rejection history)
+
   const handleRequestAgriLinkVerification = async () => {
-    setIsSubmitting(true);
-    
     // Add timeout to prevent infinite processing
     const timeoutId = setTimeout(() => {
       console.error('❌ Verification request timeout - stopping processing');
-      setIsSubmitting(false);
     }, 10000); // 10 second timeout
     
     try {
@@ -528,7 +667,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       alert('Failed to request verification. Please try again.');
     } finally {
       clearTimeout(timeoutId);
-      setIsSubmitting(false);
     }
   };
 
@@ -543,7 +681,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       return;
     }
 
-    setIsSubmitting(true);
     try {
       console.log('💼 Saving business information:', {
         businessName: businessForm.businessName,
@@ -607,7 +744,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       console.error('❌ Error saving business info:', error);
       alert('Failed to save business information. Please try again.');
     } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -1021,10 +1157,10 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     <>
                       <Button 
                         onClick={handleSaveBusinessInfo}
-                        disabled={isSubmitting || (currentUser as any).verificationStatus === 'under_review'}
+                        disabled={(currentUser as any).verificationStatus === 'under_review'}
                         className="flex-1"
                       >
-                        {isSubmitting ? 'Saving...' : 'Save Business Info'}
+                        Save Business Info
                       </Button>
                       
                       {isEditingBusiness && (
@@ -1258,13 +1394,13 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                   <p className={`text-sm truncate ${
                     currentUser.verified 
                       ? 'text-primary/80' 
-                      : getDocumentCompletionStatus.isComplete 
+                      : getDocumentCompletionStatus.isComplete
                       ? 'text-primary/80' 
                       : 'text-primary'
                   }`}>
                     {currentUser.verified 
                       ? 'Documents verified' 
-                      : getDocumentCompletionStatus.isComplete 
+                      : getDocumentCompletionStatus.isComplete
                       ? 'Documents uploaded' 
                       : 'Upload identity documents'
                     }
@@ -1277,14 +1413,14 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                   className={
                     currentUser.verified 
                       ? 'bg-green-100 text-green-700 border-green-200' 
-                      : getDocumentCompletionStatus.isComplete 
+                      : getDocumentCompletionStatus.isComplete
                       ? 'bg-green-100 text-green-700 border-green-200' 
                       : 'bg-red-100 text-red-700 border-red-200'
                   }
                 >
                   {currentUser.verified 
                     ? 'Complete' 
-                    : getDocumentCompletionStatus.isComplete 
+                    : getDocumentCompletionStatus.isComplete
                     ? 'Complete' 
                     : 'Required'
                   }
@@ -1312,12 +1448,27 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
         {isBusinessAccount && (() => {
           // Check business completion status more comprehensively
           const hasBusinessInfo = Boolean(currentUser.businessName); // businessDescription is optional
-          const hasBusinessLicense = Boolean(uploadedDocuments.businessLicense) || 
-                                   (Boolean(currentUser.verificationDocuments?.businessLicense) && 
-                                    currentUser.verificationDocuments?.businessLicense?.status !== 'pending');
+          const hasBusinessLicense = agriLinkVerificationRequested
+            ? (Boolean(currentUser.verificationDocuments?.businessLicense) && 
+               currentUser.verificationDocuments?.businessLicense?.status === 'uploaded')
+            : Boolean(uploadedDocuments.businessLicense); // Only check local state when not submitted
           
-          // If user is verified, business details should be considered complete
-          const isBusinessComplete = currentUser.verified || (hasBusinessInfo && hasBusinessLicense);
+          // Business details completion logic similar to document completion
+          let isBusinessComplete = false;
+          
+          if (currentUser.verified) {
+            // User is verified - business details are complete
+            isBusinessComplete = true;
+          } else if (currentUser.verificationStatus === 'rejected') {
+            // User was rejected - check if they have re-uploaded documents for resubmission
+            isBusinessComplete = hasBusinessInfo && hasBusinessLicense;
+          } else if (agriLinkVerificationRequested) {
+            // Verification submitted but not yet approved - business details are complete for submission
+            isBusinessComplete = hasBusinessInfo && hasBusinessLicense;
+          } else {
+            // Not submitted yet - check if business details are complete
+            isBusinessComplete = hasBusinessInfo && hasBusinessLicense;
+          }
           
           return (
             <Card className={isBusinessComplete ? "bg-primary/5 border-primary/20" : "bg-primary/5 border-primary/20"}>
@@ -1340,7 +1491,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                         Business Details
                       </p>
                       <p className={`text-sm truncate ${isBusinessComplete ? 'text-primary/80' : 'text-primary'}`}>
-                        {isBusinessComplete 
+                        {isBusinessComplete
                           ? 'Business information & license completed' 
                           : hasBusinessInfo 
                           ? 'Business license needed'
@@ -1403,46 +1554,252 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
               </div>
             </CardContent>
           </Card>
-        ) : agriLinkVerificationRequested ? (
-          <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-5 h-5 text-white" />
+        ) : currentUser.verificationStatus === 'rejected' ? (
+          <>
+            {/* Normal AgriLink Verification Card for Rejected Users */}
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 border-2 border-primary/40 flex items-center justify-center flex-shrink-0">
+                      <Shield className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-primary/90 truncate">AgriLink Verification</p>
+                      <p className="text-sm text-primary truncate">Complete all steps to get verified</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-blue-800 truncate">AgriLink Verification</p>
-                    <p className="text-sm text-blue-700 truncate">Verification submitted for review</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Button logic for Request Verification */}
+                    {(() => {
+                      // Check what's missing for resubmission
+                      const missingSteps: string[] = [];
+                      let tooltipText = '';
+                      
+                      if (!currentUser.phoneVerified) missingSteps.push('phone verification');
+                      if (!uploadedDocuments.idCard) missingSteps.push('ID documents');
+                      
+                      // Check business requirements for business accounts
+                      if (isBusinessAccount) {
+                        const hasBusinessInfo = Boolean(currentUser.businessName);
+                        const hasBusinessLicense = Boolean(uploadedDocuments.businessLicense);
+                        
+                        if (!hasBusinessInfo) missingSteps.push('business information');
+                        if (!hasBusinessLicense) missingSteps.push('business license');
+                      }
+                      
+                      // For rejected users, they need to re-upload documents
+                      if (missingSteps.length > 0) {
+                        tooltipText = `Complete ${missingSteps.join(', ')} first`;
+                      } else {
+                        tooltipText = 'Ready to resubmit verification request';
+                      }
+                      
+                      const isDisabled = missingSteps.length > 0;
+                      
+                      return (
+                        <Button
+                          size="sm"
+                          disabled={isDisabled}
+                          variant="outline"
+                          className={`text-xs px-3 py-2 ${
+                            isDisabled 
+                              ? 'opacity-60 cursor-not-allowed' 
+                              : 'bg-primary text-white hover:bg-primary/90 border-primary'
+                          }`}
+                          title={tooltipText}
+                          onClick={!isDisabled ? handleRequestAgriLinkVerification : undefined}
+                        >
+                          Request Verification
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Button 
-                    size="sm"
-                    disabled={true}
-                    variant="secondary"
-                    className="text-xs px-3 py-2 bg-blue-100 text-blue-700 border-blue-200"
-                  >
-                    Verification Requested
-                  </Button>
+              </CardContent>
+            </Card>
+
+            {/* Spacing and Separator for Rejected Users */}
+            <div className="mt-8 mb-6">
+              {/* Section separator line */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-white px-4 text-sm text-gray-500">Previous Submission History</span>
                 </div>
               </div>
+            </div>
 
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="bg-primary/5 border-primary/20">
+            {/* Previous Rejection History Card for Rejected Users */}
+            <Card className="bg-orange-50 border-orange-200">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 border-2 border-primary/40 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-5 h-5 text-primary" />
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-orange-800 truncate">Previous Rejection History</p>
+                      <p className="text-sm text-orange-700 truncate">View rejection feedback and submitted documents</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-primary/90 truncate">AgriLink Verification</p>
-                    <p className="text-sm text-primary truncate">Complete all steps to get verified</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      onClick={() => setShowRejectionReview(!showRejectionReview)}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                      size="sm"
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      {showRejectionReview ? 'Hide' : 'View Rejection Details'}
+                    </Button>
                   </div>
                 </div>
+
+                {/* Expandable Rejection Review Section */}
+                {showRejectionReview && (
+                  <div className="space-y-4 pt-4 border-t border-orange-200">
+                    {/* Admin Review Comments */}
+                    {rejectionDetails?.review_notes && (
+                      <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
+                        <h4 className="font-medium text-orange-800 mb-2">Reviewer Feedback:</h4>
+                        <p className="text-orange-700">{rejectionDetails.review_notes}</p>
+                      </div>
+                    )}
+                    
+                    {/* Review Date */}
+                    {rejectionDetails?.reviewed_at && (
+                      <p className="text-sm text-orange-600">
+                        Reviewed on: {new Date(rejectionDetails.reviewed_at).toLocaleDateString()}
+                      </p>
+                    )}
+                    
+                    {/* Previously Submitted Documents */}
+                    {currentUser.rejectedDocuments && (
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-orange-800">Previously Submitted Documents:</h4>
+                        <div className="space-y-2">
+                          {currentUser.rejectedDocuments.idCard && currentUser.rejectedDocuments.idCard.data && (
+                            <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
+                              <FileText className="w-4 h-4 text-orange-600" />
+                              <span className="text-sm text-orange-800 flex-1">ID Card Document</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDocumentPreview(
+                                  currentUser.rejectedDocuments.idCard.data,
+                                  'ID Card Document'
+                                )}
+                                className="text-orange-700 hover:text-orange-800"
+                              >
+                                View
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {currentUser.rejectedDocuments.businessLicense && currentUser.rejectedDocuments.businessLicense.data && (
+                            <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
+                              <FileText className="w-4 h-4 text-orange-600" />
+                              <span className="text-sm text-orange-800 flex-1">Business License</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDocumentPreview(
+                                  currentUser.rejectedDocuments.businessLicense.data,
+                                  'Business License'
+                                )}
+                                className="text-orange-700 hover:text-orange-800"
+                              >
+                                View
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Close Button */}
+                    <div className="pt-4 border-t border-orange-200">
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowRejectionReview(false)}
+                          className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          </>
+        ) : agriLinkVerificationRequested ? (
+          <>
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Shield className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-blue-800 truncate">AgriLink Verification</p>
+                      <p className="text-sm text-blue-700 truncate">Verification submitted for review</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button 
+                      size="sm"
+                      disabled={true}
+                      variant="secondary"
+                      className="text-xs px-3 py-2 bg-blue-100 text-blue-700 border-blue-200"
+                    >
+                      Verification Requested
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Success Message for Under Review Status */}
+            <p className="text-sm text-blue-700 mb-4">
+              AgriLink verification requested successfully! We will review your documents within 1-2 business days and notify you of the outcome.
+            </p>
+            
+          </>
+        ) : (() => {
+          // Check if user is in resubmit state (no documents, phone-verified status)
+          const hasNoDocuments = !uploadedDocuments.idCard && 
+                               (!isBusinessAccount || !uploadedDocuments.businessLicense) &&
+                               !currentUser.verificationDocuments;
+          
+          const isResubmitState = hasNoDocuments && currentUser.verificationStatus === 'phone-verified';
+          
+          return (
+            <Card className={isResubmitState ? "bg-orange-50 border-orange-200" : "bg-primary/5 border-primary/20"}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      isResubmitState ? 'bg-orange-600' : 'bg-primary/10 border-2 border-primary/40'
+                    }`}>
+                      <Shield className={`w-5 h-5 ${isResubmitState ? 'text-white' : 'text-primary'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium truncate ${isResubmitState ? 'text-orange-800' : 'text-primary/90'}`}>
+                        AgriLink Verification
+                      </p>
+                      <p className={`text-sm truncate ${isResubmitState ? 'text-orange-700' : 'text-primary'}`}>
+                        {isResubmitState ? 'Please re-upload documents to resubmit' : 'Complete all steps to get verified'}
+                      </p>
+                    </div>
+                  </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {/* Always show the Request Verification button for better UX visibility */}
                   {(() => {
@@ -1466,30 +1823,39 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     <Button 
                       size="sm"
                       onClick={handleRequestAgriLinkVerification}
-                      disabled={isSubmitting}
+                      disabled={false}
                       className="text-xs px-3 py-2"
                     >
-                          {isSubmitting ? 'Processing...' : 'Request Verification'}
+                          Request Verification
                         </Button>
                       );
                     } else {
                       // Show disabled button with helpful tooltip
                       const missingSteps: string[] = [];
+                      let tooltipText = '';
+                      
                       if (!currentUser.phoneVerified) missingSteps.push('phone verification');
                       if (!uploadedDocuments.idCard) missingSteps.push('ID documents');
                       if (isBusinessAccount && !hasBusinessInfo) missingSteps.push('business information');
                       if (isBusinessAccount && !hasBusinessLicense) missingSteps.push('business license');
                       
-                      const tooltipText = missingSteps.length > 0 
-                        ? `Complete ${missingSteps.join(', ')} first`
-                        : 'Complete required steps above';
+                      // Special case: After resubmit, user needs to re-upload documents
+                      if (isResubmitState) {
+                        tooltipText = 'Please re-upload documents first to resubmit the verification request';
+                      } else if (missingSteps.length > 0) {
+                        tooltipText = `Complete ${missingSteps.join(', ')} first`;
+                      } else {
+                        tooltipText = 'Complete required steps above';
+                      }
                       
                       return (
-                        <Button 
+                        <Button
                           size="sm"
                           disabled={true}
                           variant="outline"
-                          className="text-xs px-3 py-2 opacity-60 cursor-not-allowed"
+                          className={`text-xs px-3 py-2 opacity-60 cursor-not-allowed ${
+                            isResubmitState ? 'border-orange-300' : ''
+                          }`}
                           title={tooltipText}
                         >
                           Request Verification
@@ -1498,6 +1864,133 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     }
                   })()}
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+          );
+        })()}
+
+        {/* Spacing and Separator for History Card */}
+        {currentUser.rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && (currentUser.verificationStatus === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
+          <>
+            {/* Moderate spacing */}
+            <div className="mt-8 mb-6">
+              {/* Section separator line */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-white px-4 text-sm text-gray-500">Previous Submission History</span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Rejection History Card - shown for users who have rejection history but are not currently rejected */}
+        {currentUser.rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && (currentUser.verificationStatus === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
+          <Card className="bg-orange-50 border-orange-200">
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-orange-600 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-orange-800 truncate">Previous Rejection History</p>
+                      <p className="text-sm text-orange-700 truncate">View rejection feedback and submitted documents</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                     <Button
+                       onClick={() => setShowRejectionReview(!showRejectionReview)}
+                       className="bg-orange-600 hover:bg-orange-700 text-white"
+                       size="sm"
+                     >
+                       <FileText className="w-4 h-4 mr-2" />
+                       {showRejectionReview ? 'Hide' : 'View Previous Rejection'}
+                     </Button>
+                  </div>
+                </div>
+
+                {/* Expandable Rejection Review Section */}
+                {showRejectionReview && (
+                  <div className="space-y-4 pt-4 border-t border-orange-200">
+                    {/* Admin Review Comments */}
+                    {rejectionDetails?.review_notes && (
+                      <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
+                        <h4 className="font-medium text-orange-800 mb-2">Reviewer Feedback:</h4>
+                        <p className="text-orange-700">{rejectionDetails.review_notes}</p>
+                      </div>
+                    )}
+                    
+                    {/* Review Date */}
+                    {rejectionDetails?.reviewed_at && (
+                      <p className="text-sm text-orange-600">
+                        Reviewed on: {new Date(rejectionDetails.reviewed_at).toLocaleDateString()}
+                      </p>
+                    )}
+                    
+                    {/* Previously Submitted Documents */}
+                    {currentUser.rejectedDocuments && (
+                      <div className="space-y-3">
+                        <h4 className="font-medium text-orange-800">Previously Submitted Documents:</h4>
+                        <div className="space-y-2">
+                          {currentUser.rejectedDocuments.idCard && currentUser.rejectedDocuments.idCard.data && (
+                            <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
+                              <FileText className="w-4 h-4 text-orange-600" />
+                              <span className="text-sm text-orange-800 flex-1">ID Card Document</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDocumentPreview(
+                                  currentUser.rejectedDocuments.idCard.data,
+                                  'ID Card Document'
+                                )}
+                                className="text-orange-700 hover:text-orange-800"
+                              >
+                                View
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {currentUser.rejectedDocuments.businessLicense && currentUser.rejectedDocuments.businessLicense.data && (
+                            <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
+                              <FileText className="w-4 h-4 text-orange-600" />
+                              <span className="text-sm text-orange-800 flex-1">Business License</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDocumentPreview(
+                                  currentUser.rejectedDocuments.businessLicense.data,
+                                  'Business License'
+                                )}
+                                className="text-orange-700 hover:text-orange-800"
+                              >
+                                View
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Close Button */}
+                    <div className="pt-4 border-t border-orange-200">
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowRejectionReview(false)}
+                          className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1510,12 +2003,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
           </p>
         )}
 
-        {/* Success Message - shown below AgriLink Verification card */}
-        {showSuccessMessage && (
-          <p className="text-sm text-blue-700">
-            AgriLink verification requested successfully! We will review your documents within 1-2 business days and notify you of the outcome.
-          </p>
-        )}
+
 
 
 
@@ -1534,6 +2022,51 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
         </div>
 
       </div>
+
+      {/* Document Preview Modal */}
+      {showDocumentPreview && previewDocument && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">{previewDocument.name}</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // Clean up blob URL if it exists
+                  if (previewDocument && previewDocument.data.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewDocument.data);
+                  }
+                  setShowDocumentPreview(false);
+                  setPreviewDocument(null);
+                }}
+                className="p-2"
+              >
+                ✕
+              </Button>
+            </div>
+            <div className="flex-1 p-4 overflow-auto">
+              {previewDocument.type === 'image' ? (
+                <img
+                  src={previewDocument.data}
+                  alt={previewDocument.name}
+                  className="max-w-full h-auto mx-auto"
+                  style={{ maxHeight: '70vh' }}
+                />
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-4">Document Preview</p>
+                  <iframe
+                    src={previewDocument.data}
+                    className="w-full h-96 border"
+                    title={previewDocument.name}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

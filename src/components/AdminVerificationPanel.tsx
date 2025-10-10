@@ -21,7 +21,8 @@ import {
   Shield,
   AlertTriangle,
   Download,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from "lucide-react";
 
 interface VerificationRequest {
@@ -78,66 +79,63 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
   const [loading, setLoading] = useState(true);
 
   // Load verification requests from Neon database
-  useEffect(() => {
-    const loadRequests = async () => {
-      try {
-        setLoading(true);
-        
-        const response = await fetch('/api/admin/verification-requests', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      
+      const response = await fetch('/api/admin/verification-requests', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch verification requests');
-        }
-
-        const data = await response.json();
-        const requests = data.requests || [];
-
-        // Transform database data to component format
-        const transformedRequests: VerificationRequest[] = requests.map((req: any) => ({
-          id: req.id,
-          userId: req.user_id,
-          userEmail: req.user_email,
-          userName: req.user_name,
-          userType: req.user_type,
-          accountType: req.account_type,
-          verificationStatus: req.status === 'under_review' ? 'under_review' : 
-                             req.status === 'approved' ? 'verified' : 
-                             req.status === 'rejected' ? 'rejected' : 'under_review',
-          verificationSubmitted: true,
-          verificationDocuments: req.verification_documents || {},
-          businessInfo: {
-            businessName: req.business_name,
-            businessDescription: req.business_description,
-            location: req.business_info?.location,
-            region: req.business_info?.region,
-          },
-          phoneVerified: req.phone_verified || false,
-          submittedAt: req.submitted_at,
-          type: req.account_type === 'business' ? 'Business Account' : 'Individual Account',
-          status: req.status,
-          documents: req.verification_documents || {},
-          businessType: req.account_type,
-          business_name: req.business_name,
-          business_description: req.business_description,
-          business_license_number: req.business_license_number,
-        }));
-
-        setRequests(transformedRequests);
-      } catch (error) {
-        console.error('❌ Failed to load verification requests:', error);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error('Failed to fetch verification requests');
       }
-    };
 
+      const data = await response.json();
+      const requests = data.requests || [];
+
+      // Transform database data to component format
+      const transformedRequests: VerificationRequest[] = requests.map((req: any) => ({
+        id: req.id,
+        userId: req.user_id,
+        userEmail: req.user_email,
+        userName: req.user_name,
+        userType: req.user_type,
+        accountType: req.account_type,
+        verificationStatus: req.status === 'under_review' ? 'under_review' : 
+                           req.status === 'approved' ? 'verified' : 
+                           req.status === 'rejected' ? 'rejected' : 'under_review',
+        verificationSubmitted: true,
+        verificationDocuments: req.verification_documents || {},
+        businessInfo: {
+          businessName: req.business_name,
+          businessDescription: req.business_description,
+          location: req.business_info?.location,
+          region: req.business_info?.region,
+        },
+        phoneVerified: req.phone_verified || false,
+        submittedAt: req.submitted_at,
+        type: req.account_type === 'business' ? 'Business Account' : 'Individual Account',
+        status: req.status,
+        documents: req.verification_documents || {},
+        businessType: req.account_type,
+        business_name: req.business_name,
+        business_description: req.business_description,
+        business_license_number: req.business_license_number,
+      }));
+
+      setRequests(transformedRequests);
+    } catch (error) {
+      console.error('❌ Failed to load verification requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadRequests();
-    // Refresh every 30 seconds to catch new requests
-    const interval = setInterval(loadRequests, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleApprove = async (requestId: string) => {
@@ -229,7 +227,8 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
       });
 
       if (!response.ok) {
-        throw new Error('Failed to reject request');
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to reject request`);
       }
 
       // Refresh requests
@@ -241,10 +240,11 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
 
       setSelectedRequest(null);
       setReviewNotes('');
-      alert('Verification request rejected');
+      alert('Verification request rejected successfully');
     } catch (error) {
       console.error('Error rejecting request:', error);
-      alert('Failed to reject request');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reject request';
+      alert(`Error: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
     }
@@ -298,9 +298,23 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
           <h2 className="text-2xl font-bold text-gray-900">Verification Requests</h2>
           <p className="text-gray-600">Review and manage user verification requests</p>
         </div>
-        <Button variant="outline" onClick={onBack}>
-          ← Back to Dashboard
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              setLoading(true);
+              await loadRequests();
+              setLoading(false);
+            }}
+            disabled={loading}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={onBack}>
+            ← Back to Dashboard
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}

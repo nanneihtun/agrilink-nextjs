@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AppHeader } from "@/components/AppHeader";
-import { Eye, EyeOff, Leaf, Mail, Lock, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Leaf, Mail, Lock } from "lucide-react";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -69,24 +69,12 @@ export default function LoginPage() {
     router.push("/forgot-password");
   };
 
-  const handleBackToHome = () => {
-    router.push("/");
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader />
       
       <div className="max-w-md mx-auto px-4 py-8">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={handleBackToHome}
-          className="mb-6"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Home
-        </Button>
 
         {/* Page Header */}
         <div className="text-center mb-8">
@@ -191,15 +179,6 @@ export default function LoginPage() {
           </CardFooter>
         </Card>
 
-        {/* Demo Credentials */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials:</h3>
-          <div className="text-xs text-blue-800 space-y-1">
-            <div><strong>Admin:</strong> admin@agrilink.com / admin123</div>
-            <div><strong>Seller:</strong> thida@example.com / password123</div>
-            <div><strong>Buyer:</strong> buyer@example.com / password123</div>
-          </div>
-        </div>
       </div>
     </div>
   );

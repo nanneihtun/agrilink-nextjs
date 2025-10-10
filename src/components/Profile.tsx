@@ -1,8 +1,8 @@
 import { Badge } from "./ui/badge";
 import { UserBadge, getUserVerificationLevel, getUserAccountType, VERIFICATION_LEVELS } from "./UserBadgeSystem";
-import { myanmarRegions } from "../utils/regions";
+import { myanmarRegions, getRegionFromCity } from "../utils/regions";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -26,9 +26,11 @@ import {
   Camera,
   Trash2,
   Clock,
+  Key,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { formatMemberSinceDate } from "../utils/dates";
-import { AddressManagement } from "./AddressManagement";
 
 interface ProfileProps {
   user: any;
@@ -58,6 +60,27 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
 
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [editingImage, setEditingImage] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [showEmailChange, setShowEmailChange] = useState(false);
+  const [emailData, setEmailData] = useState({
+    newEmail: '',
+    currentPassword: ''
+  });
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState('');
   const [formData, setFormData] = useState(() => {
     return {
       name: user.name || '',
@@ -68,6 +91,36 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
       businessName: user.businessName || '',
     };
   });
+  
+  // State for location editing (region + city)
+  const [editingLocation, setEditingLocation] = useState({
+    region: '',
+    city: ''
+  });
+
+  // Update formData when user prop changes
+  useEffect(() => {
+    console.log('🔄 Profile component - user prop changed:', {
+      phone: user.phone,
+      location: user.location,
+      name: user.name
+    });
+    
+    setFormData({
+      name: user.name || '',
+      phone: user.phone || '',
+      location: user.location || '',
+      profileImage: user.profileImage || '',
+      region: user.region || '',
+      businessName: user.businessName || '',
+    });
+    
+    console.log('✅ Profile component - formData updated with:', {
+      phone: user.phone || '',
+      location: user.location || '',
+      name: user.name || ''
+    });
+  }, [user]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async (field: string, value: string) => {
@@ -121,12 +174,176 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
   const cancelEditing = () => {
     setEditing(null);
     setEditingImage(false);
+    setEditingLocation({ region: '', city: '' });
   };
 
   const getAvailableCities = () => {
     if (!formData.region) return [];
     const region = myanmarRegions[formData.region];
     return region ? region.cities : [];
+  };
+  
+  // Get available cities for editing location
+  const getAvailableCitiesForEditing = () => {
+    if (!editingLocation.region) return [];
+    const region = myanmarRegions[editingLocation.region];
+    return region ? region.cities : [];
+  };
+  
+  // Initialize location editing state
+  const initializeLocationEditing = () => {
+    const regionKey = getRegionFromCity(formData.location);
+    setEditingLocation({
+      region: regionKey || '',
+      city: formData.location || ''
+    });
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      setPasswordError('All fields are required');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setPasswordError('Your session has expired. Please log in again.');
+        } else if (response.status === 404) {
+          setPasswordError('User not found. Please refresh the page and try again.');
+        } else {
+          setPasswordError(data.message || 'Failed to change password. Please try again.');
+        }
+        return;
+      }
+
+      setPasswordSuccess('Password changed successfully!');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswordChange(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setPasswordSuccess(''), 3000);
+    } catch (error) {
+      console.error('Password change error:', error);
+      setPasswordError('An error occurred. Please try again.');
+    }
+  };
+
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+    setShowPasswords(prev => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  const cancelPasswordChange = () => {
+    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    setPasswordError('');
+    setPasswordSuccess('');
+    setShowPasswordChange(false);
+  };
+
+  const handleEmailChange = async () => {
+    setEmailError('');
+    setEmailSuccess('');
+
+    // Validation
+    if (!emailData.newEmail || !emailData.currentPassword) {
+      setEmailError('All fields are required');
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailData.newEmail)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    // Check if new email is different from current
+    if (emailData.newEmail === user.email) {
+      setEmailError('New email must be different from current email');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/update-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          newEmail: emailData.newEmail,
+          currentPassword: emailData.currentPassword
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setEmailError('Your session has expired. Please log in again.');
+        } else if (response.status === 404) {
+          setEmailError('User not found. Please refresh the page and try again.');
+        } else {
+          setEmailError(data.message || 'Failed to update email. Please try again.');
+        }
+        return;
+      }
+
+      if (data.isDemoAccount) {
+        setEmailError('Demo accounts cannot change email addresses');
+        return;
+      }
+
+      setEmailSuccess(`Verification email sent to ${emailData.newEmail}. Please check your inbox and click the verification link.`);
+      setEmailData({ newEmail: '', currentPassword: '' });
+      setShowEmailChange(false);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setEmailSuccess(''), 5000);
+
+    } catch (error) {
+      console.error('Failed to update email:', error);
+      setEmailError('Network error. Please check your connection and try again.');
+    }
+  };
+
+  const toggleEmailPasswordVisibility = () => {
+    setShowEmailPassword(prev => !prev);
+  };
+
+  const cancelEmailChange = () => {
+    setShowEmailChange(false);
+    setEmailData({ newEmail: '', currentPassword: '' });
+    setEmailError('');
+    setEmailSuccess('');
   };
 
   return (
@@ -145,6 +362,50 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
           <p className="text-muted-foreground">View and manage your account information</p>
         </div>
       </div>
+
+
+      {/* Storefront Info Section for Sellers */}
+      {(user.userType === 'farmer' || user.userType === 'trader') && onViewStorefront && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <Store className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Your Storefront</CardTitle>
+                <CardDescription>
+                  Manage your business presence on AgriLink
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Your storefront is how customers discover and interact with your business. 
+              Manage your products, showcase your expertise, and build customer trust.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => onViewStorefront(user.id)}
+              >
+                <Store className="w-4 h-4 mr-2" />
+                View Storefront
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => onViewStorefront(user.id)}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Manage Content
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Profile Overview */}
@@ -310,6 +571,7 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
 
         {/* Detailed Information */}
         <div className="lg:col-span-2 space-y-6">
+
           {/* Contact Information */}
           <Card className="border-primary/30">
             <CardHeader>
@@ -325,7 +587,17 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     <Mail className="w-4 h-4" />
                     Email Address
                   </div>
-                  <p className="font-medium">{user.email}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium flex-1">
+                      {user.email}
+                    </p>
+                  </div>
+                  {user.emailVerified && (
+                    <Badge variant="outline" className="text-xs text-green-600 border-green-200">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Verified
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -333,19 +605,43 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     <Phone className="w-4 h-4" />
                     Phone Number
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium flex-1">
-                      {formData.phone || 'Add phone number'}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onShowVerification(3)}
-                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  {editing?.field === 'phone' ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editing.value}
+                        onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                        placeholder="Enter phone number"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSave('phone', editing.value);
+                          if (e.key === 'Escape') cancelEditing();
+                        }}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" onClick={() => handleSave('phone', editing.value)}>
+                          <Save className="w-4 h-4 mr-1" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEditing}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium flex-1">
+                        {formData.phone || 'Add phone number'}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditing({ field: 'phone', value: formData.phone })}
+                        className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                   {user.phoneVerified && (
                     <Badge variant="outline" className="text-xs text-green-600 border-green-200">
                       <CheckCircle className="w-3 h-3 mr-1" />
@@ -359,26 +655,389 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     <MapPin className="w-4 h-4" />
                     Location
                   </div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium flex-1">
-                      {formData.location || 'Add location'}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => startEditing('location', formData.location)}
-                      className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  {editing?.field === 'location' ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10" />
+                          <Select
+                            value={editingLocation.region}
+                            onValueChange={(value) => {
+                              setEditingLocation(prev => ({ 
+                                region: value, 
+                                city: '' // Reset city when region changes
+                              }));
+                            }}
+                          >
+                            <SelectTrigger className="pl-10">
+                              <SelectValue placeholder="Select region" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-64 overflow-y-auto">
+                              {Object.entries(myanmarRegions).map(([key, region]) => (
+                                <SelectItem key={key} value={key}>{region.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 z-10" />
+                          <Select
+                            value={editingLocation.city}
+                            onValueChange={(value) => setEditingLocation(prev => ({ ...prev, city: value }))}
+                            disabled={!editingLocation.region}
+                          >
+                            <SelectTrigger className="pl-10">
+                              <SelectValue placeholder="Select city" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-64 overflow-y-auto">
+                              {getAvailableCitiesForEditing().map((city) => (
+                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      {!editingLocation.region && (
+                        <p className="text-xs text-muted-foreground">Please select a region first</p>
+                      )}
+                      
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleSave('location', editingLocation.city)}
+                          disabled={!editingLocation.region || !editingLocation.city}
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={cancelEditing}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium flex-1">
+                        {formData.location ? (() => {
+                          // Find the region for this city
+                          const regionKey = getRegionFromCity(formData.location);
+                          const regionName = regionKey ? myanmarRegions[regionKey as keyof typeof myanmarRegions]?.name : '';
+                          return regionName ? `${formData.location}, ${regionName}` : formData.location;
+                        })() : 'Add location'}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          initializeLocationEditing();
+                          startEditing('location', formData.location);
+                        }}
+                        className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Address Management */}
-          <AddressManagement userId={user.id} />
+          {/* Password Change */}
+          <Card className="border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="w-5 h-5" />
+                Security Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!showPasswordChange ? (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="font-medium">Password</p>
+                    <p className="text-sm text-muted-foreground">
+                      Change your account password
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPasswordChange(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Key className="w-4 h-4" />
+                    Change Password
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Change Password</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelPasswordChange}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Success Message */}
+                  {passwordSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">{passwordSuccess}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {passwordError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">{passwordError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {/* Current Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showPasswords.current ? "text" : "password"}
+                          value={passwordData.currentPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          className="pr-10"
+                          placeholder="Enter your current password"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => togglePasswordVisibility('current')}
+                        >
+                          {showPasswords.current ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* New Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showPasswords.new ? "text" : "password"}
+                          value={passwordData.newPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                          className="pr-10"
+                          placeholder="Enter your new password"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => togglePasswordVisibility('new')}
+                        >
+                          {showPasswords.new ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showPasswords.confirm ? "text" : "password"}
+                          value={passwordData.confirmPassword}
+                          onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                          className="pr-10"
+                          placeholder="Confirm your new password"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => togglePasswordVisibility('confirm')}
+                        >
+                          {showPasswords.confirm ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        onClick={handlePasswordChange}
+                        className="flex-1"
+                        disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Update Password
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={cancelPasswordChange}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Email Change */}
+          <Card className="border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Email Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!showEmailChange ? (
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="font-medium">Email Address</p>
+                    <p className="text-sm text-muted-foreground">
+                      Change your account email address
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowEmailChange(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Change Email
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Change Email Address</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelEmailChange}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Success Message */}
+                  {emailSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-green-700">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">{emailSuccess}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {emailError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">{emailError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {/* New Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="newEmail">New Email Address</Label>
+                      <Input
+                        id="newEmail"
+                        type="email"
+                        value={emailData.newEmail}
+                        onChange={(e) => setEmailData(prev => ({ ...prev, newEmail: e.target.value }))}
+                        placeholder="Enter your new email address"
+                      />
+                    </div>
+
+                    {/* Current Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="currentEmailPassword">Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="currentEmailPassword"
+                          type={showEmailPassword ? "text" : "password"}
+                          value={emailData.currentPassword}
+                          onChange={(e) => setEmailData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                          className="pr-10"
+                          placeholder="Enter your current password"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={toggleEmailPasswordVisibility}
+                        >
+                          {showEmailPassword ? (
+                            <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-2">
+                      <Button
+                        onClick={handleEmailChange}
+                        className="flex-1"
+                        disabled={!emailData.newEmail || !emailData.currentPassword}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Update Email
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={cancelEmailChange}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Address Management - Removed for now, using simple location editing above */}
 
           {/* Storefront Management */}
           {(user.userType === 'farmer' || user.userType === 'trader') && (
@@ -409,6 +1068,37 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     className="w-full"
                   >
                     View My Storefront
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Public Profile Management for Buyers */}
+          {user.userType === 'buyer' && (
+            <Card className="border-primary/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Public Profile
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-muted/50 rounded-lg p-4 text-center space-y-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                    <User className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Manage Your Public Profile</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Set up your personal information, preferences, and social media links in your dedicated public profile.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => window.open(`/user/${user.id}`, '_blank')}
+                    className="w-full"
+                  >
+                    View My Public Profile
                   </Button>
                 </div>
               </CardContent>

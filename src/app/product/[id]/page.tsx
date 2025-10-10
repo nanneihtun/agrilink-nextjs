@@ -97,7 +97,7 @@ export default function ProductDetailsPage() {
         // Fetch seller stats if we have a seller ID
         if (data.product?.sellerId) {
           console.log('🔍 Product detail - Fetching seller stats for:', data.product.sellerId);
-          const statsResponse = await fetch(`/api/seller/${data.product.sellerId}/stats`);
+          const statsResponse = await fetch(`/api/user/${data.product.sellerId}/public`);
           if (statsResponse.ok) {
             const statsData = await statsResponse.json();
             console.log('📊 Product detail - Seller stats received:', statsData.stats);
@@ -428,6 +428,19 @@ export default function ProductDetailsPage() {
                             <MessageCircle className="w-3 h-3 mr-1" />
                             Contact Seller
                           </Button>
+                          {/* Show Make Offer button only for buyers and traders, and only when seller is a farmer or trader */}
+                          {user && 
+                           (user.userType === 'buyer' || user.userType === 'trader') && 
+                           (product.sellerType === 'farmer' || product.sellerType === 'trader') && (
+                            <Button 
+                              variant="outline" 
+                              onClick={() => router.push(`/messages?productId=${product.id}`)}
+                              className="flex-1 h-9 text-sm"
+                            >
+                              <Package className="w-3 h-3 mr-1" />
+                              Make Offer
+                            </Button>
+                          )}
                           <Button 
                             variant="outline" 
                             onClick={() => router.push(`/products/${product.id}/price-comparison`)}
@@ -582,7 +595,7 @@ export default function ProductDetailsPage() {
                     <Store className="w-4 h-4 text-muted-foreground" />
                     <button 
                       className="font-medium text-primary hover:underline"
-                      onClick={() => router.push(`/seller/${product.sellerId}`)}
+                      onClick={() => router.push(`/user/${product.sellerId}`)}
                     >
                       {product.sellerName}
                     </button>
@@ -649,7 +662,7 @@ export default function ProductDetailsPage() {
                 <div className="space-y-2">
                   {!isOwnProduct && (
                     <Button 
-                      onClick={() => router.push(`/seller/${product.sellerId}`)}
+                      onClick={() => router.push(`/user/${product.sellerId}`)}
                       variant="outline" 
                       size="sm"
                       className="w-full"

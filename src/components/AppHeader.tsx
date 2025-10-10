@@ -172,14 +172,14 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
               <div className="flex items-center gap-1 md:gap-2">
                 {/* Mobile: Icon only buttons */}
                 <Button
-                  variant="outline"
+                  variant={isActive("/login") ? "default" : "outline"}
                   onClick={handleGoToLogin}
                   className="md:hidden px-2 h-8"
                 >
                   <LogIn className="w-4 h-4" />
                 </Button>
                 <Button
-                  variant="outline"
+                  variant={isActive("/register") ? "default" : "outline"}
                   onClick={handleGoToRegister}
                   className="md:hidden px-2 h-8"
                 >
@@ -188,7 +188,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
 
                 {/* Desktop: Full label buttons */}
                 <Button
-                  variant="outline"
+                  variant={isActive("/login") ? "default" : "outline"}
                   onClick={handleGoToLogin}
                   className="hidden md:flex h-9 px-4 text-sm"
                 >
@@ -196,7 +196,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
                   Sign In
                 </Button>
                 <Button
-                  variant="outline"
+                  variant={isActive("/register") ? "default" : "outline"}
                   onClick={handleGoToRegister}
                   className="hidden md:flex h-9 px-4 text-sm"
                 >

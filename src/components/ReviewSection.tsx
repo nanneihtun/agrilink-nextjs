@@ -82,12 +82,15 @@ export function ReviewSection({
 
       if (response.ok) {
         const data = await response.json();
-        setReviews(data.reviews || []);
+        const allReviews = data.reviews || [];
         
-        // Check if current user has already reviewed
-        const userReview = data.reviews.find((review: Review) => 
+        // Only show the current user's review of the other party
+        const userReview = allReviews.find((review: Review) => 
           review.reviewer.id === currentUserId
         );
+        
+        // Set only the current user's review for display
+        setReviews(userReview ? [userReview] : []);
         setHasReviewed(!!userReview);
       }
     } catch (error) {
@@ -196,7 +199,7 @@ export function ReviewSection({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ThumbsUp className="w-5 h-5 text-green-600" />
-          Reviews & Feedback
+          Your Review
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -270,11 +273,11 @@ export function ReviewSection({
           </div>
         )}
 
-        {/* Reviews List */}
+        {/* Your Review Display */}
         {reviews.length > 0 ? (
           <div className="space-y-4">
             <h3 className="font-semibold text-gray-900">
-              Reviews ({reviews.length})
+              Your Review
             </h3>
             {reviews.map((review) => (
               <div key={review.id} className="border border-gray-200 rounded-lg p-4">
@@ -318,8 +321,8 @@ export function ReviewSection({
         ) : (
           <div className="text-center py-8 text-gray-500">
             <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>No reviews yet</p>
-            <p className="text-sm">Be the first to leave a review!</p>
+            <p>No review submitted yet</p>
+            <p className="text-sm">Leave a review for {otherParty.name} above</p>
           </div>
         )}
       </CardContent>

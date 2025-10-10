@@ -561,7 +561,7 @@ export default function OfferDetailsPage() {
                   variant="outline"
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
-                  Contact Seller
+                  {isBuyer ? 'Contact Seller' : 'Contact Buyer'}
                 </Button>
               </CardContent>
             </Card>

@@ -127,6 +127,19 @@ export const VERIFICATION_LEVELS: Record<string, VerificationLevel> = {
     requirements: ['Account registration', 'Email verification'],
     accountTypes: ['individual', 'business']
   },
+  rejected: {
+    key: 'rejected',
+    label: 'Verification Rejected',
+    shortLabel: 'Rejected',
+    icon: AlertCircle,
+    description: 'Verification documents were rejected - resubmission required',
+    color: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-50 dark:bg-red-900/20',
+    borderColor: 'border-red-200 dark:border-red-800',
+    level: 0,
+    requirements: ['Resubmit verification documents', 'Review admin feedback'],
+    accountTypes: ['individual', 'business']
+  },
   'phone-verified': {
     key: 'phone-verified',
     label: 'Phone Verified',
@@ -681,6 +694,11 @@ export function BadgeExplanation({ className }: BadgeExplanationProps) {
 
 // Helper function to determine verification level from user data (matches product card logic)
 export function getUserVerificationLevel(user: any): string {
+  // Check for rejection status first - highest priority
+  if (user.verificationStatus === 'rejected') {
+    return 'rejected';
+  }
+  
   // Check for under review - but only if not already verified
   // Priority: Approved status overrides under-review status
   if (user.verificationStatus === 'under_review' || 

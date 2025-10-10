@@ -22,7 +22,8 @@ import {
   Star,
   Calendar,
   MapPin,
-  CheckCircle
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 
 interface Product {
@@ -145,7 +146,21 @@ export function FreshDashboard({
       {(() => {
         // Helper function to determine verification progress
         const getVerificationProgress = () => {
+          console.log('🔍 Dashboard verification status check:', {
+            verified: user.verified,
+            phoneVerified: user.phoneVerified,
+            verificationStatus: user.verificationStatus,
+            verificationSubmitted: user.verificationSubmitted,
+            userType: user.userType,
+            accountType: user.accountType
+          });
+
           if (user.verified) return 'verified';
+          
+          // Check for rejection status first
+          if (user.verificationStatus === 'rejected') {
+            return 'rejected';
+          }
           
           if (user.verificationStatus === 'under_review' || user.verificationSubmitted) {
             return 'under-review';
@@ -240,23 +255,53 @@ export function FreshDashboard({
           );
         }
         
+        if (verificationStatus === 'rejected') {
+          return (
+            <Alert className="border-red-200 bg-gradient-to-r from-red-50 to-red-100">
+              <XCircle className="h-5 w-5" style={{ color: '#dc2626' }} />
+              <AlertDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-red-700">Verification Rejected</span>
+                    </div>
+                    <p className="text-sm text-red-600">
+                      Your verification documents were rejected. Please review the feedback and resubmit with corrected documents.
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-red-600 hover:bg-red-700 text-white shrink-0"
+                    onClick={() => {
+                      console.log('🔄 View Rejection Details clicked');
+                      window.location.href = '/verify';
+                    }}
+                  >
+                    View Rejection Details
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          );
+        }
+        
         if (verificationStatus === 'in-progress') {
           return (
-            <Alert className="border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+            <Alert className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-yellow-100">
               <Shield className="h-5 w-5" style={{ color: '#d97706' }} />
               <AlertDescription>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-primary">Complete Your Verification</span>
+                      <span className="font-semibold text-yellow-700">Complete Your Verification</span>
                     </div>
-                    <p className="text-sm text-primary/80">
+                    <p className="text-sm text-yellow-600">
                       Your phone is verified! Complete ID verification to get the green verified badge and boost buyer trust.
                     </p>
                   </div>
                   <Button 
                     size="sm" 
-                    className="bg-primary hover:bg-primary/90 text-white shrink-0"
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white shrink-0"
                     onClick={() => {
                       console.log('📋 Continue Verification clicked');
                       onShowVerification?.();

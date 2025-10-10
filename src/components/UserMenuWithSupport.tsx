@@ -87,6 +87,14 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
           borderColor: 'border-yellow-200 dark:border-yellow-800',
           dotColor: 'bg-yellow-600'
         };
+      case 'rejected':
+        return {
+          status: 'rejected',
+          color: 'text-red-600 dark:text-red-400', // Red for rejected
+          bgColor: 'bg-red-50 dark:bg-red-900/20',
+          borderColor: 'border-red-200 dark:border-red-800',
+          dotColor: 'bg-red-600'
+        };
       default: // unverified
         return {
           status: 'not-started',
@@ -470,6 +478,12 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
             <DropdownMenuItem onClick={() => onViewStorefront?.(user.id)}>
               <Store className="mr-2 h-4 w-4" />
               <span>My Storefront</span>
+            </DropdownMenuItem>
+          )}
+          {user.userType === 'buyer' && (
+            <DropdownMenuItem onClick={() => window.open(`/user/${user.id}`, '_blank')}>
+              <User className="mr-2 h-4 w-4" />
+              <span>Public Profile</span>
             </DropdownMenuItem>
           )}
 

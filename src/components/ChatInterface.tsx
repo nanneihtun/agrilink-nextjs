@@ -23,7 +23,7 @@ interface Message {
 
 interface ChatInterfaceProps {
   otherPartyName: string;
-  otherPartyType: 'farmer' | 'trader';
+  otherPartyType: 'farmer' | 'trader' | 'buyer';
   otherPartyLocation: string;
   otherPartyRating: number;
   productName: string;
@@ -384,7 +384,7 @@ export function ChatInterface({
       console.error('❌ Failed to send message:', error);
       // Restore message on error
       setNewMessage(messageToSend);
-      toast.error('Failed to send message. Please try again.');
+      alert('Failed to send message. Please try again.');
     } finally {
       setIsLoading(false);
       
@@ -813,7 +813,17 @@ export function ChatInterface({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              {otherPartyName}
+              <button 
+                onClick={() => {
+                  const route = (otherPartyType === 'farmer' || otherPartyType === 'trader') 
+                    ? `/seller/${otherPartyId}` 
+                    : `/user/${otherPartyId}`;
+                  window.open(route, '_blank');
+                }}
+                className="text-left hover:text-primary transition-colors"
+              >
+                {otherPartyName}
+              </button>
               <AccountTypeBadge 
                 userType={otherPartyType}
                 accountType="individual"
@@ -823,9 +833,10 @@ export function ChatInterface({
             </CardTitle>
           </div>
           <div className="flex gap-2">
-            {/* Offer button - show for buyers and traders (they make offers to purchase products) */}
+            {/* Offer button - show for buyers and traders, but only when chatting with sellers (farmers/traders) */}
             {effectiveCurrentUser && 
-             (effectiveCurrentUser.userType === 'buyer' || effectiveCurrentUser.userType === 'trader') && (
+             (effectiveCurrentUser.userType === 'buyer' || effectiveCurrentUser.userType === 'trader') && 
+             (otherPartyType === 'farmer' || otherPartyType === 'trader') && (
               <Button
                 variant="outline"
                 size="sm"
@@ -919,15 +930,25 @@ export function ChatInterface({
                       {/* Profile Image - Only show for received messages */}
                       {!isOwnMessage && (
                         <div className="flex-shrink-0">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage
-                              src={senderImage || undefined}
-                              alt={senderName || 'User'}
-                            />
-                            <AvatarFallback className="text-xs">
-                              {senderName ? senderName.charAt(0).toUpperCase() : 'U'}
-                            </AvatarFallback>
-                          </Avatar>
+                          <button 
+                            onClick={() => {
+                              const route = (otherPartyType === 'farmer' || otherPartyType === 'trader') 
+                                ? `/seller/${otherPartyId}` 
+                                : `/user/${otherPartyId}`;
+                              window.open(route, '_blank');
+                            }}
+                            className="hover:opacity-80 transition-opacity"
+                          >
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage
+                                src={senderImage || undefined}
+                                alt={senderName || 'User'}
+                              />
+                              <AvatarFallback className="text-xs">
+                                {senderName ? senderName.charAt(0).toUpperCase() : 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                          </button>
                         </div>
                       )}
                       

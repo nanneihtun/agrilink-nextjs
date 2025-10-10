@@ -5,13 +5,17 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔄 Verification request API called');
+
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ No authorization header');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const token = authHeader.substring(7);
     const body = await request.json();
+    console.log('📝 Request body received:', { user_id: body.user_id, user_email: body.user_email });
 
     // For now, we'll just store the verification request in the database
     // In a real implementation, you might want to verify the JWT token
@@ -31,6 +35,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Insert verification request into database
+    console.log('🔄 Inserting verification request...');
     const result = await sql`
       INSERT INTO verification_requests (
         user_id,
@@ -59,18 +64,31 @@ export async function POST(request: NextRequest) {
       )
       RETURNING id
     `;
+    console.log('✅ Verification request inserted with ID:', result[0].id);
 
-    // Update user's verification status
+    // Update user's verification status in user_verification table
+    console.log('🔄 Updating user verification status...');
+    await sql`
+      UPDATE user_verification 
+      SET 
+        "verificationStatus" = 'under_review',
+        "verificationSubmitted" = true,
+        "updatedAt" = NOW()
+      WHERE "userId" = ${user_id}
+    `;
+    console.log('✅ User verification status updated');
+
+    // Update agriLinkVerificationRequested in users table
+    console.log('🔄 Updating agriLinkVerificationRequested in users table...');
     await sql`
       UPDATE users 
       SET 
         "agriLinkVerificationRequested" = true,
         "agriLinkVerificationRequestedAt" = NOW(),
-        "verificationStatus" = 'under_review',
-        "verificationSubmittedAt" = NOW(),
         "updatedAt" = NOW()
       WHERE id = ${user_id}
     `;
+    console.log('✅ agriLinkVerificationRequested updated in users table');
 
     return NextResponse.json({
       success: true,
