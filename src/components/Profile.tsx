@@ -49,17 +49,6 @@ interface EditingField {
 }
 
 export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpdate, onViewStorefront }: ProfileProps) {
-  if (!user) {
-    return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">User data not available</p>
-          <Button onClick={onBack} className="mt-4">Go Back</Button>
-        </div>
-      </div>
-    );
-  }
-
   const [editing, setEditing] = useState<EditingField | null>(null);
   const [editingImage, setEditingImage] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -81,6 +70,17 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
+
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">User data not available</p>
+          <Button onClick={onBack} className="mt-4">Go Back</Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleEmailChange = async () => {
     if (!newEmail || !emailPassword) {
