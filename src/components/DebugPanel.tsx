@@ -123,7 +123,7 @@ export function DebugPanel({ backendAvailable, currentUser, authLoading }: Debug
                   console.log('Current User:', currentUser);
                   console.log('Stored Users:', storedUsers);
                   console.log('Current Stored User:', currentStoredUser);
-                  console.log('Environment Configured:', ENV.isSupabaseConfigured());
+                  console.log('Environment Configured:', ENV.isNeonConfigured());
                   console.log('==================');
                 }}
                 size="sm"

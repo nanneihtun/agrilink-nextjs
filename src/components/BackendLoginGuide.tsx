@@ -102,7 +102,7 @@ export function BackendLoginGuide({ onCreateAccount, onLogin, onClose }: Backend
                   <div className="space-y-3">
                     <p className="font-medium">Backend is Connected!</p>
                     <p>
-                      When the backend is connected, AgriConnect Myanmar uses <strong>Supabase Authentication</strong> 
+                      When the backend is connected, AgriLink uses <strong>Neon Database Authentication</strong> 
                       instead of local demo accounts. This means:
                     </p>
                     <ul className="list-disc pl-4 space-y-1 text-sm">

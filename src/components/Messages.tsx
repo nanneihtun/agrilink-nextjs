@@ -8,7 +8,7 @@ import { Input } from "./ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { ChatInterface } from "./ChatInterface";
 import { useChat } from "../hooks/useChat";
-// Chat demo utilities removed - using Supabase backend only
+// Chat demo utilities removed - using Neon database only
 import { toast } from "sonner";
 import { 
   ChevronLeft,
@@ -59,13 +59,13 @@ interface MessagesProps {
   onStartChat?: (productId: string) => void;
 }
 
-// No localStorage cleanup needed - using Supabase backend
+// No localStorage cleanup needed - using Neon database
 
 export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'unread' | 'active' | 'archived'>('all');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  // No debug state needed - using Supabase backend
+  // No debug state needed - using Neon database
   
   // Use currentUser directly from props (no localStorage fallback needed)
   const effectiveCurrentUser = currentUser;
@@ -73,7 +73,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
   // Use real chat data with the effective current user
   const { conversations, messages, loading, loadConversations, loadMessages, deleteConversation, error } = useChat();
   
-  // No debug logging needed - using Supabase authentication
+  // No debug logging needed - using Neon database authentication
 
   // Initialize conversations when component mounts
   useEffect(() => {
@@ -89,7 +89,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
     }
   }, [selectedConversation, effectiveCurrentUser?.id, loadMessages]);
 
-  // No storage statistics needed - using Supabase backend
+  // No storage statistics needed - using Neon database
 
   const formatTimeAgo = (timestamp: string) => {
     if (!timestamp) return 'Just now';
@@ -167,10 +167,10 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
       // Get other party name from conversation data
       const otherPartyName = conv.buyerId === effectiveCurrentUser?.id ? conv.sellerName : conv.buyerName;
       
-      // Use unread count from Supabase conversation data
+      // Use unread count from Neon database conversation data
       const unreadCount = conv.unreadCount || 0;
       
-      // Use last message from conversation data (from Supabase) for preview
+      // Use last message from conversation data (from Neon database) for preview
       const lastMessageFromConv = conv.lastMessage;
       
       const finalConversation = {
@@ -245,7 +245,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
 
   const totalUnread = transformedConversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
-  // No cleanup needed - using Supabase backend
+  // No cleanup needed - using Neon database
 
   return (
     <div className="space-y-6">
@@ -258,10 +258,10 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
             Back
           </Button>
           
-          {/* No development tools needed - using Supabase backend */}
+          {/* No development tools needed - using Neon database */}
         </div>
         
-        {/* No debug panel needed - using Supabase backend */}
+        {/* No debug panel needed - using Neon database */}
         
         {/* Title section - aligned with content */}
         <div>

@@ -4,7 +4,7 @@ import { CheckCircle, AlertCircle } from "lucide-react"
 import ENV from '../config/env'
 
 export function EnvironmentStatus() {
-  const isConfigured = ENV.isSupabaseConfigured()
+  const isConfigured = ENV.isNeonConfigured() // Updated to check Neon instead of Supabase
   
   if (isConfigured) {
     return null // Don't show environment status when backend is configured - BackendStatus handles this

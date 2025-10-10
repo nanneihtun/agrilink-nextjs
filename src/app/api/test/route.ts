@@ -13,7 +13,7 @@ export async function GET() {
       database: 'Connected to Neon',
       userCount: result[0].count,
       timestamp: new Date().toISOString(),
-      performance: '4-5x faster than Supabase!'
+      performance: 'Optimized with Neon database!'
     });
   } catch (error) {
     return NextResponse.json({

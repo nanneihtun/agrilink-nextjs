@@ -232,7 +232,7 @@ export function ChatInterface({
   // Offer functionality removed for now - will be added later
 
 
-  // Note: localStorage cleanup removed - now using Supabase offers table
+  // Note: localStorage cleanup removed - now using Neon database
 
   // Initialize or get conversation - with stability improvements
   useEffect(() => {
@@ -460,7 +460,7 @@ export function ChatInterface({
     };
 
     try {
-      // Save to Supabase
+      // Save to Neon database
       const savedOffer = await OffersService.createOffer({
         ...offer,
         conversationId: conversationId!,
@@ -469,7 +469,7 @@ export function ChatInterface({
         otherPartyId
       });
       
-      console.log('💾 Offer saved to Supabase:', savedOffer.id);
+      console.log('💾 Offer saved to Neon database:', savedOffer.id);
       
       // Update local state with the saved offer
       setOffers(prevOffers => {

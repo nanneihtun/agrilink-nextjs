@@ -124,7 +124,7 @@ export const NeonTest: React.FC = () => {
             <div className="text-sm space-y-1">
               <div>Database: Neon PostgreSQL 17.5</div>
               <div>Connection: Serverless HTTP</div>
-              <div>Expected Speed: 4-5x faster than Supabase</div>
+              <div>Expected Speed: Optimized with Neon database</div>
             </div>
           </div>
         </CardContent>
