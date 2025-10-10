@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       message: 'Verification request approved successfully' 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error approving verification request:', error);
     console.error('❌ Error details:', {
       message: error.message,
