@@ -77,9 +77,9 @@ export async function PUT(request: NextRequest) {
       }
       
       updateValues.push(user.userId);
-      const query = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateFields.length + 1}`;
       
-      await sql.unsafe(query, updateValues);
+      // Use template literal for dynamic query
+      await sql.unsafe(`UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateFields.length + 1}`, ...updateValues);
       console.log('✅ users table updated successfully');
     }
 
