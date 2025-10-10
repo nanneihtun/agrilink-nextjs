@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       totalProducts: products.length,
-      jasmineProducts: jasmineProducts.length,
+      jasmineProductsCount: jasmineProducts.length,
       allProducts: products.map(p => ({
         id: p.id,
         name: p.name,
