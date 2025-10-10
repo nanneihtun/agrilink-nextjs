@@ -22,10 +22,10 @@ function verifyToken(request: NextRequest) {
 // PUT /api/offers/[id] - Update offer status
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: offerId } = params;
+    const { id: offerId } = await params;
     const user = verifyToken(request);
     
     if (!user) {
@@ -178,10 +178,10 @@ export async function PUT(
 // GET /api/offers/[id] - Get single offer
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: offerId } = params;
+    const { id: offerId } = await params;
     const user = verifyToken(request);
     
     if (!user) {
