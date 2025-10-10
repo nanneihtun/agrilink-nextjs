@@ -62,10 +62,10 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE users 
       SET 
-        password_hash = ${hashedPassword},
+        "passwordHash" = ${hashedPassword},
         password_reset_token = NULL,
         password_reset_expires = NULL,
-        updated_at = NOW()
+        "updatedAt" = NOW()
       WHERE id = ${user.id}
     `;
 
@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Password reset error:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error stack:', error.stack);
     return NextResponse.json(
       { message: 'Failed to reset password' },
       { status: 500 }

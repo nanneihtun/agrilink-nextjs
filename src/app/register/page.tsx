@@ -133,8 +133,14 @@ export default function RegisterPage() {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         
-        // Redirect to dashboard
-        router.push("/dashboard");
+        // Check if verification email was sent
+        if (data.verificationEmailSent) {
+          // Redirect to email verification page with user info
+          router.push(`/verify-email?email=${encodeURIComponent(data.user.email)}&name=${encodeURIComponent(data.user.name)}&newUser=true`);
+        } else {
+          // Fallback to dashboard if no verification needed
+          router.push("/dashboard");
+        }
       } else {
         setError(data.message || 'Registration failed. Please try again.');
       }

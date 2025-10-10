@@ -14,6 +14,7 @@
     "db:setup": "node setup-nextjs-database.js"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.907.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-avatar": "^1.1.10",

@@ -64,13 +64,16 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Password reset token generated for user:', user.email);
 
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    
+    // Always log the reset URL for testing
+    console.log('🔗 RESET URL FOR TESTING:', resetUrl);
+    
     // Send email if Resend is configured
     if (process.env.RESEND_API_KEY) {
       try {
-        const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-        
         await resend.emails.send({
-          from: 'AgriLink <noreply@agrilink.com>',
+          from: 'AgriLink <onboarding@resend.dev>',
           to: [user.email],
           subject: 'Reset Your AgriLink Password',
           html: `
@@ -99,12 +102,20 @@ export async function POST(request: NextRequest) {
         });
         
         console.log('✅ Password reset email sent to:', user.email);
+        console.log('📧 Email details:', {
+          from: 'AgriLink <onboarding@resend.dev>',
+          to: user.email,
+          subject: 'Reset Your AgriLink Password'
+        });
       } catch (emailError) {
         console.error('❌ Failed to send password reset email:', emailError);
+        console.error('❌ Email error details:', JSON.stringify(emailError, null, 2));
         // Don't fail the request if email sending fails
       }
     } else {
       console.log('⚠️ RESEND_API_KEY not configured, skipping email send');
+      // For testing: log the reset URL to console
+      console.log('🔗 Reset URL for testing:', resetUrl);
     }
 
     return NextResponse.json({ 
@@ -118,6 +129,8 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Password reset request error:', error);
+    console.error('❌ Error details:', error.message);
+    console.error('❌ Error stack:', error.stack);
     return NextResponse.json(
       { message: 'Failed to process password reset request' },
       { status: 500 }

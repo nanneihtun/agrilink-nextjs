@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 import { sql } from '@/lib/db';
 import { Resend } from 'resend';
+import crypto from 'crypto';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -9,181 +9,114 @@ export async function POST(request: NextRequest) {
   try {
     console.log('📧 Send verification email API called');
     
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization');
-    console.log('📝 Auth header present:', !!authHeader);
+    const { email } = await request.json();
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ No valid auth header');
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!email) {
+      return NextResponse.json({ message: 'Email is required' }, { status: 400 });
     }
 
-    const token = authHeader.substring(7);
-    
-    // Verify the JWT token
-    let userId: string;
-    try {
-      console.log('🔑 JWT_SECRET present:', !!process.env.JWT_SECRET);
-      
-      if (!process.env.JWT_SECRET) {
-        console.error('❌ JWT_SECRET environment variable is not set');
-        return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
-      }
-      
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
-      userId = decoded.userId;
-      console.log('✅ JWT verified, userId:', userId);
-      
-      if (!userId) {
-        console.log('❌ No userId in token payload');
-        return NextResponse.json({ message: 'Invalid token payload' }, { status: 401 });
-      }
-    } catch (error) {
-      console.error('❌ JWT verification error:', error);
-      return NextResponse.json({ 
-        message: error instanceof jwt.JsonWebTokenError ? 'Invalid or expired token' : 'Token verification failed' 
-      }, { status: 401 });
+    if (!email.includes('@')) {
+      return NextResponse.json({ message: 'Please enter a valid email address' }, { status: 400 });
     }
 
-    // Get user from database
-    let users;
-    try {
-      console.log('🔍 Querying database for userId:', userId);
-      users = await sql`
-        SELECT id, email, name, email_verified, "emailVerificationToken", "emailVerificationExpires"
-        FROM users WHERE id = ${userId}
-      `;
-      console.log('📊 Database query result:', users.length, 'users found');
-    } catch (error) {
-      console.error('❌ Database query error:', error);
-      return NextResponse.json({ message: 'Database connection error' }, { status: 500 });
-    }
+    // Find user by email
+    const userData = await sql`
+      SELECT id, name, email, email_verified, email_verification_token
+      FROM users 
+      WHERE email = ${email}
+    `;
 
-    if (users.length === 0) {
-      console.log('❌ User not found in database');
+    if (userData.length === 0) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
-    const user = users[0];
-    console.log('👤 User found:', { 
-      id: user.id, 
-      email: user.email, 
-      name: user.name,
-      emailVerified: user.email_verified 
-    });
+    const user = userData[0];
 
-    // Check if user is already verified
+    // Check if already verified
     if (user.email_verified) {
-      console.log('✅ User email is already verified');
-      return NextResponse.json({ 
-        message: 'Email is already verified',
-        alreadyVerified: true 
-      }, { status: 200 });
-    }
-
-    // Check if user is a demo account
-    const isDemoAccount = user.email.includes('farmerindi') || 
-                         user.email.includes('farmerbiz') ||
-                         user.email.includes('traderindi') ||
-                         user.email.includes('traderbiz') ||
-                         user.email.includes('buyerindi') ||
-                         user.email.includes('buyerbiz');
-
-    if (isDemoAccount) {
-      console.log('🎭 Demo account detected, skipping email verification');
-      return NextResponse.json({ 
-        message: 'Demo accounts do not require email verification',
-        isDemoAccount: true 
-      }, { status: 200 });
+      return NextResponse.json({ message: 'Email is already verified' }, { status: 400 });
     }
 
     // Generate verification token
     const verificationToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-    
-    console.log('🔐 Generated verification token:', verificationToken);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours
 
     // Save verification token to database
-    try {
-      console.log('💾 Saving verification token to database...');
-      await sql`
-        UPDATE users 
-        SET "emailVerificationToken" = ${verificationToken}, 
-            "emailVerificationExpires" = ${expiresAt.toISOString()},
-            "updatedAt" = NOW()
-        WHERE id = ${userId}
-      `;
-      console.log('💾 Verification token saved successfully');
-    } catch (error) {
-      console.error('❌ Error saving verification token:', error);
-      return NextResponse.json({ message: 'Failed to save verification token' }, { status: 500 });
-    }
+    await sql`
+      UPDATE users 
+      SET 
+        email_verification_token = ${verificationToken},
+        email_verification_expires = ${expiresAt.toISOString()}
+      WHERE id = ${user.id}
+    `;
 
-    // Check if Resend API key is available
-    if (!process.env.RESEND_API_KEY) {
-      console.log('⚠️ RESEND_API_KEY not found, skipping email sending');
-      return NextResponse.json({ 
-        message: 'Email verification token generated (email sending disabled)',
-        verificationToken: verificationToken // For testing purposes
-      }, { status: 200 });
-    }
+    console.log('✅ Email verification token generated for user:', user.email);
 
-    // Create verification link
-    const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
     
-    console.log('📧 Sending verification email to:', user.email);
-
-    // Send verification email
-    try {
-      const { data, error } = await resend.emails.send({
-        from: 'AgriLink <onboarding@resend.dev>',
-        to: [user.email],
-        subject: 'Verify your AgriLink account',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #059669;">Welcome to AgriLink!</h2>
-            <p>Hi ${user.name},</p>
-            <p>Thank you for joining AgriLink! To complete your account setup, please verify your email address by clicking the button below:</p>
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationLink}" 
-                 style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-                Verify Email Address
-              </a>
+    // Always log the verification URL for testing
+    console.log('🔗 VERIFICATION URL FOR TESTING:', verificationUrl);
+    
+    // Send email if Resend is configured
+    if (process.env.RESEND_API_KEY) {
+      try {
+        await resend.emails.send({
+          from: 'AgriLink <onboarding@resend.dev>',
+          to: [user.email],
+          subject: 'Verify Your AgriLink Account',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #16a34a;">Welcome to AgriLink!</h2>
+              <p>Hello ${user.name},</p>
+              <p>Thank you for joining AgriLink! To complete your registration, please verify your email address by clicking the button below:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verificationUrl}" 
+                   style="background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                  Verify Email Address
+                </a>
+              </div>
+              <p>Or copy and paste this link in your browser:</p>
+              <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
+              <p style="color: #666; font-size: 14px;">
+                This link will expire in 24 hours. If you didn't create an account with AgriLink, you can safely ignore this email.
+              </p>
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+              <p style="color: #666; font-size: 12px;">
+                This email was sent from AgriLink. If you have any questions, please contact our support team.
+              </p>
             </div>
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #666;">${verificationLink}</p>
-            <p>This link will expire in 24 hours.</p>
-            <p>If you didn't create an account with AgriLink, you can safely ignore this email.</p>
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-            <p style="color: #666; font-size: 14px;">
-              Best regards,<br>
-              The AgriLink Team
-            </p>
-          </div>
-        `,
-      });
-
-      if (error) {
-        console.error('❌ Resend error:', error);
-        return NextResponse.json({ message: 'Failed to send verification email' }, { status: 500 });
+          `
+        });
+        
+        console.log('✅ Email verification email sent to:', user.email);
+        console.log('📧 Email details:', {
+          from: 'AgriLink <onboarding@resend.dev>',
+          to: user.email,
+          subject: 'Verify Your AgriLink Account'
+        });
+      } catch (emailError) {
+        console.error('❌ Failed to send verification email:', emailError);
+        console.error('❌ Email error details:', JSON.stringify(emailError, null, 2));
+        // Don't fail the request if email sending fails
       }
-
-      console.log('✅ Verification email sent successfully:', data?.id);
-      return NextResponse.json({ 
-        message: 'Verification email sent successfully',
-        emailId: data?.id 
-      }, { status: 200 });
-
-    } catch (error) {
-      console.error('❌ Error sending email:', error);
-      return NextResponse.json({ message: 'Failed to send verification email' }, { status: 500 });
+    } else {
+      console.log('⚠️ RESEND_API_KEY not configured, skipping email send');
+      // For testing: log the verification URL to console
+      console.log('🔗 Verification URL for testing:', verificationUrl);
     }
+
+    return NextResponse.json({ 
+      message: 'Verification email sent successfully',
+      verificationToken: verificationToken,
+      verificationUrl: verificationUrl
+    });
 
   } catch (error) {
-    console.error('❌ Send verification email API error:', error);
-    return NextResponse.json({ 
-      message: 'Internal server error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('❌ Send verification email error:', error);
+    return NextResponse.json(
+      { error: 'Failed to send verification email' },
+      { status: 500 }
+    );
   }
 }
