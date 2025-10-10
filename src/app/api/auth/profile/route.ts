@@ -67,9 +67,24 @@ export async function PUT(request: NextRequest) {
     if (Object.keys(updateData).length > 0) {
       console.log('💾 Updating users table with:', updateData);
       
-      // Update each field individually
-      for (const [key, value] of Object.entries(updateData)) {
-        await sql`UPDATE users SET ${sql(key)} = ${value} WHERE id = ${user.userId}`;
+      // Update each field individually using conditional updates
+      if (updates.name !== undefined) {
+        await sql`UPDATE users SET name = ${updates.name} WHERE id = ${user.userId}`;
+      }
+      if (updates.email !== undefined) {
+        await sql`UPDATE users SET email = ${updates.email} WHERE id = ${user.userId}`;
+      }
+      if (updates.userType !== undefined) {
+        await sql`UPDATE users SET "userType" = ${updates.userType} WHERE id = ${user.userId}`;
+      }
+      if (updates.accountType !== undefined) {
+        await sql`UPDATE users SET "accountType" = ${updates.accountType} WHERE id = ${user.userId}`;
+      }
+      if (updates.verified !== undefined) {
+        await sql`UPDATE users SET verified = ${updates.verified} WHERE id = ${user.userId}`;
+      }
+      if (updates.phoneVerified !== undefined) {
+        await sql`UPDATE users SET "phoneVerified" = ${updates.phoneVerified} WHERE id = ${user.userId}`;
       }
       console.log('✅ users table updated successfully');
     }
