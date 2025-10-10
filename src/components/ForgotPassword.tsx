@@ -65,9 +65,9 @@ export function ForgotPassword({ onBack, onReturnToLogin }: ForgotPasswordProps)
       <div className="text-center">
         <h1 className="text-2xl font-semibold flex items-center justify-center gap-2 mb-2">
           <Leaf className="w-6 h-6 text-primary" />
-          Reset Password
+          Forgot Your Password
         </h1>
-        <p className="text-muted-foreground">Secure password recovery for your AgriLink account</p>
+        <p className="text-muted-foreground">We'll help you reset your password securely</p>
       </div>
 
       <Card className="w-full">

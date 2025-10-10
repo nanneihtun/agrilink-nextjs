@@ -33,21 +33,21 @@ export async function POST(request: NextRequest) {
 
     const user = users[0];
     
-    // Check if user is a demo account
-    const isDemoAccount = user.email.includes('farmerindi') || 
-                         user.email.includes('farmerbiz') ||
-                         user.email.includes('traderindi') ||
-                         user.email.includes('traderbiz') ||
-                         user.email.includes('buyerindi') ||
-                         user.email.includes('buyerbiz') ||
-                         user.email.includes('buyer@example.com') ||
-                         user.email.includes('admin@agrilink.com');
+    // Check if user is a demo account (temporarily disabled for testing)
+    // const isDemoAccount = user.email.includes('farmerindi') || 
+    //                      user.email.includes('farmerbiz') ||
+    //                      user.email.includes('traderindi') ||
+    //                      user.email.includes('traderbiz') ||
+    //                      user.email.includes('buyerindi') ||
+    //                      user.email.includes('buyerbiz') ||
+    //                      user.email.includes('buyer@example.com') ||
+    //                      user.email.includes('admin@agrilink.com');
 
-    if (isDemoAccount) {
-      return NextResponse.json({ 
-        message: 'Demo accounts cannot reset passwords. Please use the provided demo credentials.' 
-      }, { status: 400 });
-    }
+    // if (isDemoAccount) {
+    //   return NextResponse.json({ 
+    //     message: 'Demo accounts cannot reset passwords. Please use the provided demo credentials.' 
+    //   }, { status: 400 });
+    // }
 
     // Generate reset token
     const resetToken = crypto.randomUUID();

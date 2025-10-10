@@ -106,7 +106,6 @@ export function ChatInterface({
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  // Offer functionality removed for now - will be added later
 
   // Offer modal state
   const [showOfferModal, setShowOfferModal] = useState(false);
@@ -229,7 +228,6 @@ export function ChatInterface({
     }
   }, [isLoading]);
   
-  // Offer functionality removed for now - will be added later
 
 
   // Note: localStorage cleanup removed - now using Neon database
@@ -443,137 +441,6 @@ export function ChatInterface({
     return date.toLocaleDateString();
   };
 
-  // Offer handling functions removed for now - will be added later
-  /*const handleCreateOffer = async (offer: Omit<Offer, "id" | "createdAt" | "updatedAt">) => {
-    console.log('🎯 Creating offer - conversation state before:', {
-      conversationId,
-      productId,
-      otherPartyId,
-      currentUserId: passedCurrentUser?.id,
-      conversationKey
-    });
-
-    const newOffer: Offer = {
-      ...offer,
-      id: `offer_${Date.now()}`,
-      createdAt: new Date().toISOString()
-    };
-
-    try {
-      // Save to Neon database
-      const savedOffer = await OffersService.createOffer({
-        ...offer,
-        conversationId: conversationId!,
-        productId,
-        buyerId: effectiveCurrentUser.id,
-        otherPartyId
-      });
-      
-      console.log('💾 Offer saved to Neon database:', savedOffer.id);
-      
-      // Update local state with the saved offer
-      setOffers(prevOffers => {
-        console.log('📝 Updating offers state - previous count:', prevOffers.length);
-        // Check if offer already exists to prevent duplicates
-        const existingOffer = prevOffers.find(o => o.id === savedOffer.id);
-        if (existingOffer) {
-          console.log('⚠️ Duplicate offer detected, skipping');
-          return prevOffers; // Don't add duplicate
-        }
-        console.log('✅ Adding new offer to state');
-        return [...prevOffers, savedOffer];
-      });
-      
-      // Close modal
-      setShowCreateOffer(false);
-      
-      // Success feedback
-      toast.success('Offer sent successfully!');
-      
-      console.log('🎯 Offer creation complete - conversation state after:', {
-        conversationId,
-        productId,
-        otherPartyId,
-        currentUserId: passedCurrentUser?.id,
-        conversationKey
-      });
-      
-      // Scroll to bottom to show the new offer
-      setTimeout(() => {
-        if (scrollAreaRef.current) {
-          const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-          if (scrollContainer) {
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          }
-        }
-      }, 100);
-      
-    } catch (error) {
-      console.error('❌ Failed to save offer:', error);
-      toast.error('Failed to create offer');
-    }
-  };
-
-  const handleAcceptOffer = (offerId: string) => {
-    updateOfferStatus(offerId, "accepted", { acceptedAt: new Date().toISOString() });
-  };
-
-  const handleDeclineOffer = (offerId: string) => {
-    updateOfferStatus(offerId, "declined");
-  };
-
-  const handleMarkCompleted = (offerId: string) => {
-    updateOfferStatus(offerId, "completed", { completedAt: new Date().toISOString() });
-  };
-
-  const handleQuickAction = (offerId: string, action: string) => {
-    switch (action) {
-      case 'accept':
-        handleAcceptOffer(offerId);
-        break;
-      case 'decline':
-        handleDeclineOffer(offerId);
-        break;
-      case 'in_progress':
-        updateOfferStatus(offerId, "in_progress");
-        break;
-      case 'shipped':
-        updateOfferStatus(offerId, "shipped", { shippedAt: new Date().toISOString() });
-        break;
-      case 'delivered':
-        updateOfferStatus(offerId, "delivered", { deliveredAt: new Date().toISOString() });
-        break;
-      case 'completed':
-        updateOfferStatus(offerId, "completed", { completedAt: new Date().toISOString() });
-        break;
-      case 'cancel':
-        updateOfferStatus(offerId, "cancelled");
-        break;
-      default:
-        console.warn('Unknown quick action:', action);
-    }
-  };
-
-  const handleUpdateOfferStatus = (offerId: string, status: Offer['status'], updates?: any) => {
-    updateOfferStatus(offerId, status, updates);
-  };
-
-  const updateOfferStatus = async (offerId: string, status: Offer["status"], updates: Partial<Offer> = {}) => {
-    try {
-      await OffersService.updateOfferStatus(offerId, status, updates);
-      
-      setOffers(prev => prev.map(offer => 
-        offer.id === offerId 
-          ? { ...offer, status, ...updates }
-          : offer
-      ));
-      
-      toast.success(`Offer ${status}!`);
-    } catch (error) {
-      console.error('Failed to update offer:', error);
-      toast.error('Failed to update offer');
-    }
-  };*/
 
   // Remove duplicate offers
   useEffect(() => {

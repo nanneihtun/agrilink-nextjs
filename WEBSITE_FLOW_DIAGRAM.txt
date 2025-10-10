@@ -1,0 +1,112 @@
+🌐 AGRILINK WEBSITE FLOW DIAGRAM
+==========================================
+
+                    🏠 LANDING PAGE (/)
+                           |
+                    ┌──────┴──────┐
+                    │             │
+              📱 REGISTER    🔑 LOGIN
+                    │             │
+                    ▼             ▼
+            ✉️ EMAIL VERIFY  🔒 AUTHENTICATED
+                    │             │
+                    ▼             │
+            📱 PHONE VERIFY       │
+                    │             │
+                    ▼             │
+            📊 DASHBOARD ◄────────┘
+                    │
+            ┌───────┼───────┐
+            │       │       │
+            ▼       ▼       ▼
+        🛍️ PRODUCTS  💬 MESSAGES  👤 PROFILE
+            │       │       │
+            ▼       ▼       ▼
+    ┌─────────────┐ │   📝 EDIT PROFILE
+    │ MAKE OFFERS │ │       │
+    │ CHAT        │ │       ▼
+    │ REVIEWS     │ │   👁️ PUBLIC VIEW
+    └─────────────┘ │
+            │       │
+            ▼       ▼
+        🤝 OFFER    💬 CHAT
+        MANAGEMENT   INTERFACE
+            │       │
+            ▼       ▼
+        ✅ COMPLETE  📞 COMMUNICATE
+        TRANSACTION
+
+🏪 SELLER FLOW:
+==========================================
+    📊 DASHBOARD
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+➕ ADD      🏪 MANAGE
+PRODUCTS    STOREFRONT
+    │         │
+    ▼         ▼
+📦 LIST     👥 HANDLE
+PRODUCTS    OFFERS
+    │         │
+    ▼         ▼
+💰 EARN     💬 CHAT
+REVENUE     CUSTOMERS
+
+👑 ADMIN FLOW:
+==========================================
+    🔐 ADMIN LOGIN
+         │
+    📊 ADMIN DASHBOARD
+         │
+    ┌────┴────┐
+    │         │
+    ▼         ▼
+✅ VERIFY   👥 MANAGE
+USERS       USERS
+    │         │
+    ▼         ▼
+📊 VIEW     🔧 SYSTEM
+STATS       MANAGEMENT
+
+🔄 KEY USER JOURNEYS:
+==========================================
+
+NEW USER:
+Home → Register → Verify → Dashboard → Browse → Make Offer → Chat → Complete
+
+RETURNING USER:
+Login → Dashboard → Browse → Chat → Manage Profile → Logout
+
+SELLER:
+Login → Dashboard → Add Product → Manage Store → Handle Offers → Chat
+
+ADMIN:
+Login → Admin Panel → Verify Users → Manage System → Monitor Stats
+
+📱 MOBILE RESPONSIVE FLOW:
+==========================================
+All pages optimized for:
+📱 Mobile (320px+)
+📱 Tablet (768px+)
+💻 Desktop (1024px+)
+
+🔒 SECURITY LEVELS:
+==========================================
+🌐 PUBLIC: Home, About, Contact, FAQ, Login, Register
+🔐 USER: Dashboard, Profile, Messages, Products, Offers
+👑 ADMIN: Admin Dashboard, Verification Panel
+
+📊 ANALYTICS TRACKING:
+==========================================
+🎯 Conversion Funnel:
+Landing → Registration → Verification → Active User → Repeat Usage
+
+📈 Key Metrics:
+- Page Views
+- User Registrations
+- Product Listings
+- Offer Creation
+- Chat Interactions
+- Profile Completions
