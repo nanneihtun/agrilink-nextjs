@@ -67,19 +67,10 @@ export async function PUT(request: NextRequest) {
     if (Object.keys(updateData).length > 0) {
       console.log('💾 Updating users table with:', updateData);
       
-      // Build dynamic update query
-      const updateFields = [];
-      const updateValues = [];
-      
+      // Update each field individually
       for (const [key, value] of Object.entries(updateData)) {
-        updateFields.push(`"${key}" = $${updateFields.length + 1}`);
-        updateValues.push(value);
+        await sql`UPDATE users SET ${sql(key)} = ${value} WHERE id = ${user.userId}`;
       }
-      
-      updateValues.push(user.userId);
-      
-      // Use template literal for dynamic query
-      await sql.unsafe(`UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateFields.length + 1}`, updateValues);
       console.log('✅ users table updated successfully');
     }
 
