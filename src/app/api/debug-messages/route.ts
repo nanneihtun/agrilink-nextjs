@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       jwtSecret: process.env.JWT_SECRET ? 'set' : 'not set'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Debug Messages API error:', error);
     return NextResponse.json(
       { error: 'Debug failed', details: error.message },
