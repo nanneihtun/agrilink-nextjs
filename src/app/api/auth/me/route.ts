@@ -14,7 +14,7 @@ function verifyToken(request: NextRequest) {
   }
 
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!);
+    return jwt.verify(token, process.env.JWT_SECRET!) as any;
   } catch (error) {
     return null;
   }
