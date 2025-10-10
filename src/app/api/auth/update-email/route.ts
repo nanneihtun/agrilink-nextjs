@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sql } from '@/lib/db';
-import { sendEmail } from '@/lib/aws-ses';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -123,8 +125,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Failed to save email change request' }, { status: 500 });
     }
 
-    // Check if AWS SES credentials are available
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    // Check if Resend API key is available
+    if (!process.env.RESEND_API_KEY) {
       return NextResponse.json({ 
         message: 'Email change verification sent (email sending disabled)'
       }, { status: 200 });
@@ -136,8 +138,9 @@ export async function POST(request: NextRequest) {
 
     // Send verification email to new email address
     try {
-      const result = await sendEmail({
-        to: newEmail,
+      const { data, error } = await resend.emails.send({
+        from: 'AgriLink <noreply@agrilink.vercel.app>', // Use your Vercel domain
+        to: [newEmail],
         subject: 'Confirm your new email address - AgriLink',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -164,9 +167,13 @@ export async function POST(request: NextRequest) {
         `,
       });
 
+      if (error) {
+        return NextResponse.json({ message: 'Failed to send verification email' }, { status: 500 });
+      }
+
       return NextResponse.json({ 
         message: 'Verification email sent to your new email address',
-        messageId: result.messageId,
+        emailId: data?.id,
         newEmail: newEmail
       }, { status: 200 });
 

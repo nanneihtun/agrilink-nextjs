@@ -72,8 +72,8 @@ export async function POST(request: NextRequest) {
     // Send email if Resend is configured
     if (process.env.RESEND_API_KEY) {
       try {
-        await resend.emails.send({
-          from: 'AgriLink <onboarding@resend.dev>',
+      await resend.emails.send({
+        from: 'AgriLink <noreply@agrilink.vercel.app>',
           to: [user.email],
           subject: 'Reset Your AgriLink Password',
           html: `
