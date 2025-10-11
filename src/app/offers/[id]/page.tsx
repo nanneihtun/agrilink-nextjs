@@ -323,15 +323,15 @@ export default function OfferDetailsPage() {
     id: offer.sellerId,
     name: offer.sellerName,
     email: offer.sellerEmail,
-    userType: offer.sellerUserType,
-    accountType: offer.sellerAccountType,
+    userType: offer.sellerUserType || 'seller',
+    accountType: offer.sellerAccountType || 'individual',
     image: offer.seller?.profileImage || offer.sellerImage
   } : {
     id: offer.buyerId,
     name: offer.buyerName,
     email: offer.buyerEmail,
-    userType: offer.buyerUserType,
-    accountType: offer.buyerAccountType,
+    userType: offer.buyerUserType || 'buyer',
+    accountType: offer.buyerAccountType || 'individual',
     image: offer.buyer?.profileImage || offer.buyerImage
   };
 
