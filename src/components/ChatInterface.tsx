@@ -369,7 +369,7 @@ export function ChatInterface({
         userId: effectiveCurrentUser.id
       });
       
-      const sentMessage = await sendMessage(currentConversationId, messageToSend, effectiveCurrentUser.id);
+      const sentMessage = await sendMessage(currentConversationId || '', messageToSend, effectiveCurrentUser.id);
       console.log('✅ Message sent successfully:', sentMessage);
       
       // Temporarily disabled loadMessages to prevent duplicate issues
@@ -837,12 +837,12 @@ export function ChatInterface({
                         <p className="text-sm">{message.content}</p>
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-xs opacity-70">{formatTimestamp(message.timestamp)}</p>
-                          {isOwnMessage && message.status && (
+                          {isOwnMessage && (message as any).status && (
                             <span className="text-xs opacity-70 ml-2">
-                              {message.status === 'sending' ? '⏳' : 
-                               message.status === 'sent' ? '✓' : 
-                               message.status === 'delivered' ? '✓✓' : 
-                               message.status === 'read' ? '✓✓' : ''}
+                              {(message as any).status === 'sending' ? '⏳' : 
+                               (message as any).status === 'sent' ? '✓' : 
+                               (message as any).status === 'delivered' ? '✓✓' : 
+                               (message as any).status === 'read' ? '✓✓' : ''}
                             </span>
                           )}
                         </div>
