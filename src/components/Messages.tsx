@@ -402,7 +402,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.src = 'https://images.unsplash.com/photo-1546470427-227c013b2b5f?w=400&h=300&fit=crop';
-                      }}
+                      } as any)}
                     />
                   </div>
 
