@@ -84,7 +84,7 @@ export default function UserProfilePage() {
           const productsResponse = await fetch(`/api/products?sellerId=${userId}`);
           if (productsResponse.ok) {
             const productsData = await productsResponse.json();
-            setUserProfile(response.data as any);
+            setUserProfile({ ...data.user, products: productsData });
           }
         }
       } else {
@@ -127,7 +127,7 @@ export default function UserProfilePage() {
         const updatedUser = await response.json();
         // Update local state
         setUserProfile(prev => prev ? { ...prev, ...updates } : null);
-        setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
+        setCurrentUser((prev: any) => prev ? { ...prev, ...updates } : null);
         alert('Profile updated successfully!');
       } else {
         const error = await response.json();
@@ -177,7 +177,7 @@ export default function UserProfilePage() {
           seller={{
             id: userProfile.id,
             name: userProfile.name,
-            type: userProfile.userType,
+            type: userProfile.userType as "farmer" | "trader",
             accountType: userProfile.accountType,
             location: userProfile.location || '',
             description: (userProfile as any).description || '',
@@ -213,7 +213,7 @@ export default function UserProfilePage() {
         />
       ) : (
         <UserProfile
-          userProfile={userProfile}
+          userProfile={userProfile as any}
           currentUser={currentUser}
           onBack={() => router.push("/")}
           isOwnProfile={isOwnProfile}

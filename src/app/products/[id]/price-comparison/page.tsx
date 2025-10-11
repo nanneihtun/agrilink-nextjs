@@ -127,7 +127,7 @@ export default function PriceComparisonPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <PriceComparison
           productName={data.productName}
-          priceData={data.priceData}
+          priceData={data.priceData as any}
           unit={data.unit}
           onBack={handleBack}
           isOwnProduct={isOwnProduct}
