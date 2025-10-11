@@ -177,12 +177,18 @@ export async function POST(request: NextRequest) {
       `;
     }
 
-    // Insert delivery options
-    if (deliveryOptions.length > 0) {
-      await sql`
-        INSERT INTO product_delivery ("productId", "deliveryOptions", "createdAt", "updatedAt")
-        VALUES (${product.id}, ${deliveryOptions}, NOW(), NOW())
-      `;
+    // Insert delivery options (optional - only if provided)
+    if (deliveryOptions && Array.isArray(deliveryOptions) && deliveryOptions.length > 0) {
+      try {
+        await sql`
+          INSERT INTO product_delivery ("productId", "deliveryOptions", "paymentTerms", "location", "sellerType", "sellerName", "createdAt", "updatedAt")
+          VALUES (${product.id}, ${JSON.stringify(deliveryOptions)}, ${JSON.stringify(paymentTerms || [])}, 'Myanmar', 'farmer', 'Seller', NOW(), NOW())
+        `;
+        console.log('✅ Delivery options inserted successfully');
+      } catch (deliveryError) {
+        console.warn('⚠️ Failed to insert delivery options:', deliveryError);
+        // Don't fail the whole request for delivery options
+      }
     }
 
     return NextResponse.json({

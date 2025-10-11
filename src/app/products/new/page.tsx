@@ -36,15 +36,24 @@ export default function NewProductPage() {
         body: JSON.stringify(productData),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to create product");
+        console.error("API Error Response:", result);
+        throw new Error(result.error || result.message || "Failed to create product");
       }
 
-      // Redirect back to dashboard
-      router.push("/dashboard");
+      // Check if the response indicates success
+      if (result.success) {
+        console.log("✅ Product created successfully:", result);
+        // Redirect back to dashboard
+        router.push("/dashboard");
+      } else {
+        throw new Error(result.error || result.message || "Failed to create product");
+      }
     } catch (err) {
       console.error("Error creating product:", err);
-      alert("Failed to create product. Please try again.");
+      alert(`Failed to create product: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
