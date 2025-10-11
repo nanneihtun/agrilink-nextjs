@@ -49,3 +49,4 @@ scripts/
 .DS_Store
 *.tmp
 *.log
+.env*.local
