@@ -273,11 +273,10 @@ export async function PUT(request: NextRequest) {
       }
       
       if (updateFields.length > 0) {
-        updateFields.push('"updatedAt" = NOW()');
-        updateValues.push(user.userId);
-        
-        const updateQuery = `UPDATE user_verification SET ${updateFields.join(', ')} WHERE "userId" = $${updateValues.length}`;
-        await sql.unsafe(updateQuery, updateValues);
+        // Update each field individually using conditional updates
+        if (verificationStatus !== undefined) {
+          await sql`UPDATE user_verification SET "verificationStatus" = ${verificationStatus}, "updatedAt" = NOW() WHERE "userId" = ${user.userId}`;
+        }
         console.log('✅ User verification status updated');
       }
     }
