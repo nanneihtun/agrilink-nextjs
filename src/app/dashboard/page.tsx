@@ -195,7 +195,7 @@ export default function DashboardPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         {user.userType === 'buyer' ? (
           <BuyerDashboard
-            user={user}
+            user={user as any}
             allProducts={allProducts}
             savedProducts={savedProducts}
             onGoToMarketplace={() => router.push("/")}
