@@ -1677,11 +1677,11 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     )}
                     
                     {/* Previously Submitted Documents */}
-                    {currentUser.rejectedDocuments && (
+                    {(currentUser as any).rejectedDocuments && (
                       <div className="space-y-3">
                         <h4 className="font-medium text-orange-800">Previously Submitted Documents:</h4>
                         <div className="space-y-2">
-                          {currentUser.rejectedDocuments.idCard && currentUser.rejectedDocuments.idCard.data && (
+                          {(currentUser as any).rejectedDocuments.idCard && (currentUser as any).rejectedDocuments.idCard.data && (
                             <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
                               <FileText className="w-4 h-4 text-orange-600" />
                               <span className="text-sm text-orange-800 flex-1">ID Card Document</span>
@@ -1689,7 +1689,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDocumentPreview(
-                                  currentUser.rejectedDocuments.idCard.data,
+                                  (currentUser as any).rejectedDocuments.idCard.data,
                                   'ID Card Document'
                                 )}
                                 className="text-orange-700 hover:text-orange-800"
@@ -1699,7 +1699,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                             </div>
                           )}
                           
-                          {currentUser.rejectedDocuments.businessLicense && currentUser.rejectedDocuments.businessLicense.data && (
+                          {(currentUser as any).rejectedDocuments.businessLicense && (currentUser as any).rejectedDocuments.businessLicense.data && (
                             <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
                               <FileText className="w-4 h-4 text-orange-600" />
                               <span className="text-sm text-orange-800 flex-1">Business License</span>
@@ -1707,7 +1707,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDocumentPreview(
-                                  currentUser.rejectedDocuments.businessLicense.data,
+                                  (currentUser as any).rejectedDocuments.businessLicense.data,
                                   'Business License'
                                 )}
                                 className="text-orange-700 hover:text-orange-800"
@@ -1779,7 +1779,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                                (!isBusinessAccount || !uploadedDocuments.businessLicense) &&
                                !currentUser.verificationDocuments;
           
-          const isResubmitState = hasNoDocuments && currentUser.verificationStatus === 'phone-verified';
+          const isResubmitState = hasNoDocuments && (currentUser.verificationStatus as any) === 'phone-verified';
           
           return (
             <Card className={isResubmitState ? "bg-orange-50 border-orange-200" : "bg-primary/5 border-primary/20"}>
@@ -1871,7 +1871,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
         })()}
 
         {/* Spacing and Separator for History Card */}
-        {currentUser.rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && (currentUser.verificationStatus === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
+        {(currentUser as any).rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && ((currentUser.verificationStatus as any) === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
           <>
             {/* Moderate spacing */}
             <div className="mt-8 mb-6">
@@ -1889,7 +1889,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
         )}
 
         {/* Rejection History Card - shown for users who have rejection history but are not currently rejected */}
-        {currentUser.rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && (currentUser.verificationStatus === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
+        {(currentUser as any).rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && ((currentUser.verificationStatus as any) === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
           <Card className="bg-orange-50 border-orange-200">
             <CardContent className="p-4">
               <div className="space-y-4">
@@ -1934,11 +1934,11 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     )}
                     
                     {/* Previously Submitted Documents */}
-                    {currentUser.rejectedDocuments && (
+                    {(currentUser as any).rejectedDocuments && (
                       <div className="space-y-3">
                         <h4 className="font-medium text-orange-800">Previously Submitted Documents:</h4>
                         <div className="space-y-2">
-                          {currentUser.rejectedDocuments.idCard && currentUser.rejectedDocuments.idCard.data && (
+                          {(currentUser as any).rejectedDocuments.idCard && (currentUser as any).rejectedDocuments.idCard.data && (
                             <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
                               <FileText className="w-4 h-4 text-orange-600" />
                               <span className="text-sm text-orange-800 flex-1">ID Card Document</span>
@@ -1946,7 +1946,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDocumentPreview(
-                                  currentUser.rejectedDocuments.idCard.data,
+                                  (currentUser as any).rejectedDocuments.idCard.data,
                                   'ID Card Document'
                                 )}
                                 className="text-orange-700 hover:text-orange-800"
@@ -1956,7 +1956,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                             </div>
                           )}
                           
-                          {currentUser.rejectedDocuments.businessLicense && currentUser.rejectedDocuments.businessLicense.data && (
+                          {(currentUser as any).rejectedDocuments.businessLicense && (currentUser as any).rejectedDocuments.businessLicense.data && (
                             <div className="flex items-center gap-3 p-3 bg-orange-100 rounded border border-orange-200">
                               <FileText className="w-4 h-4 text-orange-600" />
                               <span className="text-sm text-orange-800 flex-1">Business License</span>
@@ -1964,7 +1964,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDocumentPreview(
-                                  currentUser.rejectedDocuments.businessLicense.data,
+                                  (currentUser as any).rejectedDocuments.businessLicense.data,
                                   'Business License'
                                 )}
                                 className="text-orange-700 hover:text-orange-800"
