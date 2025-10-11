@@ -1,10 +1,10 @@
 import { Badge } from "./ui/badge"
 import { Alert, AlertDescription } from "./ui/alert"
 import { CheckCircle, AlertCircle } from "lucide-react"
-import ENV from '../config/env'
+// import ENV from '../config/env' // Commented out - module not found
 
 export function EnvironmentStatus() {
-  const isConfigured = ENV.isNeonConfigured() // Updated to check Neon instead of Supabase
+  const isConfigured = false // ENV module not available
   
   if (isConfigured) {
     return null // Don't show environment status when backend is configured - BackendStatus handles this

@@ -71,7 +71,7 @@ export function InteractiveMarketplace({ initialProducts }: InteractiveMarketpla
         filtered.sort((a, b) => a.name.localeCompare(b.name));
         break;
       default: // newest
-        filtered.sort((a, b) => new Date(b.createdAt || "").getTime() - new Date(a.createdAt || "").getTime());
+        filtered.sort((a, b) => new Date((b as any).createdAt || "").getTime() - new Date((a as any).createdAt || "").getTime());
     }
 
     return filtered;

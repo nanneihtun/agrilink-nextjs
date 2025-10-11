@@ -106,7 +106,6 @@ export function CreateOfferModal({
     validUntil.setDate(validUntil.getDate() + parseInt(validityDays));
 
     const offer: Omit<Offer, "id" | "createdAt" | "acceptedAt" | "completedAt"> = {
-      conversationId: '', // Will be set when conversation is created
       productId: product.id,
       productName: product.name,
       sellerId,

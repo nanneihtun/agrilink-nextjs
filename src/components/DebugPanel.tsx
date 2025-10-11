@@ -123,7 +123,7 @@ export function DebugPanel({ backendAvailable, currentUser, authLoading }: Debug
                   console.log('Current User:', currentUser);
                   console.log('Stored Users:', storedUsers);
                   console.log('Current Stored User:', currentStoredUser);
-                  console.log('Environment Configured:', ENV.isNeonConfigured());
+                  console.log('Environment Configured:', 'Not available'); // ENV module not found
                   console.log('==================');
                 }}
                 size="sm"

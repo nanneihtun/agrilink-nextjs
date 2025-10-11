@@ -64,7 +64,7 @@ export function ImageUpload({ onImageUpload, onImageSelect, currentImage, classN
       // Generate a mock URL (in production, this would be the actual uploaded image URL)
       const mockImageUrl = `/api/placeholder/400/300`;
       
-      onImageUpload(mockImageUrl);
+      onImageUpload && onImageUpload(mockImageUrl);
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Failed to upload image. Please try again.');
