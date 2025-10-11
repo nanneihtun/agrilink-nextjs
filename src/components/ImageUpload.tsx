@@ -43,7 +43,7 @@ export function ImageUpload({ onImageUpload, onImageSelect, currentImage, classN
       // Handle file based on callback type
       if (onImageSelect) {
         // Pass file directly to parent component
-        onImageSelect(file);
+        onImageSelect && onImageSelect(file);
       } else if (onImageUpload) {
         // Upload file and pass URL to parent
         uploadFile(file);

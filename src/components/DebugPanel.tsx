@@ -3,7 +3,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { AlertCircle, Bug, Eye, EyeOff } from "lucide-react";
-import ENV from '../config/env';
+// import { ENV_CONFIG } from '../config/env'; // Commented out - module not found
 
 interface DebugPanelProps {
   backendAvailable: boolean;
