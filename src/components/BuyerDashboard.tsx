@@ -424,7 +424,7 @@ export function BuyerDashboard({
                   </div>
                   {saved.product && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      Seller: {saved.(product as any).sellerName} • {saved.product.location}
+                      Seller: {(saved.product as any).sellerName} • {saved.product.location}
                     </p>
                   )}
                 </div>
@@ -442,7 +442,7 @@ export function BuyerDashboard({
                   <Button 
                     size="sm"
                     className="w-full md:w-auto"
-                    onClick={() => saved.product && onStartChat(saved.productId, saved.(product as any).sellerId)}
+                    onClick={() => saved.product && onStartChat(saved.productId, (saved.product as any).sellerId)}
                     disabled={!saved.product}
                   >
                     <MessageCircle className="w-4 h-4 mr-1" />
