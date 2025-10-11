@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AppHeader } from "@/components/AppHeader";
+import { CountryCodeSelector } from "@/components/CountryCodeSelector";
 import { Eye, EyeOff, Leaf, Mail, Lock, User, Phone, MapPin, Building2, ArrowLeft } from "lucide-react";
 import { myanmarRegions } from "@/utils/regions";
 
@@ -193,16 +194,15 @@ export default function RegisterPage() {
 
       <div className="space-y-2">
         <Label htmlFor="phone">Phone Number</Label>
-        <div className="relative">
-          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            id="phone"
-            placeholder="+95 9 123 456 789"
-            value={formData.phone}
-            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            className="pl-10"
-          />
-        </div>
+        <CountryCodeSelector
+          value={formData.phone}
+          onChange={(phone) => setFormData(prev => ({ ...prev, phone }))}
+          placeholder="9 123 456 789"
+          disabled={isLoading}
+        />
+        <p className="text-xs text-muted-foreground">
+          Select your country and enter your phone number
+        </p>
       </div>
 
       <div className="space-y-2">

@@ -7,6 +7,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
+import { CountryCodeSelector } from "./CountryCodeSelector";
 import { 
   Server, 
   User, 
@@ -239,11 +240,10 @@ export function BackendLoginGuide({ onCreateAccount, onLogin, onClose }: Backend
                   </div>
                   <div>
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
+                    <CountryCodeSelector
                       value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="e.g., +95..."
+                      onChange={(phone) => setFormData(prev => ({ ...prev, phone }))}
+                      placeholder="9 123 456 789"
                     />
                   </div>
                 </div>
