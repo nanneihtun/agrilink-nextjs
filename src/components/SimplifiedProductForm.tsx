@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -72,8 +72,8 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         region: editingProduct.region || currentUser?.region || 'yangon', // Default to Yangon if no region set
         sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
         sellerName: editingProduct.sellerName || currentUser?.name || '',
-        image: editingProduct.image || '',
-        images: editingProduct.images || (editingProduct.image ? [editingProduct.image] : []),
+        image: editingProduct.image || editingProduct.imageUrl || '',
+        images: editingProduct.images || (editingProduct.image ? [editingProduct.image] : []) || (editingProduct.imageUrl ? [editingProduct.imageUrl] : []),
         quantity: editingProduct.quantity || '',
         minimumOrder: editingProduct.minimumOrder || '',
         availableQuantity: editingProduct.availableQuantity || '',
@@ -117,6 +117,38 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       priceChange: undefined
     };
   });
+
+  // Update form data when editingProduct changes (important for edit mode)
+  useEffect(() => {
+    if (editingProduct) {
+      console.log('🔄 Updating form data with editing product:', editingProduct);
+      setFormData(prev => ({
+        ...prev,
+        id: editingProduct.id,
+        sellerId: editingProduct.sellerId,
+        name: editingProduct.name || '',
+        price: editingProduct.price || 0,
+        unit: editingProduct.unit || '',
+        location: editingProduct.location || currentUser?.location || '',
+        region: editingProduct.region || currentUser?.region || 'yangon',
+        sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
+        sellerName: editingProduct.sellerName || currentUser?.name || '',
+        image: editingProduct.image || editingProduct.imageUrl || '',
+        images: editingProduct.images || (editingProduct.image ? [editingProduct.image] : []) || (editingProduct.imageUrl ? [editingProduct.imageUrl] : []),
+        quantity: editingProduct.quantity || '',
+        minimumOrder: editingProduct.minimumOrder || '',
+        availableQuantity: editingProduct.availableQuantity || '',
+        deliveryOptions: editingProduct.deliveryOptions || [],
+        paymentTerms: editingProduct.paymentTerms || [],
+        lastUpdated: editingProduct.lastUpdated || new Date().toISOString(),
+        category: editingProduct.category || '',
+        description: editingProduct.description || '',
+        additionalNotes: editingProduct.additionalNotes || '',
+        priceChange: editingProduct.priceChange,
+        isEditing: true
+      }));
+    }
+  }, [editingProduct, currentUser]);
 
   const [availableCustomDeliveryOptions, setAvailableCustomDeliveryOptions] = useState<string[]>(() => {
     const storedCustomDelivery = localStorage.getItem('agriconnect-custom-delivery-options');
