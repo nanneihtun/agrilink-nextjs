@@ -107,7 +107,6 @@ export function CreateOfferModal({
 
     const offer: Omit<Offer, "id" | "createdAt" | "acceptedAt" | "completedAt"> = {
       productId: product.id,
-      productName: product.name,
       sellerId,
       sellerName,
       buyerId,
