@@ -155,10 +155,10 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
           buyerId: conv.buyerId,
           sellerId: conv.sellerId,
           currentUserId: effectiveCurrentUser?.id,
-          sellerData: conv.seller,
-          buyerData: conv.buyer,
-          sellerProfileImage: conv.seller?.profile_image,
-          buyerProfileImage: conv.buyer?.profile_image
+          sellerData: (conv as any).seller,
+          buyerData: (conv as any).buyer,
+          sellerProfileImage: (conv as any).seller?.profile_image,
+          buyerProfileImage: (conv as any).buyer?.profile_image
         });
       }
       // Determine the other party (not the current user)
@@ -183,9 +183,9 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
           name: otherPartyName || 'Unknown User',
           type: conv.buyerId === effectiveCurrentUser?.id ? conv.sellerType : conv.buyerType,
           location: conv.buyerId === effectiveCurrentUser?.id ? conv.sellerLocation : conv.buyerLocation || 'Unknown Location',
-          rating: conv.buyerId === effectiveCurrentUser?.id ? conv.sellerRating : conv.buyerRating,
+          rating: conv.buyerId === effectiveCurrentUser?.id ? (conv as any).sellerRating : (conv as any).buyerRating,
           verified: conv.buyerId === effectiveCurrentUser?.id ? conv.sellerVerified : conv.buyerVerified,
-          profileImage: conv.buyerId === effectiveCurrentUser?.id ? conv.seller?.profile_image : conv.buyer?.profile_image,
+          profileImage: conv.buyerId === effectiveCurrentUser?.id ? (conv as any).seller?.profile_image : (conv as any).buyer?.profile_image,
           // Add complete verification data for badge display
           accountType: conv.buyerId === effectiveCurrentUser?.id ? conv.sellerAccountType : conv.buyerAccountType,
           phoneVerified: conv.buyerId === effectiveCurrentUser?.id ? conv.sellerPhoneVerified : conv.buyerPhoneVerified,
@@ -205,7 +205,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
           isOwn: false
         },
         unreadCount,
-        status: conv.status === 'active' ? 'active' : 'archived'
+        status: (conv as any).status === 'active' ? 'active' : 'archived'
       } as Conversation;
       
       return finalConversation;
@@ -541,7 +541,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                 currentUserVerified={effectiveCurrentUser?.verified || false}
                 currentUserType={effectiveCurrentUser?.userType}
                 currentUser={effectiveCurrentUser}
-                otherPartyProfileImage={conversation.otherParty.profileImage}
+                otherPartyProfileImage={(conversation.otherParty as any).profileImage}
                 otherPartyVerificationStatus={{
                   trustLevel: conversation.otherParty.verified ? 'id-verified' : 'unverified',
                   tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
@@ -550,10 +550,10 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                 product={{
                   id: conversation.productId,
                   name: conversation.productName,
-                  price: conversation.productPrice || 0,
-                  quantity: conversation.productQuantity || 0,
-                  unit: conversation.productUnit || 'units',
-                  category: conversation.productCategory || 'General',
+                  price: (conversation as any).productPrice || 0,
+                  quantity: (conversation as any).productQuantity || 0,
+                  unit: (conversation as any).productUnit || 'units',
+                  category: (conversation as any).productCategory || 'General',
                   sellerId: conversation.otherParty.id,
                   sellerName: conversation.otherParty.name,
                   sellerType: conversation.otherParty.type,
@@ -579,7 +579,7 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                 currentUserVerified={effectiveCurrentUser?.verified || false}
                 currentUserType={effectiveCurrentUser?.userType}
                 currentUser={effectiveCurrentUser}
-                otherPartyProfileImage={conversation.otherParty.profileImage}
+                otherPartyProfileImage={(conversation.otherParty as any).profileImage}
                 otherPartyVerificationStatus={{
                   trustLevel: conversation.otherParty.verified ? 'id-verified' : 'unverified',
                   tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
@@ -588,10 +588,10 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                 product={{
                   id: conversation.productId,
                   name: conversation.productName,
-                  price: conversation.productPrice || 0,
-                  quantity: conversation.productQuantity || 0,
-                  unit: conversation.productUnit || 'units',
-                  category: conversation.productCategory || 'General',
+                  price: (conversation as any).productPrice || 0,
+                  quantity: (conversation as any).productQuantity || 0,
+                  unit: (conversation as any).productUnit || 'units',
+                  category: (conversation as any).productCategory || 'General',
                   sellerId: conversation.otherParty.id,
                   sellerName: conversation.otherParty.name,
                   sellerType: conversation.otherParty.type,
