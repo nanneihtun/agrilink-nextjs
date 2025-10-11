@@ -61,7 +61,7 @@ export function CountryCodeSelector({
         onValueChange={handleCountryChange}
         disabled={disabled}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-[110px]">
           <SelectValue>
             <div className="flex items-center gap-2">
               <span className="text-lg">{selectedCountry.flag}</span>
