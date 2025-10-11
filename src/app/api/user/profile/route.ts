@@ -250,11 +250,8 @@ export async function PUT(request: NextRequest) {
       
       if (updateFields.length > 0) {
         // Update each field individually using conditional updates
-        if (businessName !== undefined) {
-          await sql`UPDATE users SET "businessName" = ${businessName}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
-        }
-        if (businessDescription !== undefined) {
-          await sql`UPDATE users SET "businessDescription" = ${businessDescription}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
+        if (agriLinkVerificationRequested !== undefined) {
+          await sql`UPDATE users SET "agriLinkVerificationRequested" = ${agriLinkVerificationRequested}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
         }
         if (agriLinkVerificationRequestedAt !== undefined) {
           await sql`UPDATE users SET "agriLinkVerificationRequestedAt" = ${agriLinkVerificationRequestedAt}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
