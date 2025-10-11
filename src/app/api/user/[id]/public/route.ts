@@ -53,7 +53,7 @@ export async function GET(
     const user = userData[0];
 
     // Get user's products if they're a seller (farmer/trader)
-    let products = [];
+    let products: any[] = [];
     if (user.userType === 'farmer' || user.userType === 'trader') {
       const productData = await sql`
         SELECT 
