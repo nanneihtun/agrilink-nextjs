@@ -111,13 +111,9 @@ export function CreateOfferModal({
       buyerId,
       price,
       quantity,
-      unit: product.unit || "units",
-      description: product.description || "",
-      deliveryTerms: `${deliveryTerms}${deliveryLocation ? ` | Location: ${deliveryLocation}` : ""}`,
-      deliveryLocation: deliveryLocation || "",
-      validUntil: validUntil.toISOString(),
-      status: "pending",
-      notes: notes.trim() || ""
+      message: notes.trim() || "",
+      status: "pending" as const,
+      updatedAt: new Date().toISOString()
     };
 
     console.log('✅ CreateOfferModal - Final offer object:', offer);

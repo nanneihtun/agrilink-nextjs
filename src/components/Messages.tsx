@@ -546,19 +546,30 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                   trustLevel: conversation.otherParty.verified ? 'id-verified' : 'unverified',
                   tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
                   levelBadge: conversation.otherParty.verified ? 'Tier 1' : 'Unverified'
-                }}
-                product={{
+                } as any)}
+                product={({
                   id: conversation.productId,
                   name: conversation.productName,
+                  category: 'General',
+                  description: '',
                   price: (conversation as any).productPrice || 0,
                   unit: (conversation as any).productUnit || 'units',
-                  category: (conversation as any).productCategory || 'General',
-                  sellerId: conversation.otherParty.id,
-                  sellerName: conversation.otherParty.name,
-                  sellerType: conversation.otherParty.type,
                   location: conversation.otherParty.location,
-                  image: conversation.productImage
-                }}
+                  image: conversation.productImage,
+                  seller: {
+                    id: conversation.otherParty.id,
+                    name: conversation.otherParty.name,
+                    userType: conversation.otherParty.type,
+                    location: conversation.otherParty.location,
+                    verified: conversation.otherParty.verified,
+                    phoneVerified: false,
+                    verificationStatus: 'unverified',
+                    rating: 0,
+                    totalReviews: 0
+                  },
+                  isActive: true,
+                  createdAt: new Date().toISOString()
+                } as any)}
               />
             </div>
 
@@ -583,19 +594,30 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                   trustLevel: conversation.otherParty.verified ? 'id-verified' : 'unverified',
                   tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
                   levelBadge: conversation.otherParty.verified ? 'Tier 1' : 'Unverified'
-                }}
-                product={{
+                } as any)}
+                product={({
                   id: conversation.productId,
                   name: conversation.productName,
+                  category: 'General',
+                  description: '',
                   price: (conversation as any).productPrice || 0,
                   unit: (conversation as any).productUnit || 'units',
-                  category: (conversation as any).productCategory || 'General',
-                  sellerId: conversation.otherParty.id,
-                  sellerName: conversation.otherParty.name,
-                  sellerType: conversation.otherParty.type,
                   location: conversation.otherParty.location,
-                  image: conversation.productImage
-                }}
+                  image: conversation.productImage,
+                  seller: {
+                    id: conversation.otherParty.id,
+                    name: conversation.otherParty.name,
+                    userType: conversation.otherParty.type,
+                    location: conversation.otherParty.location,
+                    verified: conversation.otherParty.verified,
+                    phoneVerified: false,
+                    verificationStatus: 'unverified',
+                    rating: 0,
+                    totalReviews: 0
+                  },
+                  isActive: true,
+                  createdAt: new Date().toISOString()
+                } as any)}
               />
             </div>
           </>
