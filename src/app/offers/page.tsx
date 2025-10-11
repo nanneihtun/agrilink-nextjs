@@ -205,10 +205,6 @@ export default function OffersPage() {
           localStorage.removeItem("user");
           router.push("/");
         }}
-        onViewProfile={() => router.push("/profile")}
-        onEditProfile={() => router.push("/profile?edit=true")}
-        onShowVerification={() => router.push("/verify")}
-        onViewStorefront={(sellerId) => router.push(`/seller/${sellerId}`)}
       />
 
       <div className="max-w-5xl mx-auto px-4 py-8">

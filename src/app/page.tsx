@@ -294,11 +294,7 @@ export default function HomePage() {
       </div>
 
       {/* Footer */}
-      <AppFooter
-        onShowAboutUs={() => router.push("/about")}
-        onShowContactUs={() => router.push("/contact")}
-        onShowFAQ={() => router.push("/faq")}
-      />
+      <AppFooter />
 
       {/* Chat Popups - Facebook Style */}
       {activeChats.map((chat, index) => (

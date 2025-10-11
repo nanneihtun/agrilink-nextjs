@@ -93,7 +93,6 @@ export default function VerifyPage() {
       <AppHeader 
         currentUser={user} 
         onLogout={handleLogout}
-        onShowVerification={() => {}} // Already on verification page
       />
 
       <div className="max-w-2xl mx-auto px-4 py-8">

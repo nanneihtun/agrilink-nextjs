@@ -159,10 +159,6 @@ export default function ProfilePage() {
       <AppHeader 
         currentUser={user} 
         onLogout={handleLogout}
-        onViewProfile={() => {}} // Already on profile page
-        onEditProfile={handleEditProfile}
-        onShowVerification={handleShowVerification}
-        onViewStorefront={handleViewStorefront}
       />
 
       <div className="max-w-5xl mx-auto px-4 py-8">
