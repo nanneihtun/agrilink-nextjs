@@ -22,17 +22,7 @@ import {
 import { FreshDashboard } from "@/components/FreshDashboard";
 import { BuyerDashboard } from "@/components/BuyerDashboard";
 import { AppHeader } from "@/components/AppHeader";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  accountType: string;
-  location: string;
-  verified: boolean;
-  phoneVerified: boolean;
-  verificationStatus: string;
-}
+import { User } from "@/hooks/useAuth";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
