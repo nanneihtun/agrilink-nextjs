@@ -249,11 +249,16 @@ export async function PUT(request: NextRequest) {
       }
       
       if (updateFields.length > 0) {
-        updateFields.push('"updatedAt" = NOW()');
-        updateValues.push(user.userId);
-        
-        const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${updateValues.length}`;
-        await sql.unsafe(updateQuery, updateValues);
+        // Update each field individually using conditional updates
+        if (businessName !== undefined) {
+          await sql`UPDATE users SET "businessName" = ${businessName}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
+        }
+        if (businessDescription !== undefined) {
+          await sql`UPDATE users SET "businessDescription" = ${businessDescription}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
+        }
+        if (agriLinkVerificationRequestedAt !== undefined) {
+          await sql`UPDATE users SET "agriLinkVerificationRequestedAt" = ${agriLinkVerificationRequestedAt}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
+        }
         console.log('✅ AgriLink verification request fields updated');
       }
     }
