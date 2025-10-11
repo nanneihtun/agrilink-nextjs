@@ -101,7 +101,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
               </Button>
               {currentUser && (
                 <Button
-                  variant={currentUser.userType === "admin" ? isActive("/admin") : isActive("/dashboard") ? "default" : "ghost"}
+                  variant={currentUser.userType === "admin" ? (isActive("/admin") ? "default" : "ghost") : (isActive("/dashboard") ? "default" : "ghost")}
                   onClick={currentUser.userType === "admin" ? () => router.push("/admin") : handleGoToDashboard}
                   className="px-2 h-8 text-sm"
                 >
@@ -156,7 +156,7 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
                 </span>
                 <UserMenuWithSupport
                   user={currentUser}
-                  onLogout={onLogout}
+                  onLogout={onLogout || (() => {})}
                   onViewStorefront={handleViewStorefront}
                   onUpdateUser={handleUpdateUser}
                   onGoToDashboard={handleGoToDashboard}

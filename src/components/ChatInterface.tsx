@@ -229,7 +229,7 @@ export function ChatInterface({
       const timeout = setTimeout(() => {
         console.warn('Chat interface stuck in loading state, forcing recovery');
         setIsLoading(false);
-        toast.warning('Chat recovered from loading state');
+        console.warn('Chat recovered from loading state');
       }, 10000); // 10 second timeout
       
       return () => clearTimeout(timeout);
@@ -307,7 +307,7 @@ export function ChatInterface({
         }
       } catch (error) {
         console.error('❌ Failed to initialize chat:', error);
-        toast.error('Failed to start conversation');
+        console.error('Failed to start conversation');
       } finally {
         setIsLoading(false);
       }
