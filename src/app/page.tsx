@@ -188,7 +188,7 @@ export default function HomePage() {
       productName: product.name,
       productId: productId,
       otherPartyVerified: product.seller.verified || false,
-      otherPartyProfileImage: product.seller.profileImage || '',
+      otherPartyProfileImage: product.(seller as any).profileImage || '',
       otherPartyVerificationStatus: {
         trustLevel: product.seller.verified ? 'id-verified' : 'unverified',
         tierLabel: product.seller.verified ? 'Verified' : 'Unverified',

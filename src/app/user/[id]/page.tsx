@@ -183,7 +183,7 @@ export default function UserProfilePage() {
             type: userProfile.userType,
             accountType: userProfile.accountType,
             location: userProfile.location || '',
-            description: userProfile.description || '',
+            description: (userProfile as any).description || '',
             image: userProfile.profileImage || '',
             rating: userProfile.ratings?.rating || 0,
             totalReviews: userProfile.ratings?.totalReviews || 0,

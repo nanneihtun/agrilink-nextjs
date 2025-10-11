@@ -71,7 +71,7 @@ interface Offer {
 
 export default function OffersPage() {
   const [user, setUser] = useState<any>(null);
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offers, setOffers] = useState<{sent: Offer[], received: Offer[]}>({sent: [], received: []});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("received");
   const router = useRouter();
@@ -194,7 +194,7 @@ export default function OffersPage() {
     return null;
   }
 
-  const currentOffers = offers[activeTab] || [];
+  const currentOffers = offers[activeTab as keyof typeof offers] || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -260,7 +260,7 @@ export default function OffersPage() {
                     </CardContent>
                   </Card>
                 ) : (
-                currentOffers.map((offer) => (
+                currentOffers.map((offer: Offer) => (
                   <Card key={offer.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
@@ -367,7 +367,7 @@ export default function OffersPage() {
                   </CardContent>
                 </Card>
               ) : (
-                currentOffers.map((offer) => (
+                currentOffers.map((offer: Offer) => (
                   <Card key={offer.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
