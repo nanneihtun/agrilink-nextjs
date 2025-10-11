@@ -12,47 +12,81 @@ export async function GET(request: NextRequest) {
     const sellerId = searchParams.get('sellerId');
 
     // Build the WHERE clause based on filters
-    let whereClause = 'WHERE p."isActive" = true';
-    if (sellerId) {
-      whereClause += ` AND p."sellerId" = '${sellerId}'`;
-    }
-
     // Optimized query - fetch only essential data first
-    const products = await sql`
-      SELECT 
-        p.id,
-        p.name,
-        p.category,
-        p.description,
-        p."createdAt",
-        pp.price,
-        pp.unit,
-        pi."imageUrl",
-        COALESCE(pinv."availableQuantity", 'Contact seller') as quantity,
-        pinv."minimumOrder",
-        u.id as seller_id,
-        u.name as seller_name,
-        u."userType" as seller_type,
-        u."accountType" as seller_account_type,
-        COALESCE(up.location, 'Myanmar') as location,
-        COALESCE(up."profileImage", '') as profileImage,
-        COALESCE(uv.verified, false) as verified,
-        COALESCE(uv."phoneVerified", false) as phoneVerified,
-        COALESCE(uv."verificationStatus", 'unverified') as verificationStatus,
-        COALESCE(ur.rating, 0) as rating,
-        COALESCE(ur."totalReviews", 0) as totalReviews
-      FROM products p
-      INNER JOIN product_pricing pp ON p.id = pp."productId"
-      LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-      LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
-      INNER JOIN users u ON p."sellerId" = u.id
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      LEFT JOIN user_verification uv ON u.id = uv."userId"
-      LEFT JOIN user_ratings ur ON u.id = ur."userId"
-      ${sql.unsafe(whereClause)}
-      ORDER BY p."createdAt" DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    let products;
+    if (sellerId) {
+      products = await sql`
+        SELECT 
+          p.id,
+          p.name,
+          p.category,
+          p.description,
+          p."createdAt",
+          pp.price,
+          pp.unit,
+          pi."imageUrl",
+          COALESCE(pinv."availableQuantity", 'Contact seller') as quantity,
+          pinv."minimumOrder",
+          u.id as seller_id,
+          u.name as seller_name,
+          u."userType" as seller_type,
+          u."accountType" as seller_account_type,
+          COALESCE(up.location, 'Myanmar') as location,
+          COALESCE(up."profileImage", '') as profileImage,
+          COALESCE(uv.verified, false) as verified,
+          COALESCE(uv."phoneVerified", false) as phoneVerified,
+          COALESCE(uv."verificationStatus", 'unverified') as verificationStatus,
+          COALESCE(ur.rating, 0) as rating,
+          COALESCE(ur."totalReviews", 0) as totalReviews
+        FROM products p
+        INNER JOIN product_pricing pp ON p.id = pp."productId"
+        LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
+        LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
+        INNER JOIN users u ON p."sellerId" = u.id
+        LEFT JOIN user_profiles up ON u.id = up."userId"
+        LEFT JOIN user_verification uv ON u.id = uv."userId"
+        LEFT JOIN user_ratings ur ON u.id = ur."userId"
+        WHERE p."isActive" = true AND p."sellerId" = ${sellerId}
+        ORDER BY p."createdAt" DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+    } else {
+      products = await sql`
+        SELECT 
+          p.id,
+          p.name,
+          p.category,
+          p.description,
+          p."createdAt",
+          pp.price,
+          pp.unit,
+          pi."imageUrl",
+          COALESCE(pinv."availableQuantity", 'Contact seller') as quantity,
+          pinv."minimumOrder",
+          u.id as seller_id,
+          u.name as seller_name,
+          u."userType" as seller_type,
+          u."accountType" as seller_account_type,
+          COALESCE(up.location, 'Myanmar') as location,
+          COALESCE(up."profileImage", '') as profileImage,
+          COALESCE(uv.verified, false) as verified,
+          COALESCE(uv."phoneVerified", false) as phoneVerified,
+          COALESCE(uv."verificationStatus", 'unverified') as verificationStatus,
+          COALESCE(ur.rating, 0) as rating,
+          COALESCE(ur."totalReviews", 0) as totalReviews
+        FROM products p
+        INNER JOIN product_pricing pp ON p.id = pp."productId"
+        LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
+        LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
+        INNER JOIN users u ON p."sellerId" = u.id
+        LEFT JOIN user_profiles up ON u.id = up."userId"
+        LEFT JOIN user_verification uv ON u.id = uv."userId"
+        LEFT JOIN user_ratings ur ON u.id = ur."userId"
+        WHERE p."isActive" = true
+        ORDER BY p."createdAt" DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+    }
 
     // Simplified transformation - data is already processed by COALESCE
     const transformedProducts = products.map(product => ({

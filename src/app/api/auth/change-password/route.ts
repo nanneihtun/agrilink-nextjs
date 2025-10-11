@@ -21,14 +21,14 @@ export async function POST(request: NextRequest) {
     // Verify the JWT token
     let userId: string;
     try {
-      console.log('🔑 JWT_SECRET present:', !!process.env.JWT_SECRET);
+      console.log('🔑 JWT_SECRET present:', !!process.env.JWT_SECRET!);
       
-      if (!process.env.JWT_SECRET) {
+      if (!process.env.JWT_SECRET!) {
         console.error('❌ JWT_SECRET environment variable is not set');
         return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
       }
       
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
       userId = decoded.userId;
       console.log('✅ JWT verified, userId:', userId);
       

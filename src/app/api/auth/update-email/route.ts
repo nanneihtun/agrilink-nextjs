@@ -23,11 +23,11 @@ export async function POST(request: NextRequest) {
     // Verify the JWT token
     let userId: string;
     try {
-      if (!process.env.JWT_SECRET) {
+      if (!process.env.JWT_SECRET!) {
         return NextResponse.json({ message: 'Server configuration error' }, { status: 500 });
       }
       
-        const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
         userId = decoded.userId;
         console.log('🔐 JWT decoded successfully, userId:', userId);
         
