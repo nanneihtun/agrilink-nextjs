@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 
-export default function VerifyEmailChangePage() {
+function VerifyEmailChangeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -175,5 +175,13 @@ export default function VerifyEmailChangePage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailChangePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <VerifyEmailChangeContent />
+    </Suspense>
   );
 }
