@@ -489,6 +489,15 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
               <span>Messages</span>
             </DropdownMenuItem>
           )}
+          
+          {/* Offer Management menu item - Show for buyers, traders, and farmers */}
+          {(user.userType === 'buyer' || user.userType === 'trader' || user.userType === 'farmer') && (
+            <DropdownMenuItem onClick={() => window.location.href = '/offers'}>
+              <Package className="mr-2 h-4 w-4" />
+              <span>Manage Offers</span>
+            </DropdownMenuItem>
+          )}
+          
           {/* Verification menu item - Only show for non-admin users */}
           {user.userType !== 'admin' && (
             <DropdownMenuItem onClick={() => onShowVerification?.()}>
