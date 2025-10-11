@@ -124,21 +124,21 @@ export function BuyerDashboard({
       {(() => {
         // Helper function to determine verification progress for buyers
         const getVerificationProgress = () => {
-          if (user.verified && user.phoneVerified) {
+          if (user.verified && (user as any).phoneVerified) {
             return 'verified';
           }
           
           // Check for rejection status first
-          if (user.verificationStatus === 'rejected') {
+          if ((user as any).verificationStatus === 'rejected') {
             return 'rejected';
           }
           
-          if (user.verificationStatus === 'under_review' || user.verificationSubmitted) {
+          if ((user as any).verificationStatus === 'under_review' || (user as any).verificationSubmitted) {
             return 'under-review';
           }
           
           // For buyers, phone verification is the main requirement
-          if (user.phoneVerified) {
+          if ((user as any).phoneVerified) {
             return 'in-progress';
           }
           
@@ -424,7 +424,7 @@ export function BuyerDashboard({
                   </div>
                   {saved.product && (
                     <p className="text-sm text-muted-foreground mt-1">
-                      Seller: {saved.product.sellerName} • {saved.product.location}
+                      Seller: {saved.(product as any).sellerName} • {saved.product.location}
                     </p>
                   )}
                 </div>
@@ -442,7 +442,7 @@ export function BuyerDashboard({
                   <Button 
                     size="sm"
                     className="w-full md:w-auto"
-                    onClick={() => saved.product && onStartChat(saved.productId, saved.product.sellerId)}
+                    onClick={() => saved.product && onStartChat(saved.productId, saved.(product as any).sellerId)}
                     disabled={!saved.product}
                   >
                     <MessageCircle className="w-4 h-4 mr-1" />

@@ -1,3 +1,11 @@
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  image?: string;
+}
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
