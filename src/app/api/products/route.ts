@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
+// Create connection with timeout settings
+const sql = neon(process.env.DATABASE_URL!, {
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+});
 
 export async function GET(request: NextRequest) {
   try {

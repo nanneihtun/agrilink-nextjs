@@ -1,35 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL!);
-
 export async function GET(request: NextRequest) {
   try {
     console.log('Testing database connection...');
     
-    // Test basic connection
-    const result = await sql`SELECT 1 as test`;
+    // Create connection with timeout
+    const sql = neon(process.env.DATABASE_URL!, {
+      connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+    });
+    
+    // Test basic connection with timeout
+    const result = await Promise.race([
+      sql`SELECT 1 as test`,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+      )
+    ]);
+    
     console.log('Database connection successful:', result);
-    
-    // Test if products table exists
-    const tableCheck = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'products'
-      ) as table_exists
-    `;
-    console.log('Products table exists:', tableCheck[0]?.table_exists);
-    
-    // Test products count
-    const productCount = await sql`SELECT COUNT(*) as count FROM products`;
-    console.log('Product count:', productCount[0]?.count);
     
     return NextResponse.json({
       success: true,
       database_connected: true,
-      products_table_exists: tableCheck[0]?.table_exists,
-      product_count: productCount[0]?.count,
-      message: 'Database test successful'
+      message: 'Database test successful',
+      result: result
     });
 
   } catch (error: any) {
@@ -38,7 +34,8 @@ export async function GET(request: NextRequest) {
       { 
         error: 'Database test failed',
         details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        database_url_present: !!process.env.DATABASE_URL,
+        database_url_length: process.env.DATABASE_URL?.length || 0
       },
       { status: 500 }
     );
