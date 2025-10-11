@@ -73,7 +73,7 @@ export default function OffersPage() {
   const [user, setUser] = useState<any>(null);
   const [offers, setOffers] = useState<{sent: Offer[], received: Offer[]}>({sent: [], received: []});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("received");
+  const [activeTab, setActiveTab] = useState("sent");
   const router = useRouter();
 
   useEffect(() => {
@@ -88,6 +88,16 @@ export default function OffersPage() {
     try {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
+      
+      // Set initial tab based on user type
+      if (parsedUser.userType === 'farmer') {
+        setActiveTab("received");
+      } else if (parsedUser.userType === 'buyer') {
+        setActiveTab("sent");
+      } else if (parsedUser.userType === 'trader') {
+        setActiveTab("sent"); // Default to sent for traders
+      }
+      
       fetchOffers(parsedUser.id);
     } catch (error) {
       console.error("Error parsing user data:", error);
@@ -223,7 +233,7 @@ export default function OffersPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className={`grid w-full ${user.userType === 'farmer' ? 'grid-cols-1' : 'grid-cols-2'}`}>
+          <TabsList className={`grid w-full ${(user.userType === 'farmer' || user.userType === 'buyer') ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {(user.userType === 'buyer' || user.userType === 'trader') && (
               <TabsTrigger value="sent" className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
