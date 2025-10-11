@@ -186,13 +186,12 @@ export async function GET(
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      identifier
+      identifier: params.id
     });
     return NextResponse.json(
       { 
         error: 'Failed to fetch user profile',
-        details: error.message,
-        identifier 
+        details: error.message
       },
       { status: 500 }
     );
