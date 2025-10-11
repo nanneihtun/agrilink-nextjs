@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       code: process.env.NODE_ENV === 'development' ? verificationCode : undefined
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending verification code:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

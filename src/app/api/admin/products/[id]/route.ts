@@ -40,7 +40,7 @@ export async function PATCH(
       message: `Product ${isActive ? 'activated' : 'deactivated'} successfully` 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating product status:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

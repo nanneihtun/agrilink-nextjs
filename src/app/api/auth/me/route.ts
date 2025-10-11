@@ -15,7 +15,7 @@ function verifyToken(request: NextRequest) {
 
   try {
     return jwt.verify(token, process.env.JWT_SECRET!) as any;
-  } catch (error) {
+  } catch (error: any) {
     return null;
   }
 }
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       message: 'User data fetched successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Auth me API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch user data' },

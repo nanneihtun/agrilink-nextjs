@@ -15,7 +15,7 @@ function verifyToken(request: NextRequest) {
 
   try {
     return jwt.verify(token, process.env.JWT_SECRET!) as any;
-  } catch (error) {
+  } catch (error: any) {
     return null;
   }
 }
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       message: 'Conversations fetched successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Conversations API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch conversations' },
@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
       message: 'Conversation created successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create conversation API error:', error);
     return NextResponse.json(
       { error: 'Failed to create conversation' },

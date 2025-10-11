@@ -105,7 +105,7 @@ export async function PUT(
       message: 'Address updated successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating address:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
@@ -154,7 +154,7 @@ export async function DELETE(
       message: 'Address deleted successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting address:', error);
     return NextResponse.json(
       { message: 'Internal server error' },

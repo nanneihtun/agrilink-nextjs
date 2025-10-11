@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       count: parseInt(userCount.count) 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error fetching user stats:', error);
     return NextResponse.json(
       { error: 'Failed to fetch user stats' },

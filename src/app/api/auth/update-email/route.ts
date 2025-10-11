@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
           console.log('❌ No userId in JWT payload');
           return NextResponse.json({ message: 'Invalid token payload' }, { status: 401 });
         }
-    } catch (error) {
+    } catch (error: any) {
       return NextResponse.json({ 
         message: error instanceof jwt.JsonWebTokenError ? 'Invalid or expired token' : 'Token verification failed' 
       }, { status: 401 });
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         SELECT id, email, "passwordHash" as "passwordHash", name
         FROM users WHERE id = ${userId}
       `;
-    } catch (error) {
+    } catch (error: any) {
       return NextResponse.json({ message: 'Database connection error' }, { status: 500 });
     }
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       if (existingUsers.length > 0) {
         return NextResponse.json({ message: 'This email address is already in use' }, { status: 400 });
       }
-    } catch (error) {
+    } catch (error: any) {
       return NextResponse.json({ message: 'Failed to check email availability' }, { status: 500 });
     }
 
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         WHERE id = ${userId}
       `;
       console.log('✅ Database updated successfully for user:', userId);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Database update error:', error);
       return NextResponse.json({ 
         message: 'Failed to save email change request',
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
         newEmail: newEmail
       }, { status: 200 });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Email sending catch error:', error);
       return NextResponse.json({ 
         message: 'Failed to send verification email',
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Update email API error:', error);
     return NextResponse.json({ 
       message: 'Internal server error',

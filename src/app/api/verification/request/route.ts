@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       requestId: result[0].id
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating verification request:', error);
     return NextResponse.json(
       { error: 'Failed to create verification request' },

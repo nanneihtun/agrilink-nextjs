@@ -138,7 +138,7 @@ export async function GET(
       message: 'Price comparison data fetched successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Price Comparison API Error:", error);
     return NextResponse.json(
       { message: "Internal server error", error: error instanceof Error ? error.message : 'Unknown error' },

@@ -14,7 +14,7 @@ function verifyToken(request: NextRequest) {
     const token = authHeader.split(' ')[1];
     const user = jwt.verify(token, process.env.JWT_SECRET!) as any;
     return user;
-  } catch (error) {
+  } catch (error: any) {
     return null;
   }
 }

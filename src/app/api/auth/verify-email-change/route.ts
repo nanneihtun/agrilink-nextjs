@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Email change verification error:', error);
     return NextResponse.json({ 
       message: 'Internal server error',

@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       message: 'Phone number verified successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error verifying code:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

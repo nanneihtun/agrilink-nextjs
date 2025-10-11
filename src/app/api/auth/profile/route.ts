@@ -15,7 +15,7 @@ function verifyToken(request: NextRequest) {
 
   try {
     return jwt.verify(token, process.env.JWT_SECRET!) as any;
-  } catch (error) {
+  } catch (error: any) {
     return null;
   }
 }
@@ -154,7 +154,7 @@ export async function PUT(request: NextRequest) {
       message: 'Profile updated successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Profile update API error:', error);
     return NextResponse.json(
       { error: 'Failed to update profile' },

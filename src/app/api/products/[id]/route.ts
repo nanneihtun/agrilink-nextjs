@@ -74,7 +74,7 @@ export async function GET(
     return NextResponse.json({
       product: transformedProduct,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching product:", error);
     return NextResponse.json(
       { message: "Internal server error" },
@@ -232,7 +232,7 @@ export async function PUT(
       product: updatedProduct[0],
       updated: true
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error updating product:", error);
     return NextResponse.json(
       { message: "Internal server error", error: error instanceof Error ? error.message : 'Unknown error' },

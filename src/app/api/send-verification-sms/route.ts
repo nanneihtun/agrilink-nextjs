@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       verificationSid: result.verificationSid
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending verification SMS:', error);
     
     // Return proper JSON error response

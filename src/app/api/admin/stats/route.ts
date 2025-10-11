@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       pendingVerifications: parseInt(pendingVerificationsResult[0].count),
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching admin stats:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

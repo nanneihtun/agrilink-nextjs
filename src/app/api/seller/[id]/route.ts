@@ -77,7 +77,7 @@ export async function GET(
     return NextResponse.json({
       seller: transformedSeller,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching seller:", error);
     return NextResponse.json(
       { message: "Internal server error" },

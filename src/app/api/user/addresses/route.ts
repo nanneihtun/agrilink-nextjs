@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       message: 'Addresses fetched successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching addresses:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       message: 'Address created successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating address:', error);
     return NextResponse.json(
       { message: 'Internal server error' },

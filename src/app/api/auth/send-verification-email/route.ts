@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       verificationUrl: verificationUrl
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Send verification email error:', error);
     return NextResponse.json(
       { error: 'Failed to send verification email' },

@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 
     return response;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

@@ -181,7 +181,7 @@ export async function GET(
       message: "User profile fetched successfully"
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('User profile API error:', error);
     console.error('Error details:', {
       message: error.message,

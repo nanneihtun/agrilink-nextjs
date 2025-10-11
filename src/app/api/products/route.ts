@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     
     return response;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Products API error:', error);
     return NextResponse.json(
       { 
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       message: 'Product created successfully!'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create product error:', error);
     return NextResponse.json(
       { 

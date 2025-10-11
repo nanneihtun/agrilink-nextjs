@@ -14,8 +14,8 @@ function verifyToken(request: NextRequest) {
   }
 
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!);
-  } catch (error) {
+    return jwt.verify(token, process.env.JWT_SECRET!) as any;
+  } catch (error: any) {
     return null;
   }
 }
@@ -53,7 +53,7 @@ export async function DELETE(
       message: 'Conversation deleted successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete conversation API error:', error);
     return NextResponse.json(
       { error: 'Failed to delete conversation' },

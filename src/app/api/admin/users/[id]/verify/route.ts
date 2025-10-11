@@ -41,7 +41,7 @@ export async function PATCH(
       message: `User ${verified ? 'verified' : 'unverified'} successfully` 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating user verification:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }

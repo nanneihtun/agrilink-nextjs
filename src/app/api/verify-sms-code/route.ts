@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       phoneNumber
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error verifying SMS code:', error);
     return NextResponse.json(
       { error: 'Failed to verify SMS code' },

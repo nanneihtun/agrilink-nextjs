@@ -15,7 +15,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       performance: 'Optimized with Neon database!'
     });
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json({
       error: 'Database connection failed',
       details: error instanceof Error ? error.message : 'Unknown error'

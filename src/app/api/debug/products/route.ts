@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       }))
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Debug Products API Error:', error);
     return NextResponse.json(
       { message: "Internal server error", error: error instanceof Error ? error.message : 'Unknown error' },

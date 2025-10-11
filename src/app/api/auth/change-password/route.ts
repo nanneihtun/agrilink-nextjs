@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         console.log('❌ No userId in token payload');
         return NextResponse.json({ message: 'Invalid token payload' }, { status: 401 });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ JWT verification error:', error);
       return NextResponse.json({ 
         message: error instanceof jwt.JsonWebTokenError ? 'Invalid or expired token' : 'Token verification failed' 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         SELECT id, "passwordHash" FROM users WHERE id = ${userId}
       `;
       console.log('📊 Database query result:', users.length, 'users found');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Database query error:', error);
       return NextResponse.json({ message: 'Database connection error' }, { status: 500 });
     }
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         WHERE id = ${userId}
       `;
       console.log('💾 Password updated successfully:', result);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Password update error:', error);
       return NextResponse.json({ message: 'Failed to update password in database' }, { status: 500 });
     }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       success: true 
     }, { status: 200 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Password change API error:', error);
     console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json({ 

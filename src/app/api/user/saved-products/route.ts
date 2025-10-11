@@ -12,7 +12,7 @@ function verifyToken(request: NextRequest) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     return decoded;
-  } catch (error) {
+  } catch (error: any) {
     return null;
   }
 }

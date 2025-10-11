@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(recentUsers);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error fetching recent users:', error);
     return NextResponse.json(
       { error: 'Failed to fetch recent users' },

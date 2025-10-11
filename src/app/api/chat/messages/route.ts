@@ -14,8 +14,8 @@ function verifyToken(request: NextRequest) {
   }
 
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!);
-  } catch (error) {
+    return jwt.verify(token, process.env.JWT_SECRET!) as any;
+  } catch (error: any) {
     return null;
   }
 }
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       message: 'Messages fetched successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Messages API error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch messages' },
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       success: true
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Send message API error:', error);
     return NextResponse.json(
       { error: 'Failed to send message' },

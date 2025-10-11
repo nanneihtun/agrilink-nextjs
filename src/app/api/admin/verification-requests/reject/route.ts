@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       message: 'Verification request rejected successfully' 
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error rejecting verification request:', error);
     return NextResponse.json(
       { error: 'Failed to reject verification request' },
