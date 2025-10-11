@@ -66,6 +66,9 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
 
     setIsLoading(true);
     setError('');
+    
+    // Exit edit mode when sending code
+    setIsEditingPhone(false);
 
     try {
       console.log('📱 Sending verification SMS via API...');
@@ -243,20 +246,55 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number</Label>
-            <div className="flex gap-2">
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+959123456789"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="flex-1"
-                disabled={isLoading}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Include country code (e.g., +959 for Myanmar)
-            </p>
+            {!isEditingPhone ? (
+              // Display mode - show phone number with edit button
+              <div className="flex items-center gap-2 p-3 bg-gray-50 border rounded-md">
+                <Phone className="w-4 h-4 text-gray-500" />
+                <span className="flex-1 text-sm font-medium">{phoneNumber || 'No phone number'}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditingPhone(true)}
+                  disabled={isLoading}
+                  className="h-8 px-3"
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Edit
+                </Button>
+              </div>
+            ) : (
+              // Edit mode - show input field with save/cancel buttons
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+959123456789"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="flex-1"
+                    disabled={isLoading}
+                    autoFocus
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsEditingPhone(false);
+                      // Reset to original phone number if user cancels
+                      setPhoneNumber(currentUser.phone || '');
+                    }}
+                    disabled={isLoading}
+                    className="h-10 px-3"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Include country code (e.g., +959 for Myanmar)
+                </p>
+              </div>
+            )}
           </div>
 
           {error && (
@@ -277,7 +315,7 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
               disabled={isLoading || !phoneNumber.trim()}
               className="flex-1"
             >
-              {isLoading ? 'Sending...' : 'Send Code'}
+              {isLoading ? 'Sending...' : (isEditingPhone ? 'Save & Send Code' : 'Send Code')}
             </Button>
           </div>
         </CardContent>
