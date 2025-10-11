@@ -7,8 +7,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: identifier } = await params;
+  
   try {
-    const { id: identifier } = await params;
 
     // Check if identifier is an email or user ID
     const isEmail = identifier.includes('@');
@@ -186,7 +187,7 @@ export async function GET(
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      identifier: params.id
+      identifier: identifier
     });
     return NextResponse.json(
       { 
