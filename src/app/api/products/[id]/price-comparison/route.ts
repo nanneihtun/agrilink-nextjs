@@ -83,8 +83,8 @@ export async function GET(
       const itemWords = itemName.split(' ').filter((word: string) => word.length > 2 && !commonWords.includes(word));
       
       // Must have at least one meaningful word in common
-      const hasCommonWords = searchWords.some(searchWord => 
-        itemWords.some(itemWord => 
+      const hasCommonWords = searchWords.some((searchWord: string) => 
+        itemWords.some((itemWord: string) => 
           searchWord.includes(itemWord) || itemWord.includes(searchWord)
         )
       );
