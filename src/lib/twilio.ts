@@ -20,7 +20,7 @@ export class TwilioService {
     );
   }
 
-  static async sendVerificationSMS(phoneNumber: string): Promise<{
+  static async sendVerificationSMS(phoneNumber: string, senderNumber?: string): Promise<{
     success: boolean;
     message: string;
     verificationSid?: string;
@@ -42,17 +42,24 @@ export class TwilioService {
       // For now, we'll log it for demo purposes
       console.log(`📱 Verification code for ${phoneNumber}: ${verificationCode}`);
 
+      // Determine sender number - use provided sender or default
+      const fromNumber = senderNumber || process.env.TWILIO_PHONE_NUMBER;
+      
+      if (!fromNumber) {
+        throw new Error('No sender phone number configured');
+      }
+
       // Send SMS via Twilio
       const client = this.getClient();
       const message = await client.messages.create({
         body: `Your AgriLink verification code is: ${verificationCode}. This code expires in 10 minutes.`,
-        from: process.env.TWILIO_PHONE_NUMBER,
+        from: fromNumber,
         to: phoneNumber,
       });
 
       console.log(`✅ Real SMS sent successfully. SID: ${message.sid}`);
       console.log(`📱 SMS sent to: ${phoneNumber}`);
-      console.log(`📱 SMS from: ${process.env.TWILIO_PHONE_NUMBER}`);
+      console.log(`📱 SMS from: ${fromNumber}`);
 
       return {
         success: true,
@@ -67,6 +74,15 @@ export class TwilioService {
         message: 'Failed to send verification SMS. Please try again.'
       };
     }
+  }
+
+  // New method to send SMS from team member numbers
+  static async sendVerificationSMSFromTeam(phoneNumber: string, teamMemberNumber: string): Promise<{
+    success: boolean;
+    message: string;
+    verificationSid?: string;
+  }> {
+    return this.sendVerificationSMS(phoneNumber, teamMemberNumber);
   }
 
   static async verifySMSCode(phoneNumber: string, code: string, verificationSid?: string): Promise<{
