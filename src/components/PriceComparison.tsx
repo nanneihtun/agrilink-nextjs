@@ -11,8 +11,12 @@ interface PriceData {
   name: string; // Full product name
   sellerName: string;
   sellerType: 'farmer' | 'trader';
-  price: number;
-  unit: string;
+  price: number; // Per kg price for comparison
+  originalPrice?: number; // Original price
+  unit: string; // Standardized unit (kg)
+  originalUnit?: string; // Original unit
+  displayUnit?: string; // Calculated display unit
+  conversionFactor?: number; // Conversion factor used
   location: string;
   quantity: string;
   availableQuantity?: string;
@@ -47,27 +51,33 @@ export function PriceComparison({ productName, priceData, unit, onBack, isOwnPro
 
   return (
     <div className="space-y-6">
+      {/* Header with Back Button */}
       {onBack && (
-        <ChevronLeft 
-          className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-foreground transition-colors" 
-          onClick={onBack}
-        />
+        <div className="space-y-4 mb-6">
+          <Button variant="ghost" onClick={onBack} className="h-9 px-3 -ml-3">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">
+              {isOwnProduct ? "Market Price Analysis" : "Price Comparison"}
+            </h1>
+            <p className="text-muted-foreground">Compare prices for {productName}</p>
+          </div>
+        </div>
       )}
       
-      {/* Product Header */}
+      {/* Product Info Card */}
       <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg p-6 border">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-primary mb-2">
-              {isOwnProduct ? "Market Price Analysis" : "Price Comparison"}
-            </h1>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-2">
               <h2 className="text-xl font-semibold">{productName}</h2>
               <Badge variant="secondary" className="text-sm">
                 Per {unit}
               </Badge>
             </div>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground">
               {isOwnProduct 
                 ? `See how your pricing compares to ${priceData.length} other sellers`
                 : `Compare prices from ${priceData.length} sellers across Myanmar`
@@ -164,7 +174,12 @@ export function PriceComparison({ productName, priceData, unit, onBack, isOwnPro
                       <p className="text-lg font-semibold text-primary">
                         {seller.price.toLocaleString()} MMK
                       </p>
-                      <p className="text-xs text-muted-foreground">per {seller.unit || unit}</p>
+                      <p className="text-xs text-muted-foreground">per kg</p>
+                      {seller.originalPrice && seller.originalPrice !== seller.price && (
+                        <p className="text-xs text-muted-foreground">
+                          ({seller.originalPrice.toLocaleString()} MMK per {seller.originalUnit || seller.displayUnit})
+                        </p>
+                      )}
                     </div>
                   </div>
                   

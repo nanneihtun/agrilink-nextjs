@@ -32,7 +32,8 @@ import {
   CheckCircle,
   Edit,
   FileText,
-  CreditCard
+  CreditCard,
+  Eye
 } from "lucide-react";
 
 interface Product {
@@ -67,6 +68,7 @@ export default function ProductDetailsPage() {
   const [user, setUser] = useState<any>(null);
   const [sellerStats, setSellerStats] = useState<any>(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
@@ -264,11 +266,56 @@ export default function ProductDetailsPage() {
           </Button>
           
           {/* Title section */}
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">{product.name}</h1>
-            <p className="text-muted-foreground">Product Details</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">{product.name}</h1>
+              <p className="text-muted-foreground">Product Details</p>
+            </div>
+
+            {/* Preview Toggle - Only show for product owners */}
+            {user && product && user.id === product.sellerId && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Preview Mode</span>
+                  <button
+                    onClick={() => setPreviewMode(!previewMode)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                      previewMode ? 'bg-primary' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        previewMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                
+                {previewMode && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+                    <Eye className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">Customer View</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Preview Mode Banner */}
+        {user && product && user.id === product.sellerId && previewMode && (
+          <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <Eye className="w-5 h-5 text-primary" />
+              <div>
+                <h3 className="font-medium text-primary">Customer Preview Mode</h3>
+                <p className="text-sm text-primary/80">
+                  This is exactly how customers see your product. Toggle off to return to editing mode.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Main Product Info */}
@@ -403,7 +450,7 @@ export default function ProductDetailsPage() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2">
-                      {isOwnProduct ? (
+                      {(isOwnProduct && !previewMode) ? (
                         <>
                           <Button 
                             variant="outline" 
@@ -622,14 +669,14 @@ export default function ProductDetailsPage() {
                     onClick={() => setShowReviewsModal(true)}
                   >
                     <div className="flex items-center">
-                      {sellerStats && sellerStats.totalReviews > 0 ? (
+                      {sellerStats && sellerStats.ratings && sellerStats.ratings.totalReviews > 0 ? (
                         Array.from({ length: 5 }, (_, i) => (
                           <Star
                             key={i}
                             className={`w-4 h-4 ${
-                              i < Math.floor(sellerStats.averageRating)
+                              i < Math.floor(sellerStats.ratings.rating)
                                 ? 'fill-yellow-500 text-yellow-500'
-                                : i < sellerStats.averageRating
+                                : i < sellerStats.ratings.rating
                                 ? 'fill-yellow-500/50 text-yellow-500'
                                 : 'text-gray-300'
                             }`}
@@ -640,11 +687,11 @@ export default function ProductDetailsPage() {
                       )}
                     </div>
                     <span className="text-sm">
-                      {sellerStats && sellerStats.totalReviews > 0 ? (
+                      {sellerStats && sellerStats.ratings && sellerStats.ratings.totalReviews > 0 ? (
                         <>
-                          {sellerStats.averageRating.toFixed(1)} ({sellerStats.totalReviews} {sellerStats.totalReviews === 1 ? 'review' : 'reviews'})
+                          {sellerStats.ratings.rating.toFixed(1)} ({sellerStats.ratings.totalReviews} {sellerStats.ratings.totalReviews === 1 ? 'review' : 'reviews'})
                         </>
-                      ) : sellerStats && sellerStats.totalReviews === 0 ? (
+                      ) : sellerStats && sellerStats.ratings && sellerStats.ratings.totalReviews === 0 ? (
                         'No reviews yet'
                       ) : (
                         'Loading...'
@@ -684,22 +731,22 @@ export default function ProductDetailsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Star className="w-5 h-5 text-yellow-500" />
-              Customer Reviews ({sellerStats?.totalReviews || 0})
+              Customer Reviews ({sellerStats?.ratings?.totalReviews || 0})
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {sellerStats && sellerStats.recentReviews && sellerStats.recentReviews.length > 0 ? (
-              sellerStats.recentReviews.map((review: any) => (
+            {sellerStats && sellerStats.reviews && sellerStats.reviews.length > 0 ? (
+              sellerStats.reviews.map((review: any) => (
                 <div key={review.id} className="border-b border-gray-100 last:border-b-0 pb-4 last:pb-0">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-primary">
-                          {review.reviewer_name.charAt(0).toUpperCase()}
+                          {review.reviewer.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{review.reviewer_name}</p>
+                        <p className="font-medium text-sm">{review.reviewer.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {getRelativeTime(review.createdAt)}
                         </p>
@@ -736,10 +783,10 @@ export default function ProductDetailsPage() {
               </div>
             )}
             
-            {sellerStats && sellerStats.totalReviews > sellerStats.recentReviews.length && (
+            {sellerStats && sellerStats.ratings && sellerStats.ratings.totalReviews > sellerStats.reviews.length && (
               <div className="text-center pt-2">
                 <p className="text-sm text-muted-foreground">
-                  Showing {sellerStats.recentReviews.length} of {sellerStats.totalReviews} reviews
+                  Showing {sellerStats.reviews.length} of {sellerStats.ratings.totalReviews} reviews
                 </p>
               </div>
             )}

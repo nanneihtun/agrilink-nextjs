@@ -58,15 +58,17 @@ export async function GET(
     if (user.userType === 'farmer' || user.userType === 'trader') {
       const productData = await sql`
         SELECT 
-          p.id, p.name, p.category, p.description, p.price, p.unit, p."imageUrl",
-          p."createdAt", p."updatedAt",
+          p.id, p.name, p.category, p.description,
+          p."createdAt", p."updatedAt", p."isActive",
           pp.price as current_price, pp.unit as current_unit,
-          pi."availableQuantity", pi."minimumOrder"
+          pinv."availableQuantity", pinv."minimumOrder",
+          pimg."imageUrl"
         FROM products p
         LEFT JOIN product_pricing pp ON p.id = pp."productId"
-        LEFT JOIN product_inventory pi ON p.id = pi."productId"
+        LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
+        LEFT JOIN product_images pimg ON p.id = pimg."productId" AND pimg."isPrimary" = true
         WHERE p."sellerId" = ${user.id}
-        AND p.active = true
+        AND p."isActive" = true
         ORDER BY p."createdAt" DESC
         LIMIT 20
       `;
@@ -178,7 +180,8 @@ export async function GET(
     };
 
     return NextResponse.json({
-      user: transformedUser,
+      stats: transformedUser,
+      user: transformedUser, // Keep for backward compatibility
       message: "User profile fetched successfully"
     });
 

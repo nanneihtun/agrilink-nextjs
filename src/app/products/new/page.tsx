@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/AppHeader";
 import { SimplifiedProductForm } from "@/components/SimplifiedProductForm";
 import { useAuth } from "@/hooks/useAuth";
+import { ChevronLeft } from "lucide-react";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -64,7 +66,7 @@ export default function NewProductPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <AppHeader />
+        <AppHeader currentUser={null} />
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="text-center">
             <div className="animate-pulse">Loading...</div>
@@ -81,7 +83,7 @@ export default function NewProductPage() {
   if (!currentUser && (!token || !userData)) {
     return (
       <div className="min-h-screen bg-background">
-        <AppHeader />
+        <AppHeader currentUser={null} />
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="text-center">
             <div className="text-muted-foreground">Please log in to create a product</div>
@@ -109,8 +111,20 @@ export default function NewProductPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader />
+      <AppHeader currentUser={userForForm} />
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Header with Back Button */}
+        <div className="space-y-4 mb-6">
+          <Button variant="ghost" onClick={handleBack} className="h-9 px-3 -ml-3">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Add New Product</h1>
+            <p className="text-muted-foreground">Create a new product listing</p>
+          </div>
+        </div>
+
         <SimplifiedProductForm
           currentUser={userForForm || { id: 'temp', name: 'User', location: 'Myanmar' }}
           onBack={handleBack}

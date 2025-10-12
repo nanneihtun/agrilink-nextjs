@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/AppHeader";
 import { SimplifiedProductForm } from "@/components/SimplifiedProductForm";
 import { useAuth } from "@/hooks/useAuth";
+import { ChevronLeft } from "lucide-react";
 
 interface Product {
   id: string;
@@ -76,34 +78,60 @@ export default function EditProductPage() {
 
   const handleSave = async (productData: any) => {
     try {
+      const tokenFromAuth = localStorage.getItem('auth-token');
+      const tokenFromToken = localStorage.getItem('token');
+      const authToken = tokenFromToken || tokenFromAuth;
+      
       console.log('🔄 Saving product data:', {
         productId,
-        data: {
-          id: productData.id,
-          name: productData.name,
-          category: productData.category,
-          description: productData.description,
-          price: productData.price,
-          unit: productData.unit,
-          location: productData.location,
-          region: productData.region
-        }
+        fullData: productData,
+        authToken: tokenFromAuth ? 'present (auth-token)' : 'missing',
+        token: tokenFromToken ? 'present (token)' : 'missing',
+        allKeys: Object.keys(localStorage),
+        tokenPreview: authToken ? authToken.substring(0, 20) + '...' : 'none'
       });
+      if (!authToken) {
+        console.error('❌ No auth token found in localStorage');
+        console.log('Available localStorage keys:', Object.keys(localStorage));
+        alert('Please log in to edit products');
+        return;
+      }
 
+      console.log('🚀 Making product update request...');
+      
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify(productData)
       });
 
-      const responseData = await response.json();
-      console.log('📥 API Response:', responseData);
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (parseError) {
+        console.error('❌ Failed to parse API response:', parseError);
+        responseData = {};
+      }
+      
+      console.log('📥 API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        data: responseData,
+        responseText: response.statusText
+      });
 
       if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to update product');
+        console.error('❌ API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: responseData,
+          isEmpty: Object.keys(responseData).length === 0
+        });
+        throw new Error(responseData.message || `API Error ${response.status}: ${response.statusText}`);
       }
 
       console.log('✅ Product updated successfully, redirecting...');
@@ -184,6 +212,18 @@ export default function EditProductPage() {
     <div className="min-h-screen bg-gray-50">
       <AppHeader currentUser={currentUser} onLogout={handleLogout} />
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Header with Back Button */}
+        <div className="space-y-4 mb-6">
+          <Button variant="ghost" onClick={handleBack} className="h-9 px-3 -ml-3">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold">Edit Product</h1>
+            <p className="text-muted-foreground">{product?.name}</p>
+          </div>
+        </div>
+
         <SimplifiedProductForm
           currentUser={currentUser || { id: 'temp', name: 'User', location: 'Myanmar' }}
           onBack={handleBack}

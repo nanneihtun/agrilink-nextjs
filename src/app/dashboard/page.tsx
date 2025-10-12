@@ -34,13 +34,19 @@ export default function DashboardPage() {
 
   const fetchUserProducts = async (userId: string) => {
     try {
+      console.log('🔄 Fetching user products for:', userId);
       const response = await fetch(`/api/products?sellerId=${userId}`);
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 User products fetched:', data.products?.length || 0, 'products');
         setUserProducts(data.products || []);
+      } else {
+        console.error('❌ Failed to fetch user products:', response.status, response.statusText);
+        setUserProducts([]);
       }
     } catch (error) {
-      console.error("Error fetching user products:", error);
+      console.error("❌ Error fetching user products:", error);
+      setUserProducts([]);
     }
   };
 
@@ -70,6 +76,13 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error fetching all products:", error);
+    }
+  };
+
+  const refreshProductsList = async () => {
+    if (user?.id) {
+      console.log('🔄 Refreshing products list...');
+      await fetchUserProducts(user.id);
     }
   };
 
@@ -133,12 +146,16 @@ export default function DashboardPage() {
     // Refresh user data when page becomes visible (user navigates back from verification)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
+        console.log('🔄 Page became visible, refreshing data...');
         refreshUserData();
+        refreshProductsList();
       }
     };
 
     const handleFocus = () => {
+      console.log('🔄 Page focused, refreshing data...');
       refreshUserData();
+      refreshProductsList();
     };
 
     // Listen for page focus and visibility changes
@@ -213,9 +230,99 @@ export default function DashboardPage() {
             userProducts={userProducts}
             onAddListing={() => router.push("/products/new")}
             onEditListing={(product) => router.push(`/product/${product.id}/edit`)}
-            onDeleteListing={(productId) => {
-              // Handle delete
-              console.log("Delete product:", productId);
+            onDeleteListing={async (productId) => {
+              console.log('🗑️ Starting delete process for product:', productId);
+              
+              // First, check if the product exists in our local state
+              const product = userProducts.find(p => p.id === productId);
+              console.log('🔍 Product found in local state:', product);
+              
+              if (!product) {
+                console.warn('⚠️ Product not found in local state, but proceeding with delete attempt');
+              }
+              
+              try {
+                const token = localStorage.getItem("token") || localStorage.getItem("auth-token");
+                console.log('🔐 Token status:', token ? 'present' : 'missing');
+                
+                if (!token) {
+                  throw new Error('No authentication token found. Please log in again.');
+                }
+
+                console.log('🚀 Making DELETE request to:', `/api/products/${productId}`);
+                
+                const response = await fetch(`/api/products/${productId}`, {
+                  method: "DELETE",
+                  headers: {
+                    "Authorization": `Bearer ${token}`,
+                  },
+                });
+
+                console.log('📡 DELETE API Response:', {
+                  status: response.status,
+                  statusText: response.statusText,
+                  ok: response.ok,
+                  url: response.url
+                });
+
+                let result;
+                try {
+                  result = await response.json();
+                } catch (parseError) {
+                  console.error('❌ Failed to parse API response:', parseError);
+                  result = {};
+                }
+
+                console.log('📥 DELETE API Result:', result);
+
+                if (!response.ok) {
+                  console.error("❌ Delete API Error Response:", {
+                    status: response.status,
+                    statusText: response.statusText,
+                    result: result,
+                    isEmpty: Object.keys(result).length === 0,
+                    productId: productId,
+                    productName: product?.name
+                  });
+                  
+                  // Provide more specific error messages based on status code
+                  let errorMessage = "Failed to delete product";
+                  if (response.status === 404) {
+                    errorMessage = `Product "${product?.name || productId}" not found. It may have already been deleted.`;
+                  } else if (response.status === 401) {
+                    errorMessage = "Authentication failed. Please log in again.";
+                  } else if (response.status === 403) {
+                    errorMessage = "You don't have permission to delete this product.";
+                  } else if (response.status === 500) {
+                    errorMessage = "Server error. Please try again later.";
+                  }
+                  
+                  throw new Error(result.message || errorMessage);
+                }
+
+                console.log("✅ Product deleted successfully:", result);
+                
+                // Remove the product from the local state
+                setUserProducts(prev => prev.filter(p => p.id !== productId));
+                
+                // Refresh products list to ensure data consistency
+                await refreshProductsList();
+                
+                // Show success message
+                const productName = product?.name || 'Product';
+                alert(`Product "${productName}" deleted successfully!`);
+                
+              } catch (err) {
+                console.error("❌ Error deleting product:", err);
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+                alert(`Failed to delete product: ${errorMessage}`);
+                
+                // Refresh the products list to sync with server state
+                console.log('🔄 Refreshing products list due to delete error...');
+                if (user?.id) {
+                  fetchUserProducts(user.id);
+                }
+              }
             }}
             onViewStorefront={() => router.push(`/seller/${user.id}`)}
             onGoToMarketplace={() => router.push("/")}

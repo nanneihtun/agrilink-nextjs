@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/AppHeader";
 import { SellerStorefront } from "@/components/SellerStorefront";
+import { ChevronLeft } from "lucide-react";
 
 export default function SellerStorefrontPage() {
   const [seller, setSeller] = useState<any>(null);

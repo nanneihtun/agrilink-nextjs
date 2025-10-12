@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');

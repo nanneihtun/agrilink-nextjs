@@ -12,7 +12,6 @@ import {
   User,
   Award,
   Leaf,
-  Star,
   Users,
   MapPin,
   Phone
@@ -605,42 +604,6 @@ export function AccountTypeBadge({
   );
 }
 
-interface TrustScoreProps {
-  verificationLevel: string;
-  rating?: number;
-  reviewCount?: number;
-  className?: string;
-}
-
-export function TrustScore({ verificationLevel, rating = 0, reviewCount = 0, className }: TrustScoreProps) {
-  const verificationConfig = VERIFICATION_LEVELS[verificationLevel] || VERIFICATION_LEVELS.unverified;
-  const trustScore = Math.min(100, verificationConfig.level * 25 + (rating > 0 ? rating * 5 : 0));
-  
-  return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div className="flex items-center gap-1">
-        <div className="w-12 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-primary to-green-500 rounded-full transition-all"
-            style={{ width: `${trustScore}%` }}
-          />
-        </div>
-        <span className="text-xs font-medium text-muted-foreground">
-          {trustScore}%
-        </span>
-      </div>
-      
-      {rating > 0 && (
-        <div className="flex items-center gap-1">
-          <Star className="w-3 h-3 text-primary fill-current" />
-          <span className="text-xs font-medium">
-            {rating.toFixed(1)} ({reviewCount})
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface BadgeExplanationProps {
   className?: string;

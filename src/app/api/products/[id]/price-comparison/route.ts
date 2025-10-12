@@ -99,14 +99,74 @@ export async function GET(
     console.log('🔍 All product names:', allProductsWithPricing.map(p => p.name));
     console.log('🔍 Found products:', priceComparisonData.map(p => ({ id: p.id, name: p.name, seller: p.seller_name, price: p.price })));
 
+    // Helper function to convert price to per kg
+    const convertToPerKg = (price: number, unit: string) => {
+      if (!unit) return { pricePerKg: price, conversionFactor: 1 };
+      
+      const unitLower = unit.toLowerCase();
+      
+      // Common conversions to kg
+      if (unitLower.includes('kg') || unitLower.includes('kilogram')) {
+        // Extract number from unit (e.g., "20kg sack" -> 20)
+        const match = unitLower.match(/(\d+(?:\.\d+)?)\s*kg/);
+        if (match) {
+          const kgAmount = parseFloat(match[1]);
+          return { pricePerKg: price / kgAmount, conversionFactor: kgAmount };
+        }
+        // If just "kg" without number, assume 1kg
+        return { pricePerKg: price, conversionFactor: 1 };
+      }
+      
+      // Other common conversions
+      if (unitLower.includes('gram') || unitLower.includes('g')) {
+        const match = unitLower.match(/(\d+(?:\.\d+)?)\s*g/);
+        if (match) {
+          const gramAmount = parseFloat(match[1]);
+          return { pricePerKg: (price / gramAmount) * 1000, conversionFactor: gramAmount / 1000 };
+        }
+      }
+      
+      if (unitLower.includes('pound') || unitLower.includes('lb')) {
+        const match = unitLower.match(/(\d+(?:\.\d+)?)\s*(?:lb|pound)/);
+        if (match) {
+          const poundAmount = parseFloat(match[1]);
+          return { pricePerKg: price / (poundAmount * 0.453592), conversionFactor: poundAmount * 0.453592 };
+        }
+      }
+      
+      // If no conversion found, return original price
+      return { pricePerKg: price, conversionFactor: 1 };
+    };
+
+    // Convert all prices to per kg for comparison
+    const dataWithPerKgPrices = priceComparisonData.map(item => {
+      const originalPrice = parseFloat(item.price) || 0;
+      const { pricePerKg, conversionFactor } = convertToPerKg(originalPrice, item.unit);
+      
+      return {
+        ...item,
+        originalPrice,
+        pricePerKg,
+        conversionFactor,
+        displayUnit: conversionFactor === 1 ? item.unit : `${conversionFactor}kg`
+      };
+    });
+
+    // Sort by per kg price for comparison
+    const sortedByPerKg = dataWithPerKgPrices.sort((a, b) => a.pricePerKg - b.pricePerKg);
+
     // Transform the data to match PriceComparison component expectations
-    const transformedData = priceComparisonData.map(item => ({
+    const transformedData = sortedByPerKg.map(item => ({
       id: item.id,
       name: item.name, // Full product name
       sellerName: item.seller_name || 'Unknown Seller',
       sellerType: item.seller_type || 'farmer',
-      price: parseFloat(item.price) || 0,
-      unit: item.unit,
+      price: item.pricePerKg, // Use converted per kg price for comparison
+      originalPrice: item.originalPrice, // Keep original price for display
+      unit: 'kg', // Standardized to kg for comparison
+      originalUnit: item.unit, // Keep original unit for display
+      displayUnit: item.displayUnit, // Calculated display unit
+      conversionFactor: item.conversionFactor,
       location: item.location || 'Unknown Location',
       quantity: item.availableQuantity || item.minimumOrder || 'Inquire for quantity',
       availableQuantity: item.availableQuantity,
@@ -126,16 +186,33 @@ export async function GET(
       }
     }));
 
+    // Calculate price range from converted prices
+    const prices = transformedData.map(item => item.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    
+    // Also convert current product to per kg for comparison
+    const currentProductOriginalPrice = parseFloat(product.price) || 0;
+    const { pricePerKg: currentProductPerKg } = convertToPerKg(currentProductOriginalPrice, product.unit);
+
     return NextResponse.json({
       productName: product.name,
-      unit: product.unit,
+      unit: 'kg', // Standardized unit for comparison
+      originalUnit: product.unit, // Keep original unit
+      priceRange: {
+        min: minPrice,
+        max: maxPrice,
+        currency: 'MMK'
+      },
       currentProduct: {
         id: product.id,
-        price: parseFloat(product.price) || 0,
-        unit: product.unit
+        price: currentProductPerKg, // Converted to per kg
+        originalPrice: currentProductOriginalPrice,
+        unit: 'kg',
+        originalUnit: product.unit
       },
       priceData: transformedData,
-      message: 'Price comparison data fetched successfully'
+      message: 'Price comparison data fetched successfully with per kg conversion'
     });
 
   } catch (error: any) {

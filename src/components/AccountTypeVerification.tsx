@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -107,6 +107,8 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     return documents;
   });
   
+  // Track upload status to prevent duplicate uploads
+  const [isUploading, setIsUploading] = useState(false);
 
   // Sync uploadedDocuments state when currentUser.verificationDocuments changes
   useEffect(() => {
@@ -158,15 +160,40 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     businessLicenseNumber: currentUser.businessLicenseNumber || ''
   });
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  const [isSavingBusiness, setIsSavingBusiness] = useState(false);
+  const justSavedRef = useRef(false);
   
   // Sync business form state when currentUser business info changes
+  // Only update if user is not currently editing to preserve their input
+  // Skip if we just saved to prevent flickering
   useEffect(() => {
-    setBusinessForm({
-      businessName: currentUser.businessName || '',
-      businessDescription: currentUser.businessDescription || '',
-      businessLicenseNumber: currentUser.businessLicenseNumber || ''
-    });
-  }, [currentUser.businessName, currentUser.businessDescription, currentUser.businessLicenseNumber]);
+    if (!isEditingBusiness && !justSavedRef.current) {
+      const newFormData = {
+        businessName: currentUser.businessName || '',
+        businessDescription: currentUser.businessDescription || '',
+        businessLicenseNumber: currentUser.businessLicenseNumber || ''
+      };
+      
+      // Only update if the data is actually different
+      if (
+        businessForm.businessName !== newFormData.businessName ||
+        businessForm.businessDescription !== newFormData.businessDescription ||
+        businessForm.businessLicenseNumber !== newFormData.businessLicenseNumber
+      ) {
+        console.log('🔄 Updating business form from currentUser:', {
+          currentForm: businessForm,
+          newForm: newFormData,
+          reason: 'currentUser data changed'
+        });
+        setBusinessForm(newFormData);
+      } else {
+        console.log('⏸️ Skipping business form update - data is the same');
+      }
+    } else if (justSavedRef.current) {
+      console.log('⏸️ Skipping business form update - just saved, preventing flicker');
+      justSavedRef.current = false; // Reset the flag
+    }
+  }, [currentUser.businessName, currentUser.businessDescription, currentUser.businessLicenseNumber, isEditingBusiness]);
   
   // Initialize AgriLink verification state from user data
   const [agriLinkVerificationRequested, setAgriLinkVerificationRequested] = useState(false);
@@ -296,6 +323,11 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
   
   // Calculate progress based on what the UI actually shows as complete
   const getProgress = () => {
+    // If user is fully verified, they are 100% complete
+    if (currentUser.verified) {
+      return 100;
+    }
+    
     let completed = 0;
     let total = isBusinessAccount ? 4 : 3; // Phone, Documents, Business (if business account), AgriLink Verification
 
@@ -376,6 +408,12 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Prevent duplicate uploads
+    if (isUploading) {
+      console.log('⚠️ Upload already in progress, skipping duplicate upload');
+      return;
+    }
+
     // Validate file size (10MB limit)
     if (file.size > 10 * 1024 * 1024) {
       alert('File size must be less than 10MB');
@@ -388,6 +426,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       return;
     }
 
+    setIsUploading(true);
     try {
       // Create object URL for preview
       const url = URL.createObjectURL(file);
@@ -427,19 +466,48 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       
       // Update user profile via API
       const token = localStorage.getItem('token');
+      
+      console.log('🔄 Uploading document to API:', {
+        documentType,
+        fileName: file.name,
+        fileSize: file.size,
+        hasToken: !!token,
+        tokenPreview: token ? token.substring(0, 20) + '...' : 'none'
+      });
+      
+      const requestBody = {
+        verificationDocuments: updatedDocuments
+      };
+      
+      console.log('📤 API Request body:', {
+        verificationDocumentsKeys: Object.keys(updatedDocuments),
+        documentData: updatedDocuments[documentType] ? {
+          status: updatedDocuments[documentType].status,
+          name: updatedDocuments[documentType].name,
+          size: updatedDocuments[documentType].size,
+          type: updatedDocuments[documentType].type,
+          hasData: !!updatedDocuments[documentType].data,
+          dataLength: updatedDocuments[documentType].data?.length || 0
+        } : 'no document data'
+      });
+      
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          verificationDocuments: updatedDocuments
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update user profile');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
+        throw new Error(`Failed to update user profile: ${response.status} ${response.statusText}`);
       }
       
       // Small delay to ensure state propagation
@@ -454,6 +522,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       console.error('Upload failed:', error);
       alert('Upload failed. Please try again.');
     } finally {
+      setIsUploading(false);
     }
   };
 
@@ -681,6 +750,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       return;
     }
 
+    setIsSavingBusiness(true);
     try {
       console.log('💼 Saving business information:', {
         businessName: businessForm.businessName,
@@ -705,45 +775,40 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save to database');
+        let errorDetails;
+        try {
+          errorDetails = await response.json();
+        } catch (parseError) {
+          errorDetails = { message: 'Failed to parse error response' };
+        }
+        
+        console.error('❌ API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorDetails
+        });
+        
+        throw new Error(errorDetails.details || errorDetails.error || 'Failed to save to database');
       }
       
       console.log('✅ Business information saved to database and user profile');
       
-      // Update local state to reflect saved business info
+      // Update local state to reflect saved business info immediately
       setIsEditingBusiness(false);
       
-      // Update the currentUser object to reflect the saved business info
-      // This will help the UI show the correct state
-      const updatedUser = {
-        ...currentUser,
-        businessName: businessForm.businessName,
-        businessDescription: businessForm.businessDescription,
-        businessLicenseNumber: businessForm.businessLicenseNumber,
-        businessDetailsCompleted: true
-      };
+      // Set flag to prevent flickering when API refreshes
+      justSavedRef.current = true;
       
-      // Update localStorage with the new user data
-      try {
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        console.log('✅ Updated user data in localStorage');
-      } catch (error) {
-        console.warn('Failed to update localStorage:', error);
-      }
-      
-      // Call verification complete callback to refresh user data
+      // Call verification complete callback to refresh user data from API
+      // This ensures other components have the latest business info
       if (onVerificationComplete) {
         onVerificationComplete();
       }
-      
-      // Force a page reload to ensure UI reflects the updated state
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
     } catch (error) {
       console.error('❌ Error saving business info:', error);
       alert('Failed to save business information. Please try again.');
     } finally {
+      setIsSavingBusiness(false);
     }
   };
 
@@ -1157,10 +1222,10 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     <>
                       <Button 
                         onClick={handleSaveBusinessInfo}
-                        disabled={(currentUser as any).verificationStatus === 'under_review'}
+                        disabled={isSavingBusiness || (currentUser as any).verificationStatus === 'under_review'}
                         className="flex-1"
                       >
-                        Save Business Info
+                        {isSavingBusiness ? 'Saving...' : 'Save Business Info'}
                       </Button>
                       
                       {isEditingBusiness && (

@@ -564,7 +564,7 @@ export function FreshDashboard({
                           variant="outline"
                           onClick={() => {
                             console.log('🗑️ Delete Product:', product.id);
-                            if (confirm(`Are you sure you want to delete "${product.name}"?`)) {
+                            if (confirm(`Are you sure you want to delete "${product.name}"? This action cannot be undone.`)) {
                               onDeleteListing?.(product.id);
                             }
                           }}

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const [userProfile] = await sql`
       SELECT 
         u.id, u.email, u.name, u."userType", u."accountType",
-        u."businessName", u."businessDescription",
+        u."businessName", u."businessDescription", u."businessLicenseNumber",
         u."verificationDocuments", u."rejectedDocuments",
         u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
         up.location, up.phone, up."profileImage",
@@ -209,26 +209,58 @@ export async function PUT(request: NextRequest) {
 
     // Update business details if provided
     if (business_name !== undefined || business_description !== undefined || business_license_number !== undefined) {
-      await sql`
-        UPDATE users 
-        SET 
-          "businessName" = COALESCE(${business_name}, "businessName"),
-          "businessDescription" = COALESCE(${business_description}, "businessDescription"),
-          "businessLicenseNumber" = COALESCE(${business_license_number}, "businessLicenseNumber"),
-          "updatedAt" = NOW()
-        WHERE id = ${user.userId}
-      `;
+      console.log('🔄 Updating business details for user:', user.userId);
+      console.log('📋 Business data:', {
+        business_name,
+        business_description,
+        business_license_number,
+        userId: user.userId
+      });
+      
+      try {
+        await sql`
+          UPDATE users 
+          SET 
+            "businessName" = COALESCE(${business_name}, "businessName"),
+            "businessDescription" = COALESCE(${business_description}, "businessDescription"),
+            "businessLicenseNumber" = COALESCE(${business_license_number}, "businessLicenseNumber"),
+            "updatedAt" = NOW()
+          WHERE id = ${user.userId}
+        `;
+        console.log('✅ Business details updated successfully');
+      } catch (dbError: any) {
+        console.error('❌ Database error updating business details:', dbError);
+        throw dbError;
+      }
     }
 
     // Update verification documents if provided
     if (verificationDocuments !== undefined) {
-      await sql`
-        UPDATE users 
-        SET 
-          "verificationDocuments" = ${JSON.stringify(verificationDocuments)},
-          "updatedAt" = NOW()
-        WHERE id = ${user.userId}
-      `;
+      console.log('🔄 Updating verification documents for user:', user.userId);
+      console.log('📋 Verification documents data:', {
+        keys: Object.keys(verificationDocuments),
+        documentTypes: Object.keys(verificationDocuments).map(key => ({
+          type: key,
+          status: verificationDocuments[key]?.status,
+          name: verificationDocuments[key]?.name,
+          hasData: !!verificationDocuments[key]?.data,
+          dataLength: verificationDocuments[key]?.data?.length || 0
+        }))
+      });
+      
+      try {
+        await sql`
+          UPDATE users 
+          SET 
+            "verificationDocuments" = ${JSON.stringify(verificationDocuments)},
+            "updatedAt" = NOW()
+          WHERE id = ${user.userId}
+        `;
+        console.log('✅ Verification documents updated successfully');
+      } catch (dbError: any) {
+        console.error('❌ Database error updating verification documents:', dbError);
+        throw dbError;
+      }
     }
 
     // Update AgriLink verification request fields if provided
@@ -322,9 +354,21 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error updating user profile:', error);
+    console.error('❌ Error updating user profile:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error.message,
+        code: error.code,
+        hint: error.hint
+      },
       { status: 500 }
     );
   }
