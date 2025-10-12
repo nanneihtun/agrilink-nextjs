@@ -53,26 +53,14 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Email verification token generated for user:', user.email);
 
-    // Create verification URL - use dynamic URL detection for production
-    const getAppUrl = () => {
-      // Use explicit environment variable if set
-      if (process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes('vercel.app')) {
-        return process.env.NEXT_PUBLIC_APP_URL;
-      }
-      
-      // For production, try to detect from request headers
-      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-      const host = request.headers.get('host');
-      
-      if (host && !host.includes('vercel.app')) {
-        return `${protocol}://${host}`;
-      }
-      
-      // Fallback to localhost for development
-      return 'http://localhost:3000';
-    };
+    // Create verification URL - use environment variable for URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!baseUrl) {
+      throw new Error('NEXT_PUBLIC_APP_URL environment variable is not set');
+    }
+    const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
     
-    const verificationUrl = `${getAppUrl()}/verify-email?token=${verificationToken}`;
+    console.log('🔗 Using base URL:', baseUrl);
     
     // Always log the verification URL for testing
     console.log('🔗 VERIFICATION URL FOR TESTING:', verificationUrl);
