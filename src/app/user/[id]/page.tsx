@@ -84,7 +84,7 @@ export default function UserProfilePage() {
           const productsResponse = await fetch(`/api/products?sellerId=${userId}`);
           if (productsResponse.ok) {
             const productsData = await productsResponse.json();
-            setUserProfile({ ...data.user, products: productsData });
+            setUserProfile({ ...data.user, products: productsData.products || [] });
           }
         }
       } else {

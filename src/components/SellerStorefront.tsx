@@ -113,6 +113,9 @@ export function SellerStorefront({
     field: string;
     value: string;
   } | null>(null);
+  const [editingFarmName, setEditingFarmName] = useState(false);
+  const [farmName, setFarmName] = useState(seller.businessName || seller.name);
+  const [savingFarmName, setSavingFarmName] = useState(false);
   
   // State for seller statistics
   const [sellerStats, setSellerStats] = useState<SellerStats | null>(null);
@@ -220,6 +223,50 @@ export function SellerStorefront({
     }
   };
 
+  const handleSaveFarmName = async () => {
+    if (!farmName.trim()) {
+      alert('Please enter a farm name');
+      return;
+    }
+
+    setSavingFarmName(true);
+    try {
+      // Update farm name via API
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          business_name: farmName.trim()
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save farm name');
+      }
+
+      // Update local state
+      setEditingFarmName(false);
+      
+      // Update the seller object to reflect the change
+      seller.businessName = farmName.trim();
+      
+      // Call onUpdateStorefront if available to refresh parent component
+      if (onUpdateStorefront) {
+        await onUpdateStorefront({ businessName: farmName.trim() });
+      }
+      
+    } catch (error) {
+      console.error('Failed to save farm name:', error);
+      alert('Failed to save farm name. Please try again.');
+    } finally {
+      setSavingFarmName(false);
+    }
+  };
+
   const addSpecialty = (specialty: string) => {
     if (!specialty.trim() || storefrontData.specialties.includes(specialty.trim())) return;
     
@@ -259,9 +306,12 @@ export function SellerStorefront({
     return new Intl.NumberFormat('en-US').format(price);
   };
 
-  const totalProducts = products.length;
-  const averagePrice = products.length > 0 
-    ? Math.round(products.reduce((sum, p) => sum + p.price, 0) / products.length)
+  // Ensure products is always an array
+  const safeProducts = Array.isArray(products) ? products : [];
+  
+  const totalProducts = safeProducts.length;
+  const averagePrice = safeProducts.length > 0 
+    ? Math.round(safeProducts.reduce((sum, p) => sum + p.price, 0) / safeProducts.length)
     : 0;
 
   return (
@@ -358,19 +408,90 @@ export function SellerStorefront({
                 {/* Basic Info */}
                 <div className="group">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-semibold">{seller.name}</h2>
+                    {editingFarmName ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={farmName}
+                          onChange={(e) => setFarmName(e.target.value)}
+                          className="text-xl font-semibold h-8 px-2"
+                          placeholder="Enter farm name"
+                          disabled={savingFarmName}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleSaveFarmName}
+                          disabled={savingFarmName || !farmName.trim()}
+                          className="h-8 px-2"
+                        >
+                          {savingFarmName ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingFarmName(false);
+                            setFarmName(seller.businessName || seller.name);
+                          }}
+                          disabled={savingFarmName}
+                          className="h-8 px-2"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <h2 className="text-xl font-semibold">
+                          {seller.businessName || seller.name}
+                        </h2>
+                        {/* Show edit button for farm name if user owns this storefront */}
+                        {isOwnStorefront && (seller.type === 'farmer' || seller.type === 'trader') && (
+                          <button
+                            onClick={() => setEditingFarmName(true)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                            title="Edit farm name"
+                          >
+                            <Edit className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        )}
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">{seller.location}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <UserBadge 
-                      userType={seller.type}
-                      accountType={getUserAccountType(seller)}
-                      verificationLevel={getUserVerificationLevel(seller)}
-                      size="sm"
-                    />
+                    {/* Show different verification badges for owners vs non-owners */}
+                    {/* In preview mode, always show public view */}
+                    {isOwnStorefront && !previewMode ? (
+                      // Owner view (not in preview): Show detailed UserBadge with progress
+                      <UserBadge 
+                        userType={seller.type}
+                        accountType={getUserAccountType(seller)}
+                        verificationLevel={getUserVerificationLevel(seller)}
+                        size="sm"
+                      />
+                    ) : (
+                      // Non-owner view OR preview mode: Show simplified PublicVerificationStatus
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline"
+                          className={`text-xs px-2 py-1 ${
+                            seller.type === 'farmer' 
+                              ? 'text-green-700 bg-green-50 border-green-200' 
+                              : seller.type === 'trader'
+                              ? 'text-orange-700 bg-orange-50 border-orange-200'
+                              : 'text-blue-700 bg-blue-50 border-blue-200'
+                          }`}
+                        >
+                          {seller.type === 'farmer' ? 'Farmer' : seller.type === 'trader' ? 'Trader' : 'Buyer'}
+                        </Badge>
+                        <PublicVerificationStatus 
+                          verificationLevel={seller.verified ? 'id-verified' : 'unverified'}
+                          size="sm"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1312,7 +1433,7 @@ export function SellerStorefront({
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 gap-4">
-                  {products.map((product) => (
+                  {safeProducts.map((product) => (
                     <Card 
                       key={product.id} 
                       className="hover:shadow-md transition-shadow border-primary/30 cursor-pointer"

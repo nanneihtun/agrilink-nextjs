@@ -218,6 +218,7 @@ export async function PUT(request: NextRequest) {
       });
       
       try {
+        // Update users table
         await sql`
           UPDATE users 
           SET 
@@ -227,6 +228,19 @@ export async function PUT(request: NextRequest) {
             "updatedAt" = NOW()
           WHERE id = ${user.userId}
         `;
+        
+        // Also update business_details table if business_name is provided
+        if (business_name !== undefined) {
+          await sql`
+            INSERT INTO business_details (user_id, business_name, updated_at)
+            VALUES (${user.userId}, ${business_name}, NOW())
+            ON CONFLICT (user_id) 
+            DO UPDATE SET 
+              business_name = ${business_name},
+              updated_at = NOW()
+          `;
+        }
+        
         console.log('✅ Business details updated successfully');
       } catch (dbError: any) {
         console.error('❌ Database error updating business details:', dbError);
