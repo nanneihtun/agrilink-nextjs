@@ -31,10 +31,11 @@ ROOT (/)
 │   │   ├── View Product Details (/product/[id]) - FARMER/TRADER
 │   │   │   └── Compare Prices (/products/[id]/price-comparison) - ALL ROLES
 │   │
-│   ├── Storefront (FARMER/TRADER) / Public Profile (BUYER) (/user/[id])
+│   ├── Storefront (/seller/[id]) - FARMER/TRADER
+│   ├── Public Profile (/user/[id]) - BUYER
 │   │
 │   ├── Messages (/messages) - ALL ROLES
-│   │   └── Chat Interface (/chat)
+│   │   └── Chat Interface (popup/modal)
 │   │       └── Make Offer Form (Optional - buyer/trader only)
 │   │
 │   ├── Manage Offers (Optional) - Role-based view (buyer/farmer/trader)
@@ -53,78 +54,15 @@ ROOT (/)
 
 ## 🔄 User Journey Flows
 
-### 🆕 NEW VISITOR JOURNEY
-```
-Landing (/) 
-    ↓
-Browse Marketplace (/marketplace)
-    ↓
-View Product (/product/[id])
-    ↓
-Register (/register)
-    ↓
-Verify Email (/verify-email)
-    ↓
-Phone Verification (/verify)
-    ↓
-Dashboard (/dashboard)
-```
+*For detailed user journey flows, see [User Journey Flows](USER_JOURNEY_FLOWS.md)*
 
-### 🔄 RETURNING USER JOURNEY
-```
-Login (/login)
-    ↓
-Dashboard (/dashboard)
-    ↓
-Browse Products (/marketplace)
-    ↓
-Make Offers (/offers)
-    ↓
-Chat with Sellers (/chat)
-    ↓
-Manage Profile (/profile)
-```
+### Quick Reference:
+- **New Visitor**: Landing → Browse → Register → Verify → Dashboard
+- **Returning User**: Login → Dashboard → Browse → Offers → Chat
+- **Seller**: Dashboard → Add Products → Storefront → Handle Offers → Chat
+- **Admin**: Login → Dashboard → Verification → Management
 
-### 🏪 SELLER JOURNEY
-```
-Dashboard (/dashboard)
-    ↓
-Add Products (/products/new)
-    ↓
-Manage Storefront (/seller/[id])
-    ↓
-Handle Offers (/offers)
-    ↓
-Chat with Buyers (/messages)
-```
-
-### 👑 ADMIN JOURNEY
-```
-Admin Login (/login)
-    ↓
-Admin Dashboard (/admin)
-    ↓
-User Verification (/admin/verification)
-    ↓
-Manage Users & Products
-```
-
-## 🎯 Key User Flows
-
-### 💬 CHAT & OFFER FLOW
-```
-Product Page → Make Offer → Chat Interface → Offer Management → Review System
-```
-
-### 🛍️ PRODUCT DISCOVERY FLOW
-```
-Home/Marketplace → Search & Filter → Product Details → Seller Profile → Make Offer
-```
-
-### 👤 PROFILE MANAGEMENT FLOW
-```
-Dashboard → Profile → Edit Information → Public Profile View → Social Features
-```
+---
 
 ## 📱 Responsive Design Considerations
 

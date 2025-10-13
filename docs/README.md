@@ -1,0 +1,58 @@
+# 📚 AgriLink Documentation
+
+Welcome to the AgriLink documentation hub! This folder contains all the technical documentation, guides, and references for the AgriLink agricultural marketplace application.
+
+## 📋 **Documentation Index**
+
+### 🧩 **Component Documentation**
+- **[Component Guide](COMPONENT_GUIDE.md)** - Comprehensive guide to all components with detailed specifications, props, usage, and dependencies
+- **[Components Reference](COMPONENTS_REFERENCE.md)** - Quick reference guide for all components organized by category
+
+### 👨‍💻 **Developer Resources**
+- **[Developer Guide](DEVELOPER_GUIDE.md)** - Complete development guide with setup, architecture, API documentation, and best practices
+- **[Project Structure](PROJECT_STRUCTURE.md)** - Detailed overview of the project structure, file organization, and architecture
+
+### 🚀 **Deployment & Setup**
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment instructions for production environments
+- **[Email Verification Setup](EMAIL_VERIFICATION_SETUP.md)** - Configuration guide for email verification system
+
+### 📊 **Project Documentation**
+- **[Requirement Analysis](REQUIREMENT_ANALYSIS_DOCUMENTS.md)** - Detailed requirements analysis and specifications
+- **[Website Structure](WEBSITE_STRUCTURE.md)** - Overview of website structure and sitemap
+- **[User Journey Flows](USER_JOURNEY_FLOWS.md)** - Complete user journey flows and conversion funnels
+- **[Demo Accounts](DEMO_ACCOUNTS.md)** - List of demo accounts for testing different user types
+
+---
+
+## 🎯 **Quick Start**
+
+1. **For Developers**: Start with [Developer Guide](DEVELOPER_GUIDE.md)
+2. **For Component Work**: Check [Component Guide](COMPONENT_GUIDE.md)
+3. **For Quick Reference**: Use [Components Reference](COMPONENTS_REFERENCE.md)
+4. **For Deployment**: Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
+
+---
+
+## 📈 **Documentation Stats**
+
+- **Total Documents**: 11
+- **Component Documentation**: 2 files
+- **Developer Resources**: 2 files  
+- **Deployment Guides**: 2 files
+- **Project Documentation**: 5 files
+
+---
+
+## 🔄 **Keeping Documentation Updated**
+
+This documentation is maintained alongside the codebase. When making changes to components, APIs, or architecture, please update the relevant documentation files to keep them current.
+
+**Recent Updates**: 
+- ✅ Separated User Journey Flows into dedicated document
+- ✅ Updated all URLs to current production deployment
+- ✅ Cleaned up component references and removed unused components
+- ✅ Enhanced Developer Guide with team collaboration strategies
+
+---
+
+*Last Updated: January 2025 | AgriLink v1.0 Production Ready*

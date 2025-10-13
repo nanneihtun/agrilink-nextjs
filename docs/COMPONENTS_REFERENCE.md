@@ -56,7 +56,7 @@
 
 ---
 
-## 🤝 **OFFER MANAGEMENT**
+## 🤝 **OFFER & REVIEW MANAGEMENT**
 - `SimpleOfferModal.tsx` - Create/manage offers with delivery options
 - `OfferCardCompact.tsx` - Compact offer display card
 - `OfferStatusManager.tsx` - Offer status management and timeline
@@ -165,11 +165,13 @@
 ---
 
 ## 📊 **COMPONENT STATS**
-- **Main Components**: 46
+- **Main Components**: 42
 - **UI Library Components**: 48
-- **Total Components**: 94
+- **Total Components**: 90
 - **Categories**: 11 main categories
 
 ---
 
 *This reference provides a quick overview of all components organized by functionality. Each component includes a brief description of its purpose and key features.*
+
+**Recent Updates**: Cleaned up unused components and consolidated functionality. Removed 20+ unused components including debug panels, duplicate modals, and test components for better maintainability.

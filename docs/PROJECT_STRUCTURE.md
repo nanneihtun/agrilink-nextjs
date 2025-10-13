@@ -3,7 +3,7 @@
 ## 🏗️ **Project Overview**
 **AgriLink** is a Next.js-based agricultural marketplace connecting farmers, traders, and buyers in Myanmar.
 
-**Live URL**: https://hthheh.com  
+**Live URL**: https://agrilink-nextjs.vercel.app  
 **Tech Stack**: Next.js 15, TypeScript, Tailwind CSS, PostgreSQL (Neon), Resend (Email)
 
 ---
@@ -13,12 +13,34 @@
 ```
 agrilink-nextjs/
 ├── 📁 src/                    # Main source code
-├── 📁 docs/                   # Project documentation
-├── 📁 templates/              # Documentation templates
-├── 📁 public/                 # Static assets (currently empty after cleanup)
-├── 📄 Configuration files     # package.json, next.config.ts, etc.
-└── 📄 Documentation files     # README.md, deployment guides, etc.
+├── 📁 docs/                   # All project documentation
+├── 📁 templates/              # Business requirement templates
+├── 📁 public/                 # Static assets (images, icons)
+├── 📁 node_modules/           # Dependencies (auto-generated)
+├── 📁 .next/                  # Next.js build cache (auto-generated)
+├── 📁 .git/                   # Git repository data
+├── 📁 .vercel/                # Vercel deployment cache
+├── 📄 README.md               # Project overview and quick start
+├── 📄 package.json            # Dependencies and scripts
+├── 📄 package-lock.json       # Dependency lock file
+├── 📄 next.config.ts          # Next.js configuration
+├── 📄 tailwind.config.ts      # Tailwind CSS configuration
+├── 📄 tsconfig.json           # TypeScript configuration
+├── 📄 drizzle.config.json     # Database ORM configuration
+├── 📄 vercel.json             # Vercel deployment configuration
+├── 📄 eslint.config.mjs       # ESLint configuration
+├── 📄 postcss.config.mjs      # PostCSS configuration
+├── 📄 next-env.d.ts           # Next.js TypeScript definitions
+├── 📄 .env.local              # Environment variables (local)
+├── 📄 .gitignore              # Git ignore rules
+└── 📄 tsconfig.tsbuildinfo    # TypeScript build cache
 ```
+
+### 🧹 **Cleanup Notes**
+- **No development scripts**: All temporary debugging, migration, and test scripts have been removed
+- **No scattered documentation**: All `.md` files are organized in the `docs/` folder
+- **No temporary files**: Only essential configuration and source files remain
+- **Professional structure**: Clean, maintainable project organization
 
 ---
 
@@ -188,8 +210,8 @@ components/
 ├── 📄 ForgotPassword.tsx          # Password reset form
 ├── 📄 OTPVerification.tsx         # OTP input
 ├── 📄 PhoneVerification.tsx       # Phone verification
-├── 📄 EmailVerificationPrompt.tsx
-└── 📄 DemoAccountsLogin.tsx       # Demo accounts for testing
+├── 📄 EmailVerificationPrompt.tsx    # Email verification prompt
+└── 📄 BasicOTPInput.tsx             # Basic OTP input component
 ```
 
 #### **🛒 Product Components**
@@ -199,7 +221,6 @@ components/
 ├── 📄 ProductDetails.tsx          # Product details view
 ├── 📄 SimplifiedProductForm.tsx   # Add/edit product form
 ├── 📄 ImageUpload.tsx             # Image upload component
-├── 📄 OptimizedImage.tsx          # Image optimization
 ├── 📄 SimpleProductCard.tsx       # Simplified product card
 ├── 📄 PriceComparison.tsx         # Price comparison tool
 ├── 📄 SearchFilters.tsx           # Product search filters
@@ -221,11 +242,12 @@ components/
 ```
 ├── 📄 ChatInterface.tsx           # Chat functionality
 ├── 📄 Messages.tsx                # Messages management
-├── 📄 OfferCard.tsx               # Trade offer display
-├── 📄 OfferModal.tsx              # Offer creation modal
-├── 📄 OfferDetailsModal.tsx       # Offer details
 ├── 📄 SimpleChatModal.tsx         # Simple chat interface
-└── 📄 OfferMessage.tsx            # Offer messaging
+├── 📄 SimpleOfferModal.tsx        # Offer creation modal
+├── 📄 OfferCardCompact.tsx        # Compact offer display
+├── 📄 OfferStatusManager.tsx      # Offer status management
+├── 📄 ReviewSection.tsx           # Review display and management
+└── 📄 ReviewSliderModal.tsx       # Review slider modal
 ```
 
 #### **📊 Dashboard Components**
@@ -233,9 +255,9 @@ components/
 ├── 📄 FreshDashboard.tsx          # Main user dashboard
 ├── 📄 BuyerDashboard.tsx          # Buyer-specific dashboard
 ├── 📄 AdminDashboard.tsx          # Admin dashboard
+├── 📄 AdminVerificationPanel.tsx  # Admin verification management
 ├── 📄 MarketplaceHero.tsx         # Marketplace homepage hero
-├── 📄 MarketplacePage.tsx         # Marketplace page
-└── 📄 InteractiveMarketplace.tsx  # Interactive marketplace features
+└── 📄 MarketplacePage.tsx        # Marketplace page
 ```
 
 #### **🎨 UI Components (`components/ui/`)**
@@ -376,7 +398,7 @@ JWT_SECRET=your_secret_key
 RESEND_API_KEY=your_resend_key
 
 # App URL
-NEXT_PUBLIC_APP_URL=https://hthheh.com
+NEXT_PUBLIC_APP_URL=https://agrilink-nextjs.vercel.app
 ```
 
 ---
@@ -384,22 +406,29 @@ NEXT_PUBLIC_APP_URL=https://hthheh.com
 ## 🎯 **Project Status**
 
 ✅ **Completed Features**:
-- User authentication and verification
-- Product management system
-- Marketplace functionality
-- Email verification system
-- Admin panel
-- Responsive design
+- Complete user authentication and verification system
+- Comprehensive product management system
+- Full marketplace functionality with search and filtering
+- Email verification system with Resend integration
+- Admin panel with verification management
+- Real-time chat and offer system
+- Review and rating system
+- Storefront system with custom branding
+- Price comparison tool
+- Responsive design for all devices
 
-🔄 **In Progress**:
-- Mandatory email verification
-- Performance optimizations
+🔄 **Current State**:
+- Production-ready application deployed on Vercel
+- All core features implemented and tested
+- Clean, maintainable codebase with comprehensive documentation
+- Database optimized with camelCase schema
 
-📋 **Future Enhancements**:
-- Advanced search filters
-- Mobile app
+📋 **Future Enhancements** (Team Development):
+- Backend optimization and performance improvements
+- Advanced search filters and analytics
+- Mobile app development (React Native)
 - Payment integration
-- Advanced analytics
+- Microservices architecture consideration
 
 ---
 
