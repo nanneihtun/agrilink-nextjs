@@ -302,11 +302,14 @@ export default function DashboardPage() {
 
                 console.log("✅ Product deleted successfully:", result);
                 
-                // Remove the product from the local state
+                // Remove the product from the local state immediately
                 setUserProducts(prev => prev.filter(p => p.id !== productId));
                 
-                // Refresh products list to ensure data consistency
-                await refreshProductsList();
+                // Add a small delay before refreshing to ensure database consistency
+                setTimeout(async () => {
+                  console.log('🔄 Refreshing products list after successful deletion...');
+                  await refreshProductsList();
+                }, 500);
                 
                 // Show success message
                 const productName = product?.name || 'Product';

@@ -125,7 +125,14 @@ export async function GET(request: NextRequest) {
     });
 
     // Add caching headers for better performance
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    // But disable caching for seller-specific queries to avoid stale data after deletions
+    if (sellerId) {
+      // No caching for seller-specific queries to ensure fresh data after deletions
+      response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      // Cache general product listings for better performance
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    }
     
     return response;
 
