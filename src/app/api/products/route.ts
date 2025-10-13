@@ -152,9 +152,28 @@ export async function POST(request: NextRequest) {
       unit,
       imageUrl,
       sellerId,
+      availableQuantity,
+      minimumOrder,
+      location,
+      region,
+      additionalNotes,
       deliveryOptions = [],
       paymentTerms = []
     } = body;
+
+    console.log('🔄 Creating product with data:', {
+      name,
+      category,
+      price,
+      unit,
+      availableQuantity,
+      minimumOrder,
+      location,
+      region,
+      additionalNotes,
+      deliveryOptions: deliveryOptions?.length || 0,
+      paymentTerms: paymentTerms?.length || 0
+    });
 
     // Insert product
     const [product] = await sql`
@@ -163,11 +182,24 @@ export async function POST(request: NextRequest) {
       RETURNING id
     `;
 
+    console.log('✅ Product created with ID:', product.id);
+
     // Insert pricing
     await sql`
       INSERT INTO product_pricing ("productId", price, unit, "createdAt", "updatedAt")
       VALUES (${product.id}, ${price}, ${unit}, NOW(), NOW())
     `;
+
+    console.log('✅ Pricing inserted');
+
+    // Insert inventory if provided
+    if (availableQuantity !== undefined || minimumOrder !== undefined) {
+      await sql`
+        INSERT INTO product_inventory ("productId", "availableQuantity", "minimumOrder", "quantity", "createdAt", "updatedAt")
+        VALUES (${product.id}, ${availableQuantity || ''}, ${minimumOrder || ''}, ${availableQuantity || ''}, NOW(), NOW())
+      `;
+      console.log('✅ Inventory inserted');
+    }
 
     // Insert image
     if (imageUrl) {
@@ -175,19 +207,55 @@ export async function POST(request: NextRequest) {
         INSERT INTO product_images ("productId", "imageData", "isPrimary", "createdAt", "updatedAt")
         VALUES (${product.id}, ${imageUrl}, true, NOW(), NOW())
       `;
+      console.log('✅ Image inserted');
     }
 
-    // Insert delivery options (optional - only if provided)
+    // Insert delivery options and additional data
     if (deliveryOptions && Array.isArray(deliveryOptions) && deliveryOptions.length > 0) {
       try {
         await sql`
-          INSERT INTO product_delivery ("productId", "deliveryOptions", "paymentTerms", "location", "sellerType", "sellerName", "createdAt", "updatedAt")
-          VALUES (${product.id}, ${JSON.stringify(deliveryOptions)}, ${JSON.stringify(paymentTerms || [])}, 'Myanmar', 'farmer', 'Seller', NOW(), NOW())
+          INSERT INTO product_delivery ("productId", "deliveryOptions", "paymentTerms", "location", "additionalNotes", "createdAt", "updatedAt")
+          VALUES (${product.id}, ${JSON.stringify(deliveryOptions)}, ${JSON.stringify(paymentTerms || [])}, ${location || 'Myanmar'}, ${additionalNotes || ''}, NOW(), NOW())
         `;
         console.log('✅ Delivery options inserted successfully');
       } catch (deliveryError) {
         console.warn('⚠️ Failed to insert delivery options:', deliveryError);
         // Don't fail the whole request for delivery options
+      }
+    }
+
+    // Update user profile location and region if provided
+    if (location || region) {
+      try {
+        // Build dynamic update query for user profile
+        const updateFields = [];
+        const updateValues = [];
+        
+        if (location) {
+          updateFields.push('location = $' + (updateValues.length + 1));
+          updateValues.push(location);
+        }
+        
+        if (region) {
+          updateFields.push('region = $' + (updateValues.length + 1));
+          updateValues.push(region);
+        }
+        
+        updateFields.push('"updatedAt" = NOW()');
+        updateValues.push(sellerId);
+        
+        const query = `
+          UPDATE user_profiles 
+          SET ${updateFields.join(', ')}
+          WHERE "userId" = $${updateValues.length}
+          RETURNING *
+        `;
+        
+        await sql.unsafe(query, updateValues);
+        console.log('✅ User profile location/region updated');
+      } catch (profileError) {
+        console.warn('⚠️ Failed to update user profile:', profileError);
+        // Don't fail the whole request for profile update
       }
     }
 
