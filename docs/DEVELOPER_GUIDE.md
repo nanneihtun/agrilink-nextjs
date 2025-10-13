@@ -302,22 +302,75 @@ npm run dev
 npm run db:push
 ```
 
-### **Environment Variables**
+### **Environment Variables Setup**
+
+#### **Step 1: Create Environment File**
+```bash
+# Copy the template file
+cp docs/ENVIRONMENT_SETUP.md .env.local
+
+# Or create manually
+touch .env.local
+```
+
+#### **Step 2: Required Environment Variables**
 ```env
-# Database
-DATABASE_URL=your_neon_connection_string
+# Database (Required)
+DATABASE_URL=your_neon_postgresql_connection_string_here
 
-# Authentication
-JWT_SECRET=your_jwt_secret
+# Authentication (Required)
+JWT_SECRET=your_secure_jwt_secret_here
 
-# Email Service
-RESEND_API_KEY=your_resend_api_key
+# Email Service (Required for registration)
+RESEND_API_KEY=your_resend_api_key_here
+
+# App Configuration (Required)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# SMS Service (Optional)
-TWILIO_ACCOUNT_SID=your_twilio_sid
-TWILIO_AUTH_TOKEN=your_twilio_token
+# SMS Service (Optional - for phone verification)
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+
+# Development Settings
+NODE_ENV=development
 ```
+
+#### **Step 3: Get Required Services**
+
+**Database (Neon PostgreSQL)**:
+1. Visit [neon.tech](https://neon.tech)
+2. Create free account
+3. Create new project
+4. Copy connection string to `DATABASE_URL`
+
+**Email Service (Resend)**:
+1. Visit [resend.com](https://resend.com)
+2. Sign up for free account (3,000 emails/month)
+3. Create API key
+4. Add to `RESEND_API_KEY`
+
+**JWT Secret**:
+```bash
+# Generate a secure JWT secret
+openssl rand -base64 32
+```
+
+#### **Step 4: Test Setup**
+```bash
+# Start development server
+npm run dev
+
+# Check if environment variables are loaded
+# Look for console logs showing successful connections
+```
+
+#### **Troubleshooting**
+- **Database connection issues**: Check `DATABASE_URL` format
+- **Email not sending**: Verify `RESEND_API_KEY` is correct
+- **Authentication errors**: Ensure `JWT_SECRET` is set
+- **App not loading**: Check `NEXT_PUBLIC_APP_URL` matches your local setup
+
+---
 
 ---
 

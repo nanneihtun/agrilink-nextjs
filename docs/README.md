@@ -15,6 +15,7 @@ Welcome to the AgriLink documentation hub! This folder contains all the technica
 ### 🚀 **Deployment & Setup**
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment instructions for production environments
 - **[Email Verification Setup](EMAIL_VERIFICATION_SETUP.md)** - Configuration guide for email verification system
+- **[Environment Setup](ENVIRONMENT_SETUP.md)** - Complete environment variables configuration guide
 
 ### 📊 **Project Documentation**
 - **[Requirement Analysis](REQUIREMENT_ANALYSIS_DOCUMENTS.md)** - Detailed requirements analysis and specifications
@@ -35,10 +36,10 @@ Welcome to the AgriLink documentation hub! This folder contains all the technica
 
 ## 📈 **Documentation Stats**
 
-- **Total Documents**: 11
+- **Total Documents**: 12
 - **Component Documentation**: 2 files
 - **Developer Resources**: 2 files  
-- **Deployment Guides**: 2 files
+- **Deployment Guides**: 3 files
 - **Project Documentation**: 5 files
 
 ---
