@@ -159,36 +159,18 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
 
       console.log('✅ Phone verification successful');
       
-      // Update user profile with verified phone
-      const updateResponse = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          phone: phoneNumber,
-          phoneVerified: true,
-          phoneVerificationDate: new Date().toISOString()
-        }),
-      });
-
-      if (!updateResponse.ok) {
-        console.warn('Failed to update user profile, but verification was successful');
-      } else {
-        // Update localStorage with the new phone verification status
-        try {
-          const currentUserData = localStorage.getItem('user');
-          if (currentUserData) {
-            const user = JSON.parse(currentUserData);
-            user.phoneVerified = true;
-            user.phone = phoneNumber;
-            localStorage.setItem('user', JSON.stringify(user));
-            console.log('✅ Updated user data in localStorage');
-          }
-        } catch (error) {
-          console.warn('Failed to update localStorage:', error);
+      // Update localStorage with the new phone verification status
+      try {
+        const currentUserData = localStorage.getItem('user');
+        if (currentUserData) {
+          const user = JSON.parse(currentUserData);
+          user.phoneVerified = true;
+          user.phone = phoneNumber;
+          localStorage.setItem('user', JSON.stringify(user));
+          console.log('✅ Updated user data in localStorage');
         }
+      } catch (error) {
+        console.warn('Failed to update localStorage:', error);
       }
 
       // Call completion callback

@@ -19,42 +19,42 @@ export async function GET(request: NextRequest) {
     const addresses = await sql`
       SELECT 
         id,
-        address_type,
+        "addressType",
         label,
-        full_name,
+        "fullName",
         phone,
-        address_line_1,
-        address_line_2,
+        "addressLine1",
+        "addressLine2",
         city,
         state,
-        postal_code,
+        "postalCode",
         country,
-        is_default,
-        is_active,
-        created_at,
-        updated_at
+        "isDefault",
+        "isActive",
+        "createdAt",
+        "updatedAt"
       FROM user_addresses
-      WHERE user_id = ${user.userId} AND is_active = true
-      ORDER BY is_default DESC, created_at DESC
+      WHERE "userId" = ${user.userId} AND "isActive" = true
+      ORDER BY "isDefault" DESC, "createdAt" DESC
     `;
 
     return NextResponse.json({
       addresses: addresses.map(addr => ({
         id: addr.id,
-        addressType: addr.address_type,
+        addressType: addr.addressType,
         label: addr.label,
-        fullName: addr.full_name,
+        fullName: addr.fullName,
         phone: addr.phone,
-        addressLine1: addr.address_line_1,
-        addressLine2: addr.address_line_2,
+        addressLine1: addr.addressLine1,
+        addressLine2: addr.addressLine2,
         city: addr.city,
         state: addr.state,
-        postalCode: addr.postal_code,
+        postalCode: addr.postalCode,
         country: addr.country,
-        isDefault: addr.is_default,
-        isActive: addr.is_active,
-        createdAt: addr.created_at,
-        updatedAt: addr.updated_at
+        isDefault: addr.isDefault,
+        isActive: addr.isActive,
+        createdAt: addr.createdAt,
+        updatedAt: addr.updatedAt
       })),
       message: 'Addresses fetched successfully'
     });
@@ -106,9 +106,9 @@ export async function POST(request: NextRequest) {
     // Create the address
     const [newAddress] = await sql`
       INSERT INTO user_addresses (
-        user_id, address_type, label, full_name, phone,
-        address_line_1, address_line_2, city, state, 
-        postal_code, country, is_default
+        "userId", "addressType", "label", "fullName", "phone",
+        "addressLine1", "addressLine2", city, state, 
+        "postalCode", country, "isDefault"
       )
       VALUES (
         ${user.userId}, ${addressType || 'home'}, ${label}, ${fullName}, ${phone || null},
@@ -121,20 +121,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       address: {
         id: newAddress.id,
-        addressType: newAddress.address_type,
+        addressType: newAddress.addressType,
         label: newAddress.label,
-        fullName: newAddress.full_name,
+        fullName: newAddress.fullName,
         phone: newAddress.phone,
-        addressLine1: newAddress.address_line_1,
-        addressLine2: newAddress.address_line_2,
+        addressLine1: newAddress.addressLine1,
+        addressLine2: newAddress.addressLine2,
         city: newAddress.city,
         state: newAddress.state,
-        postalCode: newAddress.postal_code,
+        postalCode: newAddress.postalCode,
         country: newAddress.country,
-        isDefault: newAddress.is_default,
-        isActive: newAddress.is_active,
-        createdAt: newAddress.created_at,
-        updatedAt: newAddress.updated_at
+        isDefault: newAddress.isDefault,
+        isActive: newAddress.isActive,
+        createdAt: newAddress.createdAt,
+        updatedAt: newAddress.updatedAt
       },
       message: 'Address created successfully'
     });

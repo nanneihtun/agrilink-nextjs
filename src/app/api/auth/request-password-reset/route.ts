@@ -57,8 +57,8 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE users 
       SET 
-        password_reset_token = ${resetToken},
-        password_reset_expires = ${expiresAt.toISOString()}
+        "passwordResetToken" = ${resetToken},
+        "passwordResetExpires" = ${expiresAt.toISOString()}
       WHERE id = ${user.id}
     `;
 

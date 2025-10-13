@@ -183,6 +183,7 @@ export default function HomePage() {
       otherPartyId: sellerId,
       otherPartyName: product.seller.name,
       otherPartyType: product.seller.userType,
+      otherPartyAccountType: product.seller.accountType || 'individual',
       otherPartyLocation: product.seller.location,
       otherPartyRating: 0, // We don't have rating in product data
       productName: product.name,
@@ -310,6 +311,7 @@ export default function HomePage() {
             <ChatInterface
               otherPartyName={chat.otherPartyName}
               otherPartyType={chat.otherPartyType}
+              otherPartyAccountType={chat.otherPartyAccountType || 'individual'}
               otherPartyLocation={chat.otherPartyLocation}
               otherPartyRating={chat.otherPartyRating}
               productName={chat.productName}

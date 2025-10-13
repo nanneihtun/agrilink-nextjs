@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { UserBadge, getUserVerificationLevel, getUserAccountType } from "@/components/UserBadgeSystem";
+import { AccountTypeBadge, PublicVerificationStatus, getUserAccountType } from "@/components/UserBadgeSystem";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -25,17 +25,16 @@ import {
   Trash2
 } from "lucide-react";
 
-// Helper function to get verification level for other party (matches ProductCard logic)
+// Helper function to get verification level for other party (public view only)
 function getOtherPartyVerificationLevel(otherParty: any): string {
-  if (otherParty.verified && otherParty.accountType === 'business') {
-    return 'business-verified';
-  } else if (otherParty.verified) {
-    return 'id-verified';
-  } else if (otherParty.phoneVerified) {
-    return 'phone-verified';
-  } else if (otherParty.verificationStatus === 'pending' || otherParty.verificationStatus === 'under_review') {
-    return 'under-review';
+  // For public view, only show "Verified" or "Unverified"
+  // "Under review" users are still unverified until they complete verification
+  if (otherParty.verified || otherParty.phoneVerified || 
+      otherParty.verificationStatus === 'id-verified' || 
+      otherParty.verificationStatus === 'business-verified') {
+    return 'id-verified'; // This will display as "Verified" in public view
   }
+  // All other statuses (including 'under-review', 'pending', etc.) show as unverified
   return 'unverified';
 }
 
@@ -328,11 +327,14 @@ export default function MessagesPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <h3 className="font-medium truncate">{conversation.otherParty.name}</h3>
-                          <UserBadge 
+                          <AccountTypeBadge 
                             userType={conversation.otherParty.type}
                             accountType={getUserAccountType(conversation.otherParty)}
-                            verificationLevel={getOtherPartyVerificationLevel(conversation.otherParty)}
                             size="sm"
+                          />
+                          <PublicVerificationStatus 
+                            verificationLevel={getOtherPartyVerificationLevel(conversation.otherParty)}
+                            size="xs"
                           />
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -408,6 +410,7 @@ export default function MessagesPage() {
                   <ChatInterface
                     otherPartyName={conversation.otherParty.name}
                     otherPartyType={conversation.otherParty.type}
+                    otherPartyAccountType={conversation.otherParty.accountType || 'individual'}
                     otherPartyLocation={conversation.otherParty.location}
                     otherPartyRating={conversation.otherParty.rating}
                     productName={conversation.productName}
@@ -418,9 +421,9 @@ export default function MessagesPage() {
                     otherPartyVerified={conversation.otherParty.verified}
                     otherPartyProfileImage={conversation.otherParty.profileImage}
                     otherPartyVerificationStatus={{
-                      trustLevel: conversation.otherParty.verified ? 'business-verified' : 'unverified',
-                      tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
-                      levelBadge: conversation.otherParty.verified ? '✓' : '!'
+                      trustLevel: getOtherPartyVerificationLevel(conversation.otherParty),
+                      tierLabel: getOtherPartyVerificationLevel(conversation.otherParty) === 'id-verified' ? 'Verified' : 'Unverified',
+                      levelBadge: getOtherPartyVerificationLevel(conversation.otherParty) === 'id-verified' ? '✓' : '!'
                     }}
                     currentUser={authUser || user}
                   />

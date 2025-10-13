@@ -41,25 +41,25 @@ export async function GET(request: NextRequest) {
           r.id,
           r.rating,
           r.comment,
-          r.created_at,
-          r.updated_at,
-          reviewer.id as reviewer_id,
-          reviewer.name as reviewer_name,
-          reviewer."userType" as reviewer_type,
-          reviewer."accountType" as reviewer_account_type,
-          reviewer_profile."profileImage" as reviewer_image,
-          reviewee.id as reviewee_id,
-          reviewee.name as reviewee_name,
-          reviewee."userType" as reviewee_type,
-          reviewee."accountType" as reviewee_account_type,
-          reviewee_profile."profileImage" as reviewee_image
+          r."createdAt",
+          r."updatedAt",
+          reviewer.id as "reviewerId",
+          reviewer.name as "reviewerName",
+          reviewer."userType" as "reviewerType",
+          reviewer."accountType" as "reviewerAccountType",
+          reviewer_profile."profileImage" as "reviewerImage",
+          reviewee.id as "revieweeId",
+          reviewee.name as "revieweeName",
+          reviewee."userType" as "revieweeType",
+          reviewee."accountType" as "revieweeAccountType",
+          reviewee_profile."profileImage" as "revieweeImage"
         FROM offer_reviews r
-        INNER JOIN users reviewer ON r.reviewer_id = reviewer.id
+        INNER JOIN users reviewer ON r."reviewerId" = reviewer.id
         LEFT JOIN user_profiles reviewer_profile ON reviewer.id = reviewer_profile."userId"
-        INNER JOIN users reviewee ON r.reviewee_id = reviewee.id
+        INNER JOIN users reviewee ON r."revieweeId" = reviewee.id
         LEFT JOIN user_profiles reviewee_profile ON reviewee.id = reviewee_profile."userId"
-        WHERE r.offer_id = ${offerId}
-        ORDER BY r.created_at DESC
+        WHERE r."offerId" = ${offerId}
+        ORDER BY r."createdAt" DESC
       `;
 
       return NextResponse.json({
@@ -67,21 +67,21 @@ export async function GET(request: NextRequest) {
           id: review.id,
           rating: review.rating,
           comment: review.comment,
-          createdAt: review.created_at,
-          updatedAt: review.updated_at,
+          createdAt: review.createdAt,
+          updatedAt: review.updatedAt,
           reviewer: {
-            id: review.reviewer_id,
-            name: review.reviewer_name,
-            userType: review.reviewer_type,
-            accountType: review.reviewer_account_type,
-            profileImage: review.reviewer_image
+            id: review.reviewerId,
+            name: review.reviewerName,
+            userType: review.reviewerType,
+            accountType: review.reviewerAccountType,
+            profileImage: review.reviewerImage
           },
           reviewee: {
-            id: review.reviewee_id,
-            name: review.reviewee_name,
-            userType: review.reviewee_type,
-            accountType: review.reviewee_account_type,
-            profileImage: review.reviewee_image
+            id: review.revieweeId,
+            name: review.revieweeName,
+            userType: review.revieweeType,
+            accountType: review.revieweeAccountType,
+            profileImage: review.revieweeImage
           }
         }))
       });
@@ -94,22 +94,22 @@ export async function GET(request: NextRequest) {
           r.id,
           r.rating,
           r.comment,
-          r.created_at,
-          r.updated_at,
-          r.offer_id,
-          reviewer.id as reviewer_id,
-          reviewer.name as reviewer_name,
-          reviewer."userType" as reviewer_type,
-          reviewer."accountType" as reviewer_account_type,
-          reviewer_profile."profileImage" as reviewer_image,
-          p.name as product_name
+          r."createdAt",
+          r."updatedAt",
+          r."offerId",
+          reviewer.id as "reviewerId",
+          reviewer.name as "reviewerName",
+          reviewer."userType" as "reviewerType",
+          reviewer."accountType" as "reviewerAccountType",
+          reviewer_profile."profileImage" as "reviewerImage",
+          p.name as "productName"
         FROM offer_reviews r
-        INNER JOIN users reviewer ON r.reviewer_id = reviewer.id
+        INNER JOIN users reviewer ON r."reviewerId" = reviewer.id
         LEFT JOIN user_profiles reviewer_profile ON reviewer.id = reviewer_profile."userId"
-        INNER JOIN offers o ON r.offer_id = o.id
-        INNER JOIN products p ON o.product_id = p.id
-        WHERE r.reviewee_id = ${userId}
-        ORDER BY r.created_at DESC
+        INNER JOIN offers o ON r."offerId" = o.id
+        INNER JOIN products p ON o."productId" = p.id
+        WHERE r."revieweeId" = ${userId}
+        ORDER BY r."createdAt" DESC
       `;
 
       return NextResponse.json({
@@ -117,16 +117,16 @@ export async function GET(request: NextRequest) {
           id: review.id,
           rating: review.rating,
           comment: review.comment,
-          createdAt: review.created_at,
-          updatedAt: review.updated_at,
-          offerId: review.offer_id,
-          productName: review.product_name,
+          createdAt: review.createdAt,
+          updatedAt: review.updatedAt,
+          offerId: review.offerId,
+          productName: review.productName,
           reviewer: {
-            id: review.reviewer_id,
-            name: review.reviewer_name,
-            userType: review.reviewer_type,
-            accountType: review.reviewer_account_type,
-            profileImage: review.reviewer_image
+            id: review.reviewerId,
+            name: review.reviewerName,
+            userType: review.reviewerType,
+            accountType: review.reviewerAccountType,
+            profileImage: review.reviewerImage
           }
         }))
       });
@@ -181,13 +181,13 @@ export async function POST(request: NextRequest) {
       SELECT 
         o.id,
         o.status,
-        o.buyer_id,
-        o.seller_id,
-        buyer.name as buyer_name,
-        seller.name as seller_name
+        o."buyerId",
+        o."sellerId",
+        buyer.name as "buyerName",
+        seller.name as "sellerName"
       FROM offers o
-      INNER JOIN users buyer ON o.buyer_id = buyer.id
-      INNER JOIN users seller ON o.seller_id = seller.id
+      INNER JOIN users buyer ON o."buyerId" = buyer.id
+      INNER JOIN users seller ON o."sellerId" = seller.id
       WHERE o.id = ${offerId}
     `;
 
@@ -206,8 +206,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is part of this offer
-    const isBuyer = offer.buyer_id === user.userId;
-    const isSeller = offer.seller_id === user.userId;
+    const isBuyer = offer.buyerId === user.userId;
+    const isSeller = offer.sellerId === user.userId;
 
     if (!isBuyer && !isSeller) {
       return NextResponse.json(
@@ -217,12 +217,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine who is being reviewed (the other party)
-    const revieweeId = isBuyer ? offer.seller_id : offer.buyer_id;
+    const revieweeId = isBuyer ? offer.sellerId : offer.buyerId;
 
     // Check if user has already reviewed this offer
     const [existingReview] = await sql`
       SELECT id FROM offer_reviews 
-      WHERE offer_id = ${offerId} AND reviewer_id = ${user.userId}
+      WHERE "offerId" = ${offerId} AND "reviewerId" = ${user.userId}
     `;
 
     if (existingReview) {
@@ -234,14 +234,14 @@ export async function POST(request: NextRequest) {
 
     // Create the review
     const [newReview] = await sql`
-      INSERT INTO offer_reviews (offer_id, reviewer_id, reviewee_id, rating, comment)
+      INSERT INTO offer_reviews ("offerId", "reviewerId", "revieweeId", rating, comment)
       VALUES (${offerId}, ${user.userId}, ${revieweeId}, ${rating}, ${comment || null})
       RETURNING *
     `;
 
     // Update user_ratings table with new average rating and total reviews
     const allReviewsForUser = await sql`
-      SELECT rating FROM offer_reviews WHERE reviewee_id = ${revieweeId}
+      SELECT rating FROM offer_reviews WHERE "revieweeId" = ${revieweeId}
     `;
 
     const totalReviews = allReviewsForUser.length;
@@ -263,11 +263,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       review: {
         id: newReview.id,
-        offerId: newReview.offer_id,
+        offerId: newReview.offerId,
         rating: newReview.rating,
         comment: newReview.comment,
-        createdAt: newReview.created_at,
-        updatedAt: newReview.updated_at
+        createdAt: newReview.createdAt,
+        updatedAt: newReview.updatedAt
       },
       message: 'Review created successfully'
     });

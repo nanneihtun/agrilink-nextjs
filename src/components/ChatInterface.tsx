@@ -20,7 +20,6 @@ import { useAuth } from "../hooks/useAuth";
 import { AccountTypeBadge, getUserVerificationLevel } from "./UserBadgeSystem";
 import { SimpleOfferModal } from "./SimpleOfferModal";
 import { OfferCardCompact } from "./OfferCardCompact";
-import { SimpleOfferDetailsModal } from "./SimpleOfferDetailsModal";
 
 interface Message {
   id: string;
@@ -32,6 +31,7 @@ interface Message {
 interface ChatInterfaceProps {
   otherPartyName: string;
   otherPartyType: 'farmer' | 'trader' | 'buyer';
+  otherPartyAccountType?: 'individual' | 'business';
   otherPartyLocation: string;
   otherPartyRating: number;
   productName: string;
@@ -55,6 +55,7 @@ interface ChatInterfaceProps {
 export function ChatInterface({ 
   otherPartyName, 
   otherPartyType, 
+  otherPartyAccountType = 'individual',
   otherPartyLocation, 
   otherPartyRating,
   productName,
@@ -118,8 +119,6 @@ export function ChatInterface({
   // Offer modal state
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [offers, setOffers] = useState<any[]>([]);
-  const [showOfferDetailsModal, setShowOfferDetailsModal] = useState(false);
-  const [selectedOffer, setSelectedOffer] = useState<any>(null);
 
   // Get current conversation messages - moved up to avoid initialization order issues
   const currentMessages = useMemo(() => {
@@ -484,7 +483,12 @@ export function ChatInterface({
         localStorage.removeItem('user');
         window.location.href = '/login';
       } else {
-        console.error('❌ Failed to fetch offers:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch offers:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
       }
     } catch (error) {
       console.error('❌ Error fetching offers:', error);
@@ -511,7 +515,12 @@ export function ChatInterface({
         localStorage.removeItem('user');
         window.location.href = '/login';
       } else {
-        console.error('❌ Failed to fetch offers:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch offers:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
       }
     } catch (error) {
       console.error('❌ Error fetching offers:', error);
@@ -701,7 +710,7 @@ export function ChatInterface({
               </button>
               <AccountTypeBadge 
                 userType={otherPartyType}
-                accountType="individual"
+                accountType={otherPartyAccountType}
                 size="sm"
                 className="mr-1"
               />
@@ -985,46 +994,6 @@ export function ChatInterface({
         onSubmit={handleSubmitOffer}
       />
 
-      {/* Offer Details Modal */}
-      <SimpleOfferDetailsModal
-        isOpen={showOfferDetailsModal}
-        onClose={() => {
-          setShowOfferDetailsModal(false);
-          setSelectedOffer(null);
-        }}
-        offer={selectedOffer}
-        isFromCurrentUser={selectedOffer ? selectedOffer.buyer?.id === effectiveCurrentUser?.id : false}
-        currentUserId={effectiveCurrentUser?.id}
-        onStatusUpdate={async (offerId, newStatus, reason) => {
-          try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`/api/offers/${offerId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ 
-                status: newStatus, 
-                cancellationReason: reason 
-              })
-            });
-            
-            if (response.ok) {
-              console.log('✅ Offer status updated successfully');
-              await fetchOffers(); // Refresh offers
-              alert(`Offer ${newStatus} successfully!`);
-            } else {
-              const errorData = await response.json();
-              console.error('❌ Failed to update offer status:', errorData);
-              alert(`Failed to update offer status: ${errorData.message || 'Unknown error'}`);
-            }
-          } catch (error) {
-            console.error('Error updating offer status:', error);
-            alert('Failed to update offer status. Please try again.');
-          }
-        }}
-      />
     </Card>
   );
 }

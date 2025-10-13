@@ -99,15 +99,32 @@ export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) 
 
     // Region filter
     if (filters.region) {
-      const regionCities = myanmarRegions[filters.region as keyof typeof myanmarRegions]?.cities || [];
-      filtered = filtered.filter(product => 
-        regionCities.includes(product.seller.location)
-      );
+      const regionData = myanmarRegions[filters.region as keyof typeof myanmarRegions];
+      const regionCities = regionData?.cities || [];
+      const regionName = regionData?.name || '';
+      
+      filtered = filtered.filter(product => {
+        const location = product.seller.location || '';
+        // Check if location matches any city in the region OR contains the region name
+        return regionCities.some(city => 
+          location === city || 
+          location.includes(city) ||
+          location === `${regionName}, ${city}` ||
+          location.includes(regionName)
+        );
+      });
     }
 
     // City filter
     if (filters.city) {
-      filtered = filtered.filter(product => product.seller.location === filters.city);
+      filtered = filtered.filter(product => {
+        const location = product.seller.location || '';
+        // Check if location matches the city name (with or without region prefix)
+        return location === filters.city || 
+               location.includes(filters.city) ||
+               location.endsWith(`, ${filters.city}`) ||
+               location.endsWith(` ${filters.city}`);
+      });
     }
 
     // Seller type filter

@@ -16,16 +16,22 @@ export class ReviewsService {
     console.log(`📊 Getting seller stats for ${sellerId}`);
     
     try {
-      // Fetch seller stats from the API
-      const response = await fetch(`/api/seller/${sellerId}/stats`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
-        }
-      });
+      // Fetch seller stats from the unified API
+      const response = await fetch(`/api/user/${sellerId}/public`);
 
       if (response.ok) {
         const data = await response.json();
-        return data.stats;
+        // Transform the unified API response to match expected stats format
+        const user = data.user;
+        return {
+          totalProducts: user.products?.length || 0,
+          totalSales: 0, // TODO: Implement sales tracking
+          averageRating: user.ratings?.rating || 0,
+          totalReviews: user.ratings?.totalReviews || 0,
+          responseTime: user.ratings?.responseTime || 'Within 24 hours',
+          completionRate: 100, // TODO: Calculate based on profile completeness
+          recentReviews: user.reviews || []
+        };
       } else {
         console.warn('Failed to fetch seller stats, using defaults');
       }

@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
 
     // Find user with valid reset token
     const users = await sql`
-      SELECT id, name, email, password_reset_expires 
+      SELECT id, name, email, "passwordResetExpires" 
       FROM users 
-      WHERE password_reset_token = ${token}
+      WHERE "passwordResetToken" = ${token}
     `;
 
     if (users.length === 0) {
@@ -37,15 +37,15 @@ export async function POST(request: NextRequest) {
 
     // Check if token is expired
     const now = new Date();
-    const expiresAt = new Date(user.password_reset_expires);
+    const expiresAt = new Date(user.passwordResetExpires);
     
     if (now > expiresAt) {
       // Clear expired token
       await sql`
         UPDATE users 
         SET 
-          password_reset_token = NULL,
-          password_reset_expires = NULL
+          "passwordResetToken" = NULL,
+          "passwordResetExpires" = NULL
         WHERE id = ${user.id}
       `;
       
@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
       UPDATE users 
       SET 
         "passwordHash" = ${hashedPassword},
-        password_reset_token = NULL,
-        password_reset_expires = NULL,
+        "passwordResetToken" = NULL,
+        "passwordResetExpires" = NULL,
         "updatedAt" = NOW()
       WHERE id = ${user.id}
     `;

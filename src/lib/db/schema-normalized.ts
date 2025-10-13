@@ -8,10 +8,10 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
-  userType: text('user_type').notNull(), // farmer, trader, buyer, admin
-  accountType: text('account_type').notNull(), // individual, business
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  userType: text('userType').notNull(), // farmer, trader, buyer, admin
+  accountType: text('accountType').notNull(), // individual, business
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -19,14 +19,14 @@ export const users = pgTable('users', {
 // ============================================================================
 export const userProfiles = pgTable('user_profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   location: text('location').notNull(),
   phone: text('phone'),
-  profileImage: text('profile_image'),
-  storefrontImage: text('storefront_image'),
+  profileImage: text('profileImage'),
+  storefrontImage: text('storefrontImage'),
   website: text('website'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -34,14 +34,14 @@ export const userProfiles = pgTable('user_profiles', {
 // ============================================================================
 export const businessDetails = pgTable('business_details', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  businessName: text('business_name'),
-  businessDescription: text('business_description'),
-  businessHours: text('business_hours'),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  businessName: text('businessName'),
+  businessDescription: text('businessDescription'),
+  businessHours: text('businessHours'),
   specialties: text('specialties').array(),
   policies: jsonb('policies'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -49,12 +49,12 @@ export const businessDetails = pgTable('business_details', {
 // ============================================================================
 export const userSocial = pgTable('user_social', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   facebook: text('facebook'),
   instagram: text('instagram'),
   telegram: text('telegram'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -62,15 +62,15 @@ export const userSocial = pgTable('user_social', {
 // ============================================================================
 export const userVerification = pgTable('user_verification', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   verified: boolean('verified').default(false),
-  phoneVerified: boolean('phone_verified').default(false),
-  verificationStatus: text('verification_status').default('not_started'),
-  verificationSubmitted: boolean('verification_submitted').default(false),
-  verificationDocuments: jsonb('verification_documents'),
-  businessDetailsCompleted: boolean('business_details_completed').default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  phoneVerified: boolean('phoneVerified').default(false),
+  verificationStatus: text('verificationStatus').default('not_started'),
+  verificationSubmitted: boolean('verificationSubmitted').default(false),
+  verificationDocuments: jsonb('verificationDocuments'),
+  businessDetailsCompleted: boolean('businessDetailsCompleted').default(false),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -78,14 +78,14 @@ export const userVerification = pgTable('user_verification', {
 // ============================================================================
 export const userRatings = pgTable('user_ratings', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   rating: decimal('rating', { precision: 3, scale: 2 }).default('0'),
-  totalReviews: integer('total_reviews').default(0),
-  responseTime: text('response_time'),
-  qualityCertifications: text('quality_certifications').array(),
-  farmingMethods: text('farming_methods').array(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  totalReviews: integer('totalReviews').default(0),
+  responseTime: text('responseTime'),
+  qualityCertifications: text('qualityCertifications').array(),
+  farmingMethods: text('farmingMethods').array(),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -93,13 +93,13 @@ export const userRatings = pgTable('user_ratings', {
 // ============================================================================
 export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
-  sellerId: uuid('seller_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sellerId: uuid('sellerId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   category: text('category'),
   description: text('description'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  isActive: boolean('isActive').default(true),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -107,13 +107,13 @@ export const products = pgTable('products', {
 // ============================================================================
 export const productPricing = pgTable('product_pricing', {
   id: uuid('id').primaryKey().defaultRandom(),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  productId: uuid('productId').notNull().references(() => products.id, { onDelete: 'cascade' }),
   price: decimal('price', { precision: 12, scale: 2 }).notNull(),
   unit: text('unit').notNull(),
-  priceChange: decimal('price_change', { precision: 5, scale: 2 }),
-  lastUpdated: timestamp('last_updated', { withTimezone: true }).defaultNow(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  priceChange: decimal('priceChange', { precision: 5, scale: 2 }),
+  lastUpdated: timestamp('lastUpdated', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -121,12 +121,12 @@ export const productPricing = pgTable('product_pricing', {
 // ============================================================================
 export const productInventory = pgTable('product_inventory', {
   id: uuid('id').primaryKey().defaultRandom(),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  productId: uuid('productId').notNull().references(() => products.id, { onDelete: 'cascade' }),
   quantity: text('quantity').notNull(),
-  minimumOrder: text('minimum_order'),
-  availableQuantity: text('available_quantity'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  minimumOrder: text('minimumOrder'),
+  availableQuantity: text('availableQuantity'),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -134,10 +134,10 @@ export const productInventory = pgTable('product_inventory', {
 // ============================================================================
 export const productImages = pgTable('product_images', {
   id: uuid('id').primaryKey().defaultRandom(),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
-  imageUrl: text('image_url').notNull(),
-  isPrimary: boolean('is_primary').default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  productId: uuid('productId').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  imageData: text('imageData').notNull(),
+  isPrimary: boolean('isPrimary').default(false),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -145,15 +145,15 @@ export const productImages = pgTable('product_images', {
 // ============================================================================
 export const productDelivery = pgTable('product_delivery', {
   id: uuid('id').primaryKey().defaultRandom(),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  productId: uuid('productId').notNull().references(() => products.id, { onDelete: 'cascade' }),
   location: text('location').notNull(),
-  sellerType: text('seller_type').notNull(), // farmer, trader
-  sellerName: text('seller_name').notNull(),
-  deliveryOptions: text('delivery_options').array(),
-  paymentTerms: text('payment_terms').array(),
-  additionalNotes: text('additional_notes'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  sellerType: text('sellerType').notNull(), // farmer, trader
+  sellerName: text('sellerName').notNull(),
+  deliveryOptions: text('deliveryOptions').array(),
+  paymentTerms: text('paymentTerms').array(),
+  additionalNotes: text('additionalNotes'),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -161,15 +161,15 @@ export const productDelivery = pgTable('product_delivery', {
 // ============================================================================
 export const conversations = pgTable('conversations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
-  buyerId: uuid('buyer_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  sellerId: uuid('seller_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  lastMessage: text('last_message'),
-  lastMessageTime: timestamp('last_message_time', { withTimezone: true }),
-  unreadCount: integer('unread_count').default(0),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  productId: uuid('productId').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  buyerId: uuid('buyerId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sellerId: uuid('sellerId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  lastMessage: text('lastMessage'),
+  lastMessageTime: timestamp('lastMessageTime', { withTimezone: true }),
+  unreadCount: integer('unreadCount').default(0),
+  isActive: boolean('isActive').default(true),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================
@@ -177,12 +177,12 @@ export const conversations = pgTable('conversations', {
 // ============================================================================
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
-  senderId: uuid('sender_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  conversationId: uuid('conversationId').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  senderId: uuid('senderId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
-  messageType: text('message_type').default('text'), // text, image, file, offer
-  isRead: boolean('is_read').default(false),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  messageType: text('messageType').default('text'), // text, image, file, offer
+  isRead: boolean('isRead').default(false),
+  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
 });
 
 // ============================================================================

@@ -28,13 +28,13 @@ export async function GET(request: NextRequest) {
           p."createdAt",
           pp.price,
           pp.unit,
-          pi."imageUrl",
+          pi."imageData",
           COALESCE(pinv."availableQuantity", 'Contact seller') as quantity,
           pinv."minimumOrder",
-          u.id as seller_id,
-          u.name as seller_name,
-          u."userType" as seller_type,
-          u."accountType" as seller_account_type,
+          u.id as "sellerId",
+          u.name as "sellerName",
+          u."userType" as "sellerType",
+          u."accountType" as "sellerAccountType",
           COALESCE(up.location, 'Myanmar') as location,
           COALESCE(up."profileImage", '') as profileImage,
           COALESCE(uv.verified, false) as verified,
@@ -64,13 +64,13 @@ export async function GET(request: NextRequest) {
           p."createdAt",
           pp.price,
           pp.unit,
-          pi."imageUrl",
+          pi."imageData",
           COALESCE(pinv."availableQuantity", 'Contact seller') as quantity,
           pinv."minimumOrder",
-          u.id as seller_id,
-          u.name as seller_name,
-          u."userType" as seller_type,
-          u."accountType" as seller_account_type,
+          u.id as "sellerId",
+          u.name as "sellerName",
+          u."userType" as "sellerType",
+          u."accountType" as "sellerAccountType",
           COALESCE(up.location, 'Myanmar') as location,
           COALESCE(up."profileImage", '') as profileImage,
           COALESCE(uv.verified, false) as verified,
@@ -102,12 +102,12 @@ export async function GET(request: NextRequest) {
       createdAt: product.createdAt,
       price: parseFloat(product.price) || 0,
       unit: product.unit,
-      imageUrl: product.imageUrl,
+      imageUrl: product.imageData,
       seller: {
-        id: product.seller_id,
-        name: product.seller_name,
-        userType: product.seller_type,
-        accountType: product.seller_account_type,
+        id: product.sellerId,
+        name: product.sellerName,
+        userType: product.sellerType,
+        accountType: product.sellerAccountType,
         location: product.location,
         profileImage: product.profileImage,
         verified: product.verified,
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
     // Insert image
     if (imageUrl) {
       await sql`
-        INSERT INTO product_images ("productId", "imageUrl", "isPrimary", "createdAt", "updatedAt")
+        INSERT INTO product_images ("productId", "imageData", "isPrimary", "createdAt", "updatedAt")
         VALUES (${product.id}, ${imageUrl}, true, NOW(), NOW())
       `;
     }

@@ -45,8 +45,8 @@ export async function PUT(
 
     // Check if address belongs to user
     const [existingAddress] = await sql`
-      SELECT user_id FROM user_addresses 
-      WHERE id = ${addressId} AND user_id = ${user.userId}
+      SELECT "userId" FROM user_addresses 
+      WHERE id = ${addressId} AND "userId" = ${user.userId}
     `;
 
     if (!existingAddress) {
@@ -60,47 +60,47 @@ export async function PUT(
     if (isDefault) {
       await sql`
         UPDATE user_addresses 
-        SET is_default = false 
-        WHERE user_id = ${user.userId} AND id != ${addressId}
+        SET "isDefault" = false 
+        WHERE "userId" = ${user.userId} AND id != ${addressId}
       `;
     }
 
     // Update the address
     const [updatedAddress] = await sql`
       UPDATE user_addresses SET
-        address_type = ${addressType || 'home'},
+        "addressType" = ${addressType || 'home'},
         label = ${label},
-        full_name = ${fullName},
+        "fullName" = ${fullName},
         phone = ${phone || null},
-        address_line_1 = ${addressLine1},
-        address_line_2 = ${addressLine2 || null},
+        "addressLine1" = ${addressLine1},
+        "addressLine2" = ${addressLine2 || null},
         city = ${city},
         state = ${state},
-        postal_code = ${postalCode || null},
+        "postalCode" = ${postalCode || null},
         country = ${country || 'Myanmar'},
-        is_default = ${isDefault || false},
-        updated_at = NOW()
-      WHERE id = ${addressId} AND user_id = ${user.userId}
+        "isDefault" = ${isDefault || false},
+        "updatedAt" = NOW()
+      WHERE id = ${addressId} AND "userId" = ${user.userId}
       RETURNING *
     `;
 
     return NextResponse.json({
       address: {
         id: updatedAddress.id,
-        addressType: updatedAddress.address_type,
+        addressType: updatedAddress.addressType,
         label: updatedAddress.label,
-        fullName: updatedAddress.full_name,
+        fullName: updatedAddress.fullName,
         phone: updatedAddress.phone,
-        addressLine1: updatedAddress.address_line_1,
-        addressLine2: updatedAddress.address_line_2,
+        addressLine1: updatedAddress.addressLine1,
+        addressLine2: updatedAddress.addressLine2,
         city: updatedAddress.city,
         state: updatedAddress.state,
-        postalCode: updatedAddress.postal_code,
+        postalCode: updatedAddress.postalCode,
         country: updatedAddress.country,
-        isDefault: updatedAddress.is_default,
-        isActive: updatedAddress.is_active,
-        createdAt: updatedAddress.created_at,
-        updatedAt: updatedAddress.updated_at
+        isDefault: updatedAddress.isDefault,
+        isActive: updatedAddress.isActive,
+        createdAt: updatedAddress.createdAt,
+        updatedAt: updatedAddress.updatedAt
       },
       message: 'Address updated successfully'
     });
@@ -132,8 +132,8 @@ export async function DELETE(
 
     // Check if address belongs to user
     const [existingAddress] = await sql`
-      SELECT user_id, is_default FROM user_addresses 
-      WHERE id = ${addressId} AND user_id = ${user.userId}
+      SELECT "userId", "isDefault" FROM user_addresses 
+      WHERE id = ${addressId} AND "userId" = ${user.userId}
     `;
 
     if (!existingAddress) {
@@ -146,8 +146,8 @@ export async function DELETE(
     // Soft delete by setting is_active to false
     await sql`
       UPDATE user_addresses 
-      SET is_active = false, updated_at = NOW()
-      WHERE id = ${addressId} AND user_id = ${user.userId}
+      SET "isActive" = false, "updatedAt" = NOW()
+      WHERE id = ${addressId} AND "userId" = ${user.userId}
     `;
 
     return NextResponse.json({

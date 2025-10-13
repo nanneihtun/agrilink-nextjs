@@ -58,16 +58,16 @@ export async function PUT(
     const [existingOffer] = await sql`
       SELECT 
         o.id,
-        o.buyer_id,
-        o.seller_id,
+        o."buyerId",
+        o."sellerId",
         o.status,
-        p.name as product_name,
-        buyer.name as buyer_name,
-        seller.name as seller_name
+        p.name as "productName",
+        buyer.name as "buyerName",
+        seller.name as "sellerName"
       FROM offers o
-      INNER JOIN products p ON o.product_id = p.id
-      INNER JOIN users buyer ON o.buyer_id = buyer.id
-      INNER JOIN users seller ON o.seller_id = seller.id
+      INNER JOIN products p ON o."productId" = p.id
+      INNER JOIN users buyer ON o."buyerId" = buyer.id
+      INNER JOIN users seller ON o."sellerId" = seller.id
       WHERE o.id = ${offerId}
     `;
 
@@ -79,8 +79,8 @@ export async function PUT(
     }
 
     // Check if user is the seller (can accept/reject) or buyer (can update their own offers)
-    const isSeller = existingOffer.seller_id === user.userId;
-    const isBuyer = existingOffer.buyer_id === user.userId;
+    const isSeller = existingOffer.sellerId === user.userId;
+    const isBuyer = existingOffer.buyerId === user.userId;
 
     if (!isSeller && !isBuyer) {
       return NextResponse.json(
@@ -91,7 +91,7 @@ export async function PUT(
 
     // Get current offer to check delivery options
     const [currentOffer] = await sql`
-      SELECT delivery_options FROM offers WHERE id = ${offerId}
+      SELECT "deliveryOptions" FROM offers WHERE id = ${offerId}
     `;
 
     // Auto-complete logic: if buyer marks as "to_receive", automatically complete the transaction
@@ -99,7 +99,7 @@ export async function PUT(
     
     if (status === 'to_receive') {
       // Check if pickup is in delivery options to determine workflow (case-insensitive)
-      const isPickup = currentOffer.delivery_options && currentOffer.delivery_options.some((option: string) => 
+      const isPickup = currentOffer.deliveryOptions && currentOffer.deliveryOptions.some((option: string) => 
         option.toLowerCase() === 'pickup'
       );
       
@@ -113,28 +113,30 @@ export async function PUT(
     // Update the offer with new status workflow
     const updateData: any = {
       status: finalStatus,
-      updated_at: new Date().toISOString()
+      "updatedAt": new Date().toISOString()
     };
 
     // Add cancellation details if cancelling
     if (finalStatus === 'cancelled') {
-      updateData.cancelled_by = user.userId;
-      updateData.cancellation_reason = cancellationReason || null;
+      updateData.cancelledBy = user.userId;
+      updateData.cancellationReason = cancellationReason || null;
     }
 
     const [updatedOffer] = await sql`
       UPDATE offers
       SET 
         status = ${finalStatus},
-        updated_at = NOW(),
-        ${finalStatus === 'accepted' ? sql`accepted_at = NOW(),` : sql``}
-        ${finalStatus === 'cancelled' ? sql`cancelled_by = ${user.userId},` : sql``}
-        ${finalStatus === 'cancelled' ? sql`cancellation_reason = ${cancellationReason || null},` : sql``}
-        ${finalStatus === 'cancelled' ? sql`cancelled_at = NOW(),` : sql``}
-        ${finalStatus === 'shipped' ? sql`shipped_at = NOW(),` : sql``}
-        ${status === 'to_receive' ? sql`received_at = NOW(),` : sql``}
-        ${finalStatus === 'completed' ? sql`completed_at = NOW(),` : sql``}
-        status_updated_at = NOW()
+        "updatedAt" = NOW(),
+        ${finalStatus === 'accepted' ? sql`"acceptedAt" = NOW(),` : sql``}
+        ${finalStatus === 'to_ship' ? sql`"readyToShipAt" = NOW(),` : sql``}
+        ${finalStatus === 'ready_to_pickup' ? sql`"readyToPickupAt" = NOW(),` : sql``}
+        ${finalStatus === 'cancelled' ? sql`"cancelledBy" = ${user.userId},` : sql``}
+        ${finalStatus === 'cancelled' ? sql`"cancellationReason" = ${cancellationReason || null},` : sql``}
+        ${finalStatus === 'cancelled' ? sql`"cancelledAt" = NOW(),` : sql``}
+        ${finalStatus === 'shipped' ? sql`"shippedAt" = NOW(),` : sql``}
+        ${status === 'to_receive' ? sql`"receivedAt" = NOW(),` : sql``}
+        ${finalStatus === 'completed' ? sql`"completedAt" = NOW(),` : sql``}
+        "statusUpdatedAt" = NOW()
       WHERE id = ${offerId}
       RETURNING *
     `;
@@ -144,24 +146,26 @@ export async function PUT(
     return NextResponse.json({
       offer: {
         id: updatedOffer.id,
-        conversationId: updatedOffer.conversation_id,
-        offerPrice: parseFloat(updatedOffer.offer_price),
+        conversationId: updatedOffer.conversationId,
+        offerPrice: parseFloat(updatedOffer.offerPrice),
         quantity: updatedOffer.quantity,
         message: updatedOffer.message,
         status: updatedOffer.status,
-        deliveryOptions: updatedOffer.delivery_options || [],
-        paymentTerms: updatedOffer.payment_terms || [],
-        expiresAt: updatedOffer.expires_at,
-        acceptedAt: updatedOffer.accepted_at,
-        createdAt: updatedOffer.created_at,
-        updatedAt: updatedOffer.updated_at,
-        statusUpdatedAt: updatedOffer.status_updated_at,
-        shippedAt: updatedOffer.shipped_at,
-        receivedAt: updatedOffer.received_at,
-        completedAt: updatedOffer.completed_at,
-        cancelledAt: updatedOffer.cancelled_at,
-        cancelledBy: updatedOffer.cancelled_by,
-        cancellationReason: updatedOffer.cancellation_reason
+        deliveryOptions: updatedOffer.deliveryOptions || [],
+        paymentTerms: updatedOffer.paymentTerms || [],
+        expiresAt: updatedOffer.expiresAt,
+        acceptedAt: updatedOffer.acceptedAt,
+        readyToShipAt: updatedOffer.readyToShipAt,
+        readyToPickupAt: updatedOffer.readyToPickupAt,
+        createdAt: updatedOffer.createdAt,
+        updatedAt: updatedOffer.updatedAt,
+        statusUpdatedAt: updatedOffer.statusUpdatedAt,
+        shippedAt: updatedOffer.shippedAt,
+        receivedAt: updatedOffer.receivedAt,
+        completedAt: updatedOffer.completedAt,
+        cancelledAt: updatedOffer.cancelledAt,
+        cancelledBy: updatedOffer.cancelledBy,
+        cancellationReason: updatedOffer.cancellationReason
       },
       message: 'Offer updated successfully'
     });
@@ -194,49 +198,53 @@ export async function GET(
     const [offer] = await sql`
       SELECT 
         o.id,
-        o.conversation_id,
-        o.offer_price,
+        o."conversationId",
+        o."offerPrice",
         o.quantity,
         o.message,
         o.status,
-        o.delivery_address,
-        o.delivery_options,
-        o.payment_terms,
-        o.expires_at,
-        o.accepted_at,
-        o.confirmed_at,
-        o.shipped_at,
-        o.delivered_at,
-        o.completed_at,
-        o.auto_complete_at,
-        o.created_at,
-        o.updated_at,
-        o.status_updated_at,
-        o.cancelled_at,
-        o.cancelled_by,
-        o.cancellation_reason,
-        p.id as product_id,
-        p.name as product_name,
-        p.category as product_category,
-        pi."imageUrl" as product_image,
-        buyer.id as buyer_id,
-        buyer.name as buyer_name,
-        buyer.email as buyer_email,
-        buyer."userType" as buyer_type,
-        buyer."accountType" as buyer_account_type,
-        buyer_profile."profileImage" as buyer_image,
-        seller.id as seller_id,
-        seller.name as seller_name,
-        seller.email as seller_email,
-        seller."userType" as seller_type,
-        seller."accountType" as seller_account_type,
-        seller_profile."profileImage" as seller_image
+        o."deliveryAddress",
+        o."deliveryOptions",
+        o."paymentTerms",
+        o."expiresAt",
+        o."acceptedAt",
+        o."confirmedAt",
+        o."readyToShipAt",
+        o."readyToPickupAt",
+        o."shippedAt",
+        o."deliveredAt",
+        o."completedAt",
+        o."autoCompleteAt",
+        o."createdAt",
+        o."updatedAt",
+        o."statusUpdatedAt",
+        o."cancelledAt",
+        o."cancelledBy",
+        o."cancellationReason",
+        p.id as "productId",
+        p.name as "productName",
+        p.category as "productCategory",
+        pi."imageData" as "productImage",
+        buyer.id as "buyerId",
+        buyer.name as "buyerName",
+        buyer.email as "buyerEmail",
+        buyer."userType" as "buyerType",
+        buyer."accountType" as "buyerAccountType",
+        buyer."verificationStatus" as "buyerVerificationLevel",
+        buyer_profile."profileImage" as "buyerImage",
+        seller.id as "sellerId",
+        seller.name as "sellerName",
+        seller.email as "sellerEmail",
+        seller."userType" as "sellerType",
+        seller."accountType" as "sellerAccountType",
+        seller."verificationStatus" as "sellerVerificationLevel",
+        seller_profile."profileImage" as "sellerImage"
       FROM offers o
-      INNER JOIN products p ON o.product_id = p.id
+      INNER JOIN products p ON o."productId" = p.id
       LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-      INNER JOIN users buyer ON o.buyer_id = buyer.id
+      INNER JOIN users buyer ON o."buyerId" = buyer.id
       LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
-      INNER JOIN users seller ON o.seller_id = seller.id
+      INNER JOIN users seller ON o."sellerId" = seller.id
       LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
       WHERE o.id = ${offerId}
     `;
@@ -249,8 +257,8 @@ export async function GET(
     }
 
     // Check if user has permission to view this offer
-    const isSeller = offer.seller_id === user.userId;
-    const isBuyer = offer.buyer_id === user.userId;
+    const isSeller = offer.sellerId === user.userId;
+    const isBuyer = offer.buyerId === user.userId;
 
     if (!isSeller && !isBuyer) {
       return NextResponse.json(
@@ -262,62 +270,68 @@ export async function GET(
     return NextResponse.json({
       offer: {
         id: offer.id,
-        conversationId: offer.conversation_id,
-        offerPrice: parseFloat(offer.offer_price),
+        conversationId: offer.conversationId,
+        offerPrice: parseFloat(offer.offerPrice),
         quantity: offer.quantity,
         message: offer.message,
         status: offer.status,
-        deliveryAddress: offer.delivery_address,
-        deliveryOptions: offer.delivery_options || [],
-        paymentTerms: offer.payment_terms || [],
-        expiresAt: offer.expires_at,
-        acceptedAt: offer.accepted_at,
-        confirmedAt: offer.confirmed_at,
-        shippedAt: offer.shipped_at,
-        deliveredAt: offer.delivered_at,
-        completedAt: offer.completed_at,
-        autoCompleteAt: offer.auto_complete_at,
-        createdAt: offer.created_at,
-        updatedAt: offer.updated_at,
-        statusUpdatedAt: offer.status_updated_at,
-        cancelledAt: offer.cancelled_at,
-        cancelledBy: offer.cancelled_by,
-        cancellationReason: offer.cancellation_reason,
-        productId: offer.product_id,
-        productName: offer.product_name,
-        productCategory: offer.product_category,
-        productImage: offer.product_image,
-        buyerId: offer.buyer_id,
-        buyerName: offer.buyer_name,
-        buyerEmail: offer.buyer_email,
-        buyerUserType: offer.buyer_type,
-        buyerAccountType: offer.buyer_account_type,
+        deliveryAddress: offer.deliveryAddress,
+        deliveryOptions: offer.deliveryOptions || [],
+        paymentTerms: offer.paymentTerms || [],
+        expiresAt: offer.expiresAt,
+        acceptedAt: offer.acceptedAt,
+        confirmedAt: offer.confirmedAt,
+        readyToShipAt: offer.readyToShipAt,
+        readyToPickupAt: offer.readyToPickupAt,
+        shippedAt: offer.shippedAt,
+        deliveredAt: offer.deliveredAt,
+        completedAt: offer.completedAt,
+        autoCompleteAt: offer.autoCompleteAt,
+        createdAt: offer.createdAt,
+        updatedAt: offer.updatedAt,
+        statusUpdatedAt: offer.statusUpdatedAt,
+        cancelledAt: offer.cancelledAt,
+        cancelledBy: offer.cancelledBy,
+        cancellationReason: offer.cancellationReason,
+        productId: offer.productId,
+        productName: offer.productName,
+        productCategory: offer.productCategory,
+        productImage: offer.productImage,
+        buyerId: offer.buyerId,
+        buyerName: offer.buyerName,
+        buyerEmail: offer.buyerEmail,
+        buyerUserType: offer.buyerType,
+        buyerAccountType: offer.buyerAccountType,
+        buyerVerificationLevel: offer.buyerVerificationLevel,
         buyerImage: null, // We don't have buyer image in this query
-        sellerId: offer.seller_id,
-        sellerName: offer.seller_name,
-        sellerEmail: offer.seller_email,
-        sellerUserType: offer.seller_type,
-        sellerAccountType: offer.seller_account_type,
-        sellerImage: offer.seller_image,
+        sellerId: offer.sellerId,
+        sellerName: offer.sellerName,
+        sellerEmail: offer.sellerEmail,
+        sellerUserType: offer.sellerType,
+        sellerAccountType: offer.sellerAccountType,
+        sellerVerificationLevel: offer.sellerVerificationLevel,
+        sellerImage: offer.sellerImage,
         product: {
-          id: offer.product_id,
-          name: offer.product_name,
-          category: offer.product_category,
-          image: offer.product_image
+          id: offer.productId,
+          name: offer.productName,
+          category: offer.productCategory,
+          image: offer.productImage
         },
         buyer: {
-          id: offer.buyer_id,
-          name: offer.buyer_name,
-          userType: offer.buyer_type,
-          accountType: offer.buyer_account_type,
-          profileImage: offer.buyer_image
+          id: offer.buyerId,
+          name: offer.buyerName,
+          userType: offer.buyerType,
+          accountType: offer.buyerAccountType,
+          verificationLevel: offer.buyerVerificationLevel,
+          profileImage: offer.buyerImage
         },
         seller: {
-          id: offer.seller_id,
-          name: offer.seller_name,
-          userType: offer.seller_type,
-          accountType: offer.seller_account_type,
-          profileImage: offer.seller_image
+          id: offer.sellerId,
+          name: offer.sellerName,
+          userType: offer.sellerType,
+          accountType: offer.sellerAccountType,
+          verificationLevel: offer.sellerVerificationLevel,
+          profileImage: offer.sellerImage
         }
       },
       message: 'Offer fetched successfully'

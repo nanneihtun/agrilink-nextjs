@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Get the verification request details
     const [verificationRequest] = await sql`
-      SELECT user_id, user_email, user_name
+      SELECT "userId", "userEmail", "userName"
       FROM verification_requests 
       WHERE id = ${requestId}
     `;
@@ -47,10 +47,10 @@ export async function POST(request: NextRequest) {
       UPDATE verification_requests 
       SET 
         status = 'approved',
-        reviewed_at = NOW(),
-        reviewed_by = ${adminUser.id},
-        review_notes = ${reviewNotes || adminNotes || 'Approved by admin'},
-        updated_at = NOW()
+        "reviewedAt" = NOW(),
+        "reviewedBy" = ${adminUser.id},
+        "reviewNotes" = ${reviewNotes || adminNotes || 'Approved by admin'},
+        "updatedAt" = NOW()
       WHERE id = ${requestId}
     `;
 
@@ -61,10 +61,10 @@ export async function POST(request: NextRequest) {
         "verificationStatus" = 'verified',
         verified = true,
         "updatedAt" = NOW()
-      WHERE "userId" = ${verificationRequest.user_id}
+      WHERE "userId" = ${verificationRequest.userId}
     `;
 
-    console.log(`✅ Admin ${adminUser.email} approved verification request for ${verificationRequest.user_email}`);
+    console.log(`✅ Admin ${adminUser.email} approved verification request for ${verificationRequest.userEmail}`);
 
     return NextResponse.json({ 
       success: true, 

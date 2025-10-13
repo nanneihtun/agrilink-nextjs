@@ -212,18 +212,6 @@ export default function EditProductPage() {
     <div className="min-h-screen bg-gray-50">
       <AppHeader currentUser={currentUser} onLogout={handleLogout} />
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header with Back Button */}
-        <div className="space-y-4 mb-6">
-          <Button variant="ghost" onClick={handleBack} className="h-9 px-3 -ml-3">
-            <ChevronLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold">Edit Product</h1>
-            <p className="text-muted-foreground">{product?.name}</p>
-          </div>
-        </div>
-
         <SimplifiedProductForm
           currentUser={currentUser || { id: 'temp', name: 'User', location: 'Myanmar' }}
           onBack={handleBack}

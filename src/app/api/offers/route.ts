@@ -45,181 +45,191 @@ export async function GET(request: NextRequest) {
     
     if (conversationId) {
       // Fetch offers for a specific conversation
+      console.log('🔍 Fetching offers for conversation:', conversationId);
       offers = await sql`
         SELECT 
           o.id,
-          o.conversation_id,
-          o.offer_price,
+          o."conversationId",
+          o."offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o.delivery_options,
-          o.payment_terms,
-          o.expires_at,
-          o.accepted_at,
-          o.confirmed_at,
-          o.shipped_at,
-          o.delivered_at,
-          o.completed_at,
-          o.auto_complete_at,
-          o.created_at,
-          o.updated_at,
-          p.id as product_id,
-          p.name as product_name,
-          p.category as product_category,
-          pi."imageUrl" as product_image,
-          buyer.id as buyer_id,
-          buyer.name as buyer_name,
-          buyer."userType" as buyer_type,
-          buyer."accountType" as buyer_account_type,
-          buyer_profile."profileImage" as buyer_image,
-          seller.id as seller_id,
-          seller.name as seller_name,
-          seller."userType" as seller_type,
-          seller."accountType" as seller_account_type,
-          seller_profile."profileImage" as seller_image
+          o."deliveryOptions",
+          o."paymentTerms",
+          o."expiresAt",
+          o."acceptedAt",
+          o."confirmedAt",
+          o."readyToShipAt",
+          o."readyToPickupAt",
+          o."shippedAt",
+          o."deliveredAt",
+          o."completedAt",
+          o."autoCompleteAt",
+          o."createdAt",
+          o."updatedAt",
+          p.id as "productId",
+          p.name as "productName",
+          p.category as "productCategory",
+          pi."imageData" as "productImage",
+          buyer.id as "buyerId",
+          buyer.name as "buyerName",
+          buyer."userType" as "buyerType",
+          buyer."accountType" as "buyerAccountType",
+          buyer_profile."profileImage" as "buyerImage",
+          seller.id as "sellerId",
+          seller.name as "sellerName",
+          seller."userType" as "sellerType",
+          seller."accountType" as "sellerAccountType",
+          seller_profile."profileImage" as "sellerImage"
         FROM offers o
-        INNER JOIN products p ON o.product_id = p.id
+        INNER JOIN products p ON o."productId" = p.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-        INNER JOIN users buyer ON o.buyer_id = buyer.id
+        INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
-        INNER JOIN users seller ON o.seller_id = seller.id
+        INNER JOIN users seller ON o."sellerId" = seller.id
         LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
-        WHERE o.conversation_id = ${conversationId}
-        ORDER BY o.created_at DESC
+        WHERE o."conversationId" = ${conversationId}
+        ORDER BY o."createdAt" DESC
       `;
+      console.log('✅ Offers query executed, found', offers.length, 'offers');
     } else if (type === 'sent') {
       offers = await sql`
         SELECT 
           o.id,
-          o.conversation_id,
-          o.offer_price,
+          o."conversationId",
+          o."offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o.delivery_options,
-          o.payment_terms,
-          o.expires_at,
-          o.accepted_at,
-          o.confirmed_at,
-          o.shipped_at,
-          o.delivered_at,
-          o.completed_at,
-          o.auto_complete_at,
-          o.created_at,
-          o.updated_at,
-          p.id as product_id,
-          p.name as product_name,
-          p.category as product_category,
-          pi."imageUrl" as product_image,
-          buyer.id as buyer_id,
-          buyer.name as buyer_name,
-          buyer."userType" as buyer_type,
-          buyer."accountType" as buyer_account_type,
-          buyer_profile."profileImage" as buyer_image,
-          seller.id as seller_id,
-          seller.name as seller_name,
-          seller."userType" as seller_type,
-          seller."accountType" as seller_account_type,
-          seller_profile."profileImage" as seller_image
+          o."deliveryOptions",
+          o."paymentTerms",
+          o."expiresAt",
+          o."acceptedAt",
+          o."confirmedAt",
+          o."readyToShipAt",
+          o."readyToPickupAt",
+          o."shippedAt",
+          o."deliveredAt",
+          o."completedAt",
+          o."autoCompleteAt",
+          o."createdAt",
+          o."updatedAt",
+          p.id as "productId",
+          p.name as "productName",
+          p.category as "productCategory",
+          pi."imageData" as "productImage",
+          buyer.id as "buyerId",
+          buyer.name as "buyerName",
+          buyer."userType" as "buyerType",
+          buyer."accountType" as "buyerAccountType",
+          buyer_profile."profileImage" as "buyerImage",
+          seller.id as "sellerId",
+          seller.name as "sellerName",
+          seller."userType" as "sellerType",
+          seller."accountType" as "sellerAccountType",
+          seller_profile."profileImage" as "sellerImage"
         FROM offers o
-        INNER JOIN products p ON o.product_id = p.id
+        INNER JOIN products p ON o."productId" = p.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-        INNER JOIN users buyer ON o.buyer_id = buyer.id
+        INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
-        INNER JOIN users seller ON o.seller_id = seller.id
+        INNER JOIN users seller ON o."sellerId" = seller.id
         LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
-        WHERE o.buyer_id = ${user.userId}
-        ORDER BY o.created_at DESC
+        WHERE o."buyerId" = ${user.userId}
+        ORDER BY o."createdAt" DESC
       `;
     } else if (type === 'received') {
       offers = await sql`
         SELECT 
           o.id,
-          o.conversation_id,
-          o.offer_price,
+          o."conversationId",
+          o."offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o.delivery_options,
-          o.payment_terms,
-          o.expires_at,
-          o.accepted_at,
-          o.confirmed_at,
-          o.shipped_at,
-          o.delivered_at,
-          o.completed_at,
-          o.auto_complete_at,
-          o.created_at,
-          o.updated_at,
-          p.id as product_id,
-          p.name as product_name,
-          p.category as product_category,
-          pi."imageUrl" as product_image,
-          buyer.id as buyer_id,
-          buyer.name as buyer_name,
-          buyer."userType" as buyer_type,
-          buyer."accountType" as buyer_account_type,
-          buyer_profile."profileImage" as buyer_image,
-          seller.id as seller_id,
-          seller.name as seller_name,
-          seller."userType" as seller_type,
-          seller."accountType" as seller_account_type,
-          seller_profile."profileImage" as seller_image
+          o."deliveryOptions",
+          o."paymentTerms",
+          o."expiresAt",
+          o."acceptedAt",
+          o."confirmedAt",
+          o."readyToShipAt",
+          o."readyToPickupAt",
+          o."shippedAt",
+          o."deliveredAt",
+          o."completedAt",
+          o."autoCompleteAt",
+          o."createdAt",
+          o."updatedAt",
+          p.id as "productId",
+          p.name as "productName",
+          p.category as "productCategory",
+          pi."imageData" as "productImage",
+          buyer.id as "buyerId",
+          buyer.name as "buyerName",
+          buyer."userType" as "buyerType",
+          buyer."accountType" as "buyerAccountType",
+          buyer_profile."profileImage" as "buyerImage",
+          seller.id as "sellerId",
+          seller.name as "sellerName",
+          seller."userType" as "sellerType",
+          seller."accountType" as "sellerAccountType",
+          seller_profile."profileImage" as "sellerImage"
         FROM offers o
-        INNER JOIN products p ON o.product_id = p.id
+        INNER JOIN products p ON o."productId" = p.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-        INNER JOIN users buyer ON o.buyer_id = buyer.id
+        INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
-        INNER JOIN users seller ON o.seller_id = seller.id
+        INNER JOIN users seller ON o."sellerId" = seller.id
         LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
-        WHERE o.seller_id = ${user.userId}
-        ORDER BY o.created_at DESC
+        WHERE o."sellerId" = ${user.userId}
+        ORDER BY o."createdAt" DESC
       `;
     } else {
       // Default: fetch all offers for the user (both sent and received)
       offers = await sql`
         SELECT 
           o.id,
-          o.conversation_id,
-          o.offer_price,
+          o."conversationId",
+          o."offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o.delivery_options,
-          o.payment_terms,
-          o.expires_at,
-          o.accepted_at,
-          o.confirmed_at,
-          o.shipped_at,
-          o.delivered_at,
-          o.completed_at,
-          o.auto_complete_at,
-          o.created_at,
-          o.updated_at,
-          p.id as product_id,
-          p.name as product_name,
-          p.category as product_category,
-          pi."imageUrl" as product_image,
-          buyer.id as buyer_id,
-          buyer.name as buyer_name,
-          buyer."userType" as buyer_type,
-          buyer."accountType" as buyer_account_type,
-          buyer_profile."profileImage" as buyer_image,
-          seller.id as seller_id,
-          seller.name as seller_name,
-          seller."userType" as seller_type,
-          seller."accountType" as seller_account_type,
-          seller_profile."profileImage" as seller_image
+          o."deliveryOptions",
+          o."paymentTerms",
+          o."expiresAt",
+          o."acceptedAt",
+          o."confirmedAt",
+          o."readyToShipAt",
+          o."readyToPickupAt",
+          o."shippedAt",
+          o."deliveredAt",
+          o."completedAt",
+          o."autoCompleteAt",
+          o."createdAt",
+          o."updatedAt",
+          p.id as "productId",
+          p.name as "productName",
+          p.category as "productCategory",
+          pi."imageData" as "productImage",
+          buyer.id as "buyerId",
+          buyer.name as "buyerName",
+          buyer."userType" as "buyerType",
+          buyer."accountType" as "buyerAccountType",
+          buyer_profile."profileImage" as "buyerImage",
+          seller.id as "sellerId",
+          seller.name as "sellerName",
+          seller."userType" as "sellerType",
+          seller."accountType" as "sellerAccountType",
+          seller_profile."profileImage" as "sellerImage"
         FROM offers o
-        INNER JOIN products p ON o.product_id = p.id
+        INNER JOIN products p ON o."productId" = p.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-        INNER JOIN users buyer ON o.buyer_id = buyer.id
+        INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
-        INNER JOIN users seller ON o.seller_id = seller.id
+        INNER JOIN users seller ON o."sellerId" = seller.id
         LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
-        WHERE o.buyer_id = ${user.userId} OR o.seller_id = ${user.userId}
-        ORDER BY o.created_at DESC
+        WHERE o."buyerId" = ${user.userId} OR o."sellerId" = ${user.userId}
+        ORDER BY o."createdAt" DESC
       `;
     }
 
@@ -227,41 +237,43 @@ export async function GET(request: NextRequest) {
 
     const transformedOffers = offers.map(offer => ({
       id: offer.id,
-      conversationId: offer.conversation_id,
-      offerPrice: parseFloat(offer.offer_price),
+      conversationId: offer.conversationId,
+      offerPrice: parseFloat(offer.offerPrice),
       quantity: offer.quantity,
       message: offer.message,
       status: offer.status,
-      deliveryOptions: offer.delivery_options || [],
-      paymentTerms: offer.payment_terms || [],
-      expiresAt: offer.expires_at,
-      acceptedAt: offer.accepted_at,
-      confirmedAt: offer.confirmed_at,
-      shippedAt: offer.shipped_at,
-      deliveredAt: offer.delivered_at,
-      completedAt: offer.completed_at,
-      autoCompleteAt: offer.auto_complete_at,
-      createdAt: offer.created_at,
-      updatedAt: offer.updated_at,
+      deliveryOptions: offer.deliveryOptions || [],
+      paymentTerms: offer.paymentTerms || [],
+      expiresAt: offer.expiresAt,
+      acceptedAt: offer.acceptedAt,
+      confirmedAt: offer.confirmedAt,
+      readyToShipAt: offer.readyToShipAt,
+      readyToPickupAt: offer.readyToPickupAt,
+      shippedAt: offer.shippedAt,
+      deliveredAt: offer.deliveredAt,
+      completedAt: offer.completedAt,
+      autoCompleteAt: offer.autoCompleteAt,
+      createdAt: offer.createdAt,
+      updatedAt: offer.updatedAt,
       product: {
-        id: offer.product_id,
-        name: offer.product_name,
-        category: offer.product_category,
-        image: offer.product_image
+        id: offer.productId,
+        name: offer.productName,
+        category: offer.productCategory,
+        image: offer.productImage
       },
       buyer: {
-        id: offer.buyer_id,
-        name: offer.buyer_name,
-        userType: offer.buyer_type,
-        accountType: offer.buyer_account_type,
-        profileImage: offer.buyer_image
+        id: offer.buyerId,
+        name: offer.buyerName,
+        userType: offer.buyerType,
+        accountType: offer.buyerAccountType,
+        profileImage: offer.buyerImage
       },
       seller: {
-        id: offer.seller_id,
-        name: offer.seller_name,
-        userType: offer.seller_type,
-        accountType: offer.seller_account_type,
-        profileImage: offer.seller_image
+        id: offer.sellerId,
+        name: offer.sellerName,
+        userType: offer.sellerType,
+        accountType: offer.sellerAccountType,
+        profileImage: offer.sellerImage
       }
     }));
 
@@ -271,9 +283,14 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching offers:', error);
+    console.error('❌ Error fetching offers:', {
+      message: error.message,
+      stack: error.stack,
+      query: conversationId ? 'conversationId query' : 'other query',
+      conversationId: conversationId || 'none'
+    });
     return NextResponse.json(
-      { message: 'Internal server error', error: error.message },
+      { message: 'Internal server error', error: error.message, details: error.stack },
       { status: 500 }
     );
   }
@@ -282,16 +299,26 @@ export async function GET(request: NextRequest) {
 // POST /api/offers - Create new offer
 export async function POST(request: NextRequest) {
   try {
+    console.log('🎯 Offers API - POST request received');
     const user = verifyToken(request);
     
     if (!user) {
+      console.log('❌ Offers API - Unauthorized request');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
+    console.log('✅ Offers API - User authenticated:', user.userId);
     const body = await request.json();
+    console.log('📦 Offers API - Request body:', {
+      productId: body.productId,
+      offerPrice: body.offerPrice,
+      quantity: body.quantity,
+      hasMessage: !!body.message,
+      hasDeliveryAddress: !!body.deliveryAddress
+    });
     const {
       productId,
       offerPrice,
@@ -313,7 +340,7 @@ export async function POST(request: NextRequest) {
 
     // Get product and seller info
     const product = await sql`
-      SELECT p.*, u.id as seller_id, u."userType" as seller_type
+      SELECT p.*, u.id as "sellerId", u."userType" as "sellerType"
       FROM products p
       INNER JOIN users u ON p."sellerId" = u.id
       WHERE p.id = ${productId}
@@ -329,7 +356,7 @@ export async function POST(request: NextRequest) {
     const productData = product[0];
 
     // Prevent users from making offers on their own products
-    if (productData.seller_id === user.userId) {
+    if (productData.sellerId === user.userId) {
       return NextResponse.json(
         { message: 'Cannot make offer on your own product' },
         { status: 400 }
@@ -353,8 +380,8 @@ export async function POST(request: NextRequest) {
     let conversationId;
     const existingConversation = await sql`
       SELECT id FROM conversations 
-      WHERE ("buyerId" = ${user.userId} AND "sellerId" = ${productData.seller_id})
-         OR ("buyerId" = ${productData.seller_id} AND "sellerId" = ${user.userId})
+      WHERE ("buyerId" = ${user.userId} AND "sellerId" = ${productData.sellerId})
+         OR ("buyerId" = ${productData.sellerId} AND "sellerId" = ${user.userId})
       LIMIT 1
     `;
     
@@ -364,7 +391,7 @@ export async function POST(request: NextRequest) {
       // Create new conversation
       const [newConversation] = await sql`
         INSERT INTO conversations ("buyerId", "sellerId", "productId", "createdAt")
-        VALUES (${user.userId}, ${productData.seller_id}, ${productId}, NOW())
+        VALUES (${user.userId}, ${productData.sellerId}, ${productId}, NOW())
         RETURNING id
       `;
       conversationId = newConversation.id;
@@ -373,12 +400,12 @@ export async function POST(request: NextRequest) {
     // Create the offer
     const [newOffer] = await sql`
       INSERT INTO offers (
-        product_id, buyer_id, seller_id, conversation_id, offer_price, quantity, 
-        message, status, delivery_address, delivery_options, payment_terms,
-        expires_at, created_at, updated_at
+        "productId", "buyerId", "sellerId", "conversationId", "offerPrice", quantity, 
+        message, status, "deliveryAddress", "deliveryOptions", "paymentTerms",
+        "expiresAt", "createdAt", "updatedAt"
       )
       VALUES (
-        ${productId}, ${user.userId}, ${productData.seller_id}, ${conversationId}, 
+        ${productId}, ${user.userId}, ${productData.sellerId}, ${conversationId}, 
         ${offerPrice}, ${quantity}, ${message || null}, 'pending', 
         ${deliveryAddress ? JSON.stringify(deliveryAddress) : null},
         ${deliveryOptions || null}, ${paymentTerms || null},
@@ -390,16 +417,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       offer: {
         id: newOffer.id,
-        conversationId: newOffer.conversation_id,
-        offerPrice: parseFloat(newOffer.offer_price),
+        conversationId: newOffer.conversationId,
+        offerPrice: parseFloat(newOffer.offerPrice),
         quantity: newOffer.quantity,
         message: newOffer.message,
         status: newOffer.status,
-        deliveryOptions: newOffer.delivery_options || [],
-        paymentTerms: newOffer.payment_terms || [],
-        expiresAt: newOffer.expires_at,
-        createdAt: newOffer.created_at,
-        updatedAt: newOffer.updated_at
+        deliveryOptions: newOffer.deliveryOptions || [],
+        paymentTerms: newOffer.paymentTerms || [],
+        expiresAt: newOffer.expiresAt,
+        createdAt: newOffer.createdAt,
+        updatedAt: newOffer.updatedAt
       },
       message: 'Offer created successfully'
     });

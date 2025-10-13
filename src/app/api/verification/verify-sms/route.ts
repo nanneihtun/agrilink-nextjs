@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
     // Check verification code
     const codeResult = await sql`
       SELECT * FROM verification_codes 
-      WHERE user_id = ${userId} 
+      WHERE "userId" = ${userId} 
       AND phone = ${phone} 
       AND code = ${code}
-      AND expires_at > NOW()
-      ORDER BY created_at DESC
+      AND "expiresAt" > NOW()
+      ORDER BY "createdAt" DESC
       LIMIT 1
     `;
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Delete used verification code
     await sql`
       DELETE FROM verification_codes 
-      WHERE user_id = ${userId} AND code = ${code}
+      WHERE "userId" = ${userId} AND code = ${code}
     `;
 
     return NextResponse.json({

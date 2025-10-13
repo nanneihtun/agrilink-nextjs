@@ -25,31 +25,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Fetch all verification requests
+    // Fetch all verification requests with user profile data
     const requests = await sql`
       SELECT 
         vr.id,
-        vr.user_id,
-        vr.user_email,
-        vr.user_name,
-        vr.user_type,
-        vr.account_type,
-        vr.request_type,
+        vr."userId",
+        vr."userEmail",
+        vr."userName",
+        vr."userType",
+        vr."accountType",
+        vr."requestType",
         vr.status,
-        vr.submitted_at,
-        vr.reviewed_at,
-        vr.reviewed_by,
-        vr.verification_documents,
-        vr.business_info,
-        vr.business_name,
-        vr.business_description,
-        vr.business_license_number,
-        vr.phone_verified,
-        vr.review_notes,
-        vr.created_at,
-        vr.updated_at
+        vr."submittedAt",
+        vr."reviewedAt",
+        vr."reviewedBy",
+        vr."verificationDocuments" as verification_request_documents,
+        vr."businessInfo",
+        vr."businessName",
+        vr."businessDescription",
+        vr."businessLicenseNumber",
+        vr."phoneVerified" as verification_phone_verified,
+        vr."reviewNotes",
+        vr."createdAt",
+        vr."updatedAt",
+        up.location,
+        up.phone,
+        uv."phoneVerified" as user_phone_verified,
+        u."businessName" as user_business_name,
+        u."businessDescription" as user_business_description,
+        u."businessLicenseNumber" as user_business_license_number,
+        u."verificationDocuments" as user_verification_documents
       FROM verification_requests vr
-      ORDER BY vr.submitted_at DESC
+      LEFT JOIN user_profiles up ON vr."userId" = up."userId"
+      LEFT JOIN users u ON vr."userId" = u.id
+      LEFT JOIN user_verification uv ON vr."userId" = uv."userId"
+      ORDER BY vr."submittedAt" DESC
     `;
 
     return NextResponse.json({ 

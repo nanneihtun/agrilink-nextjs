@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import jwt from 'jsonwebtoken';
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -14,53 +15,76 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const body = await request.json();
-    console.log('📝 Request body received:', { user_id: body.user_id, user_email: body.user_email });
+    
+    // Verify JWT token and extract user information
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      console.log('✅ Token verified successfully for user:', decoded.userId);
+    } catch (error) {
+      console.log('❌ Token verification failed:', error);
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
 
-    // For now, we'll just store the verification request in the database
-    // In a real implementation, you might want to verify the JWT token
+    const body = await request.json();
+
+    // Extract user information from JWT token
+    const userId = decoded.userId;
+    const userEmail = decoded.email;
+    const userType = decoded.userType;
+    const accountType = decoded.accountType;
+    
+    // Fetch user's name from database
+    const userResult = await sql`
+      SELECT name FROM users WHERE id = ${userId} LIMIT 1
+    `;
+    
+    if (userResult.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    
+    const userName = userResult[0].name;
     
     const {
-      user_id,
-      user_email,
-      user_name,
-      user_type,
-      account_type,
-      request_type,
-      status,
-      submitted_at,
-      verification_documents,
-      business_info,
-      phone_verified
+      requestType = 'agrilink_verification',
+      status = 'under_review',
+      submittedAt = new Date().toISOString(),
+      verificationDocuments,
+      businessInfo,
+      phoneVerified = false
     } = body;
 
     // Insert verification request into database
     console.log('🔄 Inserting verification request...');
     const result = await sql`
       INSERT INTO verification_requests (
-        user_id,
-        user_email,
-        user_name,
-        user_type,
-        account_type,
-        request_type,
+        "userId",
+        "userEmail",
+        "userName",
+        "userType",
+        "accountType",
+        "requestType",
         status,
-        submitted_at,
-        verification_documents,
-        business_info,
-        phone_verified
+        "submittedAt",
+        "verificationDocuments",
+        "businessInfo",
+        "phoneVerified",
+        "createdAt",
+        "updatedAt"
       ) VALUES (
-        ${user_id},
-        ${user_email},
-        ${user_name},
-        ${user_type},
-        ${account_type},
-        ${request_type},
+        ${userId},
+        ${userEmail},
+        ${userName},
+        ${userType},
+        ${accountType},
+        ${requestType},
         ${status},
-        ${submitted_at},
-        ${JSON.stringify(verification_documents)},
-        ${business_info ? JSON.stringify(business_info) : null},
-        ${phone_verified}
+        ${submittedAt},
+        ${verificationDocuments ? JSON.stringify(verificationDocuments) : null},
+        ${businessInfo ? JSON.stringify(businessInfo) : null},
+        ${phoneVerified},
+        NOW(),
+        NOW()
       )
       RETURNING id
     `;
@@ -74,7 +98,7 @@ export async function POST(request: NextRequest) {
         "verificationStatus" = 'under_review',
         "verificationSubmitted" = true,
         "updatedAt" = NOW()
-      WHERE "userId" = ${user_id}
+      WHERE "userId" = ${userId}
     `;
     console.log('✅ User verification status updated');
 
@@ -86,7 +110,7 @@ export async function POST(request: NextRequest) {
         "agriLinkVerificationRequested" = true,
         "agriLinkVerificationRequestedAt" = NOW(),
         "updatedAt" = NOW()
-      WHERE id = ${user_id}
+      WHERE id = ${userId}
     `;
     console.log('✅ agriLinkVerificationRequested updated in users table');
 

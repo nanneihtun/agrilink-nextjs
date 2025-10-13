@@ -109,6 +109,10 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
   
   // Track upload status to prevent duplicate uploads
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Track verification request submission status
+  const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
+  const [verificationSubmitted, setVerificationSubmitted] = useState(false);
 
   // Sync uploadedDocuments state when currentUser.verificationDocuments changes
   useEffect(() => {
@@ -211,6 +215,11 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     
     console.log('✅ AgriLink verification state:', userRequested || isVerified ? 'true' : 'false');
     setAgriLinkVerificationRequested(userRequested || isVerified);
+    
+    // Reset verification submitted flag when user data refreshes
+    if (userRequested || isVerified) {
+      setVerificationSubmitted(false);
+    }
     
     // Show success message if verification was requested but user is still under review
     const hasRequestedVerification = userRequested;
@@ -572,28 +581,81 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
   // Handle reset verification for resubmission (preserves rejection history)
 
   const handleRequestAgriLinkVerification = async () => {
+    // Prevent duplicate submissions
+    if (isSubmittingVerification) {
+      console.log('⚠️ Verification request already in progress, skipping duplicate submission');
+      return;
+    }
+    
+    setIsSubmittingVerification(true);
+    let success = false;
+    
     // Add timeout to prevent infinite processing
     const timeoutId = setTimeout(() => {
       console.error('❌ Verification request timeout - stopping processing');
+      setIsSubmittingVerification(false);
     }, 10000); // 10 second timeout
     
     try {
       console.log('🛡️ Requesting AgriLink verification for user:', currentUser.email);
       
-      // Check if documents are uploaded in the database
+      // Check if documents are uploaded in the database OR locally uploaded
       const userDocs = currentUser.verificationDocuments || {};
-      const hasIdCard = userDocs.idCard && userDocs.idCard.status === 'uploaded';
-      const hasBusinessLicense = !isBusinessAccount || (userDocs.businessLicense && userDocs.businessLicense.status === 'uploaded');
+      const hasIdCard = (userDocs.idCard && userDocs.idCard.status === 'uploaded') || uploadedDocuments.idCard;
+      const hasBusinessLicense = !isBusinessAccount || (userDocs.businessLicense && userDocs.businessLicense.status === 'uploaded') || uploadedDocuments.businessLicense;
       const hasUploadedDocs = hasIdCard && hasBusinessLicense;
       
-      console.log('🔍 Debug - Document check results:');
+      // Check phone verification
+      const isPhoneVerified = currentUser.phoneVerified === true;
+      
+      // Check business information completion (for business accounts)
+      const hasBusinessInfo = !isBusinessAccount || (
+        currentUser.businessName && 
+        currentUser.businessDescription && 
+        currentUser.businessLicenseNumber &&
+        currentUser.location
+      );
+      
+      // Check location information
+      const hasLocation = currentUser.location && currentUser.location.trim() !== '';
+      
+      console.log('🔍 Debug - Validation check results:');
       console.log('  - hasIdCard:', hasIdCard);
       console.log('  - hasBusinessLicense:', hasBusinessLicense);
       console.log('  - hasUploadedDocs:', hasUploadedDocs);
-      console.log('  - userDocs:', userDocs);
+      console.log('  - isPhoneVerified:', isPhoneVerified);
+      console.log('  - hasBusinessInfo:', hasBusinessInfo);
+      console.log('  - hasLocation:', hasLocation);
       console.log('  - isBusinessAccount:', isBusinessAccount);
+      console.log('  - userDocs:', userDocs);
+      console.log('  - uploadedDocuments:', uploadedDocuments);
+      console.log('  - Database idCard status:', userDocs.idCard?.status);
+      console.log('  - Local idCard uploaded:', !!uploadedDocuments.idCard);
+      console.log('  - Database businessLicense status:', userDocs.businessLicense?.status);
+      console.log('  - Local businessLicense uploaded:', !!uploadedDocuments.businessLicense);
       
-      if (hasUploadedDocs) {
+      // Comprehensive validation
+      if (!hasUploadedDocs) {
+        alert('Please upload all required documents before submitting verification request.');
+        return;
+      }
+      
+      if (!isPhoneVerified) {
+        alert('Please complete phone verification before submitting verification request.');
+        return;
+      }
+      
+      if (!hasLocation) {
+        alert('Please provide your location before submitting verification request.');
+        return;
+      }
+      
+      if (isBusinessAccount && !hasBusinessInfo) {
+        alert('Please complete all business information (business name, description, license number, and location) before submitting verification request.');
+        return;
+      }
+      
+      if (hasUploadedDocs && isPhoneVerified && hasLocation && (!isBusinessAccount || hasBusinessInfo)) {
         // Create verification request for admin review
         const verificationRequest = {
           id: `req-${Date.now()}`,
@@ -721,10 +783,21 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
 
         console.log('✅ AgriLink verification request submitted successfully:', verificationRequest);
         
+        // Update local state first to prevent flickering
+        setAgriLinkVerificationRequested(true);
+        setShowSuccessMessage(true);
+        setVerificationSubmitted(true);
+        success = true;
+        
         // Call verification complete callback to refresh user data in parent components
         if (onVerificationComplete) {
           onVerificationComplete();
         }
+        
+        // Reset submitting state after a delay to allow parent state to stabilize
+        setTimeout(() => {
+          setIsSubmittingVerification(false);
+        }, 500);
         
         // Success message will remain visible until admin accepts/rejects the request
         
@@ -736,6 +809,10 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
       alert('Failed to request verification. Please try again.');
     } finally {
       clearTimeout(timeoutId);
+      // Only reset submitting state for errors, success case is handled in setTimeout
+      if (!success) {
+        setIsSubmittingVerification(false);
+      }
     }
   };
 
@@ -1515,7 +1592,8 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
           const hasBusinessInfo = Boolean(currentUser.businessName); // businessDescription is optional
           const hasBusinessLicense = agriLinkVerificationRequested
             ? (Boolean(currentUser.verificationDocuments?.businessLicense) && 
-               currentUser.verificationDocuments?.businessLicense?.status === 'uploaded')
+               currentUser.verificationDocuments?.businessLicense?.status === 'uploaded') || 
+              Boolean(uploadedDocuments.businessLicense) // Fallback to local state if database not updated yet
             : Boolean(uploadedDocuments.businessLicense); // Only check local state when not submitted
           
           // Business details completion logic similar to document completion
@@ -1644,9 +1722,14 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                       if (!currentUser.phoneVerified) missingSteps.push('phone verification');
                       if (!uploadedDocuments.idCard) missingSteps.push('ID documents');
                       
+                      // Check location
+                      if (!currentUser.location || currentUser.location.trim() === '') {
+                        missingSteps.push('location');
+                      }
+                      
                       // Check business requirements for business accounts
                       if (isBusinessAccount) {
-                        const hasBusinessInfo = Boolean(currentUser.businessName);
+                        const hasBusinessInfo = Boolean(currentUser.businessName && currentUser.businessDescription && currentUser.businessLicenseNumber);
                         const hasBusinessLicense = Boolean(uploadedDocuments.businessLicense);
                         
                         if (!hasBusinessInfo) missingSteps.push('business information');
@@ -1660,7 +1743,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                         tooltipText = 'Ready to resubmit verification request';
                       }
                       
-                      const isDisabled = missingSteps.length > 0;
+                      const isDisabled = missingSteps.length > 0 || isSubmittingVerification || verificationSubmitted;
                       
                       return (
                         <Button
@@ -1672,10 +1755,14 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                               ? 'opacity-60 cursor-not-allowed' 
                               : 'bg-primary text-white hover:bg-primary/90 border-primary'
                           }`}
-                          title={tooltipText}
+                          title={isSubmittingVerification || verificationSubmitted ? 'Submitting verification request...' : tooltipText}
                           onClick={!isDisabled ? handleRequestAgriLinkVerification : undefined}
                         >
-                          Request Verification
+                          {isSubmittingVerification || verificationSubmitted ? (
+                            'Submitting...'
+                          ) : (
+                            'Request Verification'
+                          )}
                         </Button>
                       );
                     })()}
@@ -1888,10 +1975,15 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     <Button 
                       size="sm"
                       onClick={handleRequestAgriLinkVerification}
-                      disabled={false}
+                      disabled={isSubmittingVerification || verificationSubmitted}
                       className="text-xs px-3 py-2"
+                      title={isSubmittingVerification || verificationSubmitted ? 'Submitting verification request...' : 'Submit verification request'}
                     >
-                          Request Verification
+                          {isSubmittingVerification || verificationSubmitted ? (
+                            'Submitting...'
+                          ) : (
+                            'Request Verification'
+                          )}
                         </Button>
                       );
                     } else {
@@ -1901,8 +1993,20 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                       
                       if (!currentUser.phoneVerified) missingSteps.push('phone verification');
                       if (!uploadedDocuments.idCard) missingSteps.push('ID documents');
-                      if (isBusinessAccount && !hasBusinessInfo) missingSteps.push('business information');
-                      if (isBusinessAccount && !hasBusinessLicense) missingSteps.push('business license');
+                      
+                      // Check location
+                      if (!currentUser.location || currentUser.location.trim() === '') {
+                        missingSteps.push('location');
+                      }
+                      
+                      // Check business requirements for business accounts
+                      if (isBusinessAccount) {
+                        const hasBusinessInfo = Boolean(currentUser.businessName && currentUser.businessDescription && currentUser.businessLicenseNumber);
+                        const hasBusinessLicense = Boolean(uploadedDocuments.businessLicense);
+                        
+                        if (!hasBusinessInfo) missingSteps.push('business information');
+                        if (!hasBusinessLicense) missingSteps.push('business license');
+                      }
                       
                       // Special case: After resubmit, user needs to re-upload documents
                       if (isResubmitState) {

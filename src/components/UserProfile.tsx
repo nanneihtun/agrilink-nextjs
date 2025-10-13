@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Separator } from "./ui/separator";
 import { UserBadge, getUserVerificationLevel, getUserAccountType, AccountTypeBadge } from "./UserBadgeSystem";
+import { ReviewSliderModal } from "./ReviewSliderModal";
 import { 
   User,
   MapPin,
@@ -124,6 +125,10 @@ export function UserProfile({
       payment: ''
     }
   }));
+
+  // Review modal state
+  const [showAllReviewsModal, setShowAllReviewsModal] = useState(false);
+  const [allReviews, setAllReviews] = useState<any[]>([]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -757,7 +762,7 @@ export function UserProfile({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {userProfile.reviews.map((review: any) => (
+                {userProfile.reviews.slice(0, 3).map((review: any) => (
                   <div key={review.id} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -811,11 +816,38 @@ export function UserProfile({
                     </div>
                   </div>
                 ))}
+
+                {userProfile.reviews.length > 3 && (
+                  <div className="text-center pt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setAllReviews(userProfile.reviews);
+                        setShowAllReviewsModal(true);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground h-auto p-1"
+                    >
+                      +{userProfile.reviews.length - 3} more reviews
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
       </div>
+
+      {/* Review Slider Modal */}
+      {allReviews.length > 0 && (
+        <ReviewSliderModal
+          isOpen={showAllReviewsModal}
+          onClose={() => setShowAllReviewsModal(false)}
+          reviews={allReviews}
+          totalReviews={allReviews.length}
+          averageRating={userProfile.ratings?.rating || 0}
+        />
+      )}
     </div>
   );
 }

@@ -12,9 +12,11 @@ import {
   User, 
   Calendar,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Eye
 } from 'lucide-react';
 import { AccountTypeBadge } from './UserBadgeSystem';
+import { ReviewSliderModal } from './ReviewSliderModal';
 
 interface Review {
   id: string;
@@ -60,12 +62,14 @@ export function ReviewSection({
   onReviewSubmitted 
 }: ReviewSectionProps) {
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [showAllReviewsModal, setShowAllReviewsModal] = useState(false);
 
   useEffect(() => {
     fetchReviews();
@@ -92,6 +96,18 @@ export function ReviewSection({
         // Set only the current user's review for display
         setReviews(userReview ? [userReview] : []);
         setHasReviewed(!!userReview);
+      }
+
+      // Also fetch all reviews for the other party
+      const allReviewsResponse = await fetch(`/api/reviews?revieweeId=${otherParty.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (allReviewsResponse.ok) {
+        const allReviewsData = await allReviewsResponse.json();
+        setAllReviews(allReviewsData.reviews || []);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -176,6 +192,20 @@ export function ReviewSection({
       case 5: return 'Excellent';
       default: return '';
     }
+  };
+
+  const calculateAverageRating = () => {
+    if (allReviews.length === 0) return 0;
+    const totalRating = allReviews.reduce((sum, review) => sum + review.rating, 0);
+    return totalRating / allReviews.length;
+  };
+
+  const getRatingDistribution = () => {
+    const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    allReviews.forEach(review => {
+      distribution[review.rating as keyof typeof distribution]++;
+    });
+    return distribution;
   };
 
   if (loading) {
@@ -273,6 +303,124 @@ export function ReviewSection({
           </div>
         )}
 
+        {/* All Reviews Section */}
+        {allReviews.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900">
+                All Reviews for {otherParty.name}
+              </h3>
+              {allReviews.length > 10 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllReviewsModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  View All Reviews ({allReviews.length})
+                </Button>
+              )}
+            </div>
+
+            {/* Rating Summary */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {calculateAverageRating().toFixed(1)}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {renderStars(Math.round(calculateAverageRating()))}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {allReviews.length} review{allReviews.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                
+                <div className="flex-1">
+                  <div className="space-y-1">
+                    {[5, 4, 3, 2, 1].map((rating) => {
+                      const count = getRatingDistribution()[rating as keyof ReturnType<typeof getRatingDistribution>];
+                      const percentage = allReviews.length > 0 ? (count / allReviews.length) * 100 : 0;
+                      return (
+                        <div key={rating} className="flex items-center gap-2 text-sm">
+                          <span className="w-3">{rating}</span>
+                          <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-yellow-400 h-2 rounded-full" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="w-8 text-right">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Reviews Preview (max 3) */}
+            <div className="space-y-3">
+              {allReviews.slice(0, 3).map((review) => (
+                <div key={review.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={review.reviewer.profileImage} />
+                      <AvatarFallback>
+                        {review.reviewer.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{review.reviewer.name}</span>
+                        <AccountTypeBadge 
+                          userType={review.reviewer.userType}
+                          accountType={review.reviewer.accountType}
+                          size="sm"
+                        />
+                        <span className="text-xs text-gray-500">
+                          {formatDate(review.createdAt)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-2">
+                        {renderStars(review.rating)}
+                        <span className="text-xs text-gray-600">
+                          {getRatingLabel(review.rating)}
+                        </span>
+                      </div>
+
+                      {review.comment && (
+                        <p className="text-gray-700 text-sm leading-relaxed">
+                          "{review.comment}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {allReviews.length > 3 && (
+              <div className="text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAllReviewsModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  View All {allReviews.length} Reviews
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Your Review Display */}
         {reviews.length > 0 ? (
           <div className="space-y-4">
@@ -326,6 +474,15 @@ export function ReviewSection({
           </div>
         )}
       </CardContent>
+
+      {/* Review Slider Modal */}
+      <ReviewSliderModal
+        isOpen={showAllReviewsModal}
+        onClose={() => setShowAllReviewsModal(false)}
+        reviews={allReviews}
+        totalReviews={allReviews.length}
+        averageRating={calculateAverageRating()}
+      />
     </Card>
   );
 }

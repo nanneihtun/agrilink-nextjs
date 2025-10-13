@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { 
-  ArrowLeft,
+  ChevronLeft,
   Package, 
   Clock, 
   CheckCircle, 
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { OfferStatusManager } from "@/components/OfferStatusManager";
 import { ReviewSection } from "@/components/ReviewSection";
+import { AccountTypeBadge, PublicVerificationStatus } from "@/components/UserBadgeSystem";
 
 interface OfferDetails {
   id: string;
@@ -40,12 +41,14 @@ interface OfferDetails {
   buyerEmail?: string;
   buyerUserType?: string;
   buyerAccountType?: string;
+  buyerVerificationLevel?: string;
   buyer?: {
     id: string;
     name: string;
     userType: string;
     accountType: string;
     profileImage?: string;
+    verificationLevel?: string;
   };
   sellerId: string;
   sellerName: string;
@@ -53,12 +56,14 @@ interface OfferDetails {
   sellerEmail?: string;
   sellerUserType?: string;
   sellerAccountType?: string;
+  sellerVerificationLevel?: string;
   seller?: {
     id: string;
     name: string;
     userType: string;
     accountType: string;
     profileImage?: string;
+    verificationLevel?: string;
   };
   offerPrice: number;
   quantity: number;
@@ -70,9 +75,12 @@ interface OfferDetails {
   expiresAt: string;
   acceptedAt?: string;
   confirmedAt?: string;
+  readyToShipAt?: string;
+  readyToPickupAt?: string;
   shippedAt?: string;
   deliveredAt?: string;
   completedAt?: string;
+  autoCompleteAt?: string;
   createdAt: string;
   updatedAt: string;
   statusUpdatedAt?: string;
@@ -304,7 +312,7 @@ export default function OfferDetailsPage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Error</h1>
             <p className="text-gray-600 mb-4">{error}</p>
             <Button onClick={() => router.push("/offers")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ChevronLeft className="w-4 h-4 mr-2" />
               Back to Offers
             </Button>
           </div>
@@ -325,6 +333,7 @@ export default function OfferDetailsPage() {
     email: offer.sellerEmail,
     userType: offer.sellerUserType || 'seller',
     accountType: offer.sellerAccountType || 'individual',
+    verificationLevel: offer.sellerVerificationLevel || offer.seller?.verificationLevel || 'unverified',
     image: offer.seller?.profileImage || offer.sellerImage
   } : {
     id: offer.buyerId,
@@ -332,6 +341,7 @@ export default function OfferDetailsPage() {
     email: offer.buyerEmail,
     userType: offer.buyerUserType || 'buyer',
     accountType: offer.buyerAccountType || 'individual',
+    verificationLevel: offer.buyerVerificationLevel || offer.buyer?.verificationLevel || 'unverified',
     image: offer.buyer?.profileImage || offer.buyerImage
   };
 
@@ -348,15 +358,14 @@ export default function OfferDetailsPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/offers")}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Offers
+        <div className="space-y-4">
+          {/* Back button row */}
+          <Button variant="ghost" onClick={() => router.push("/offers")} className="h-9 px-3 -ml-3">
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Back
           </Button>
+          
+          {/* Title section */}
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Offer Details</h1>
             <p className="text-gray-600">
@@ -532,9 +541,17 @@ export default function OfferDetailsPage() {
                   </div>
                   <div>
                     <p className="font-semibold">{otherParty.name}</p>
-                    <p className="text-sm text-gray-600 capitalize">
-                      {otherParty.userType} • {otherParty.accountType}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <AccountTypeBadge 
+                        userType={otherParty.userType}
+                        accountType={otherParty.accountType}
+                        size="sm"
+                      />
+                      <PublicVerificationStatus 
+                        verificationLevel={otherParty.verificationLevel === 'id-verified' || otherParty.verificationLevel === 'business-verified' ? 'id-verified' : 'unverified'}
+                        size="xs"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -575,6 +592,18 @@ export default function OfferDetailsPage() {
                   <div className="flex items-center gap-2 text-sm">
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span>Accepted: {formatDate(offer.acceptedAt)}</span>
+                  </div>
+                )}
+                {offer.readyToShipAt && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Package className="w-4 h-4 text-purple-600" />
+                    <span>Ready to Ship: {formatDate(offer.readyToShipAt)}</span>
+                  </div>
+                )}
+                {offer.readyToPickupAt && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Package className="w-4 h-4 text-purple-600" />
+                    <span>Ready to Pick Up: {formatDate(offer.readyToPickupAt)}</span>
                   </div>
                 )}
                 {offer.shippedAt && (

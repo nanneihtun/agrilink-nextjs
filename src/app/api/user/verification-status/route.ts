@@ -27,18 +27,26 @@ export async function GET(request: NextRequest) {
 
     // Get the latest verification request for this user
     const [latestRequest] = await sql`
-      SELECT id, status, submitted_at, reviewed_at, review_notes, verification_documents
+      SELECT id, status, "submittedAt", "reviewedAt", "reviewNotes", "verificationDocuments"
       FROM verification_requests 
-      WHERE user_id = ${user.userId}
-      ORDER BY submitted_at DESC
+      WHERE "userId" = ${user.userId}
+      ORDER BY "submittedAt" DESC
       LIMIT 1
     `;
 
     console.log('📋 Latest verification request:', latestRequest);
 
+    // Transform field names to match frontend expectations
+    const transformedRequest = latestRequest ? {
+      ...latestRequest,
+      review_notes: latestRequest.reviewNotes,
+      reviewed_at: latestRequest.reviewedAt,
+      submitted_at: latestRequest.submittedAt
+    } : null;
+
     return NextResponse.json({
       success: true,
-      verificationRequest: latestRequest || null
+      verificationRequest: transformedRequest
     });
 
   } catch (error: any) {

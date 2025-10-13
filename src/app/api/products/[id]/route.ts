@@ -17,7 +17,7 @@ export async function GET(
         pp.price, pp.unit,
         pinv."availableQuantity", pinv."minimumOrder",
         pd.location as delivery_location, pd."deliveryOptions", pd."paymentTerms", pd."additionalNotes",
-        u.id as seller_id, u.name as seller_name, u."userType" as seller_type,
+        u.id as "sellerId", u.name as "sellerName", u."userType" as "sellerType", u."accountType" as "sellerAccountType",
         up.location, up."profileImage",
         uv.verified, uv."phoneVerified", uv."verificationStatus",
         ur.rating, ur."totalReviews"
@@ -44,7 +44,7 @@ export async function GET(
 
     // Get all images for this product
     const productImages = await sql`
-      SELECT "imageUrl", "isPrimary", "createdAt"
+      SELECT "imageData", "isPrimary", "createdAt"
       FROM product_images 
       WHERE "productId" = ${productId}
       ORDER BY "createdAt" ASC
@@ -54,7 +54,7 @@ export async function GET(
 
     // Transform the data to match the expected format
     const primaryImage = productImages.find(img => img.isPrimary);
-    const allImageUrls = productImages.map(img => img.imageUrl);
+    const allImageUrls = productImages.map(img => img.imageData);
     
     const transformedProduct = {
       id: product.id,
@@ -63,14 +63,14 @@ export async function GET(
       description: product.description,
       price: product.price,
       unit: product.unit,
-      imageUrl: primaryImage?.imageUrl || allImageUrls[0] || null,
-      image: primaryImage?.imageUrl || allImageUrls[0] || null, // Add legacy image field for compatibility
+      imageUrl: primaryImage?.imageData || allImageUrls[0] || null,
+      image: primaryImage?.imageData || allImageUrls[0] || null, // Add legacy image field for compatibility
       images: allImageUrls,
-      sellerId: product.seller_id,
-      sellerName: product.seller_name || 'Unknown Seller',
-      sellerType: product.seller_type || 'farmer',
+      sellerId: product.sellerId,
+      sellerName: product.sellerName || 'Unknown Seller',
+      sellerType: product.sellerType || 'farmer',
       location: product.delivery_location || product.location || 'Unknown Location',
-      region: product.region || 'yangon', // Use actual region from user profile or default
+      region: 'yangon', // Default region since region field is not available in user_profiles table
       lastUpdated: product.createdAt,
       availableQuantity: product.availableQuantity || '',
       minimumOrder: product.minimumOrder || '',
@@ -78,11 +78,24 @@ export async function GET(
       paymentTerms: product.paymentTerms || [],
       additionalNotes: product.additionalNotes || '',
       sellerVerificationStatus: {
-        accountType: 'individual',
-        trustLevel: product.verificationStatus === 'approved' ? 'id-verified' : 'unverified',
-        businessVerified: false,
+        accountType: product.sellerAccountType || 'individual',
+        trustLevel: product.verified ? (product.sellerAccountType === 'business' ? 'business-verified' : 'id-verified') : 'unverified',
+        businessVerified: product.verified && product.sellerAccountType === 'business',
       },
     };
+
+    console.log('🔍 Product API Response Debug:', {
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      availableQuantity: product.availableQuantity,
+      region: 'yangon (default)',
+      location: product.location,
+      deliveryLocation: product.delivery_location,
+      imagesCount: allImageUrls.length,
+      images: allImageUrls,
+      primaryImage: primaryImage?.imageData
+    });
 
     return NextResponse.json({
       product: transformedProduct,
@@ -307,7 +320,7 @@ export async function PUT(
             }
             
             await sql`
-              INSERT INTO product_images ("productId", "imageUrl", "isPrimary", "createdAt")
+              INSERT INTO product_images ("productId", "imageData", "isPrimary", "createdAt")
               VALUES (${productId}, ${imageUrl}, ${i === 0}, NOW())
             `;
             console.log(`✅ Inserted image ${i + 1}`);
@@ -329,7 +342,7 @@ export async function PUT(
         } else {
           await sql`DELETE FROM product_images WHERE "productId" = ${productId}`;
           await sql`
-            INSERT INTO product_images ("productId", "imageUrl", "isPrimary", "createdAt")
+            INSERT INTO product_images ("productId", "imageData", "isPrimary", "createdAt")
             VALUES (${productId}, ${body.image}, true, NOW())
           `;
           console.log('✅ Updated product image (legacy)');
@@ -372,7 +385,7 @@ export async function PUT(
 
     // Get the updated product with images for response
     const updatedProductWithImages = await sql`
-      SELECT "imageUrl", "isPrimary", "createdAt"
+      SELECT "imageData", "isPrimary", "createdAt"
       FROM product_images 
       WHERE "productId" = ${productId}
       ORDER BY "createdAt" ASC

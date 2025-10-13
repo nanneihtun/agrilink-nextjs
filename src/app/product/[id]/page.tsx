@@ -10,6 +10,7 @@ import { getRelativeTime } from "@/utils/dates";
 import { UserBadge, getUserVerificationLevel, getUserAccountType } from "@/components/UserBadgeSystem";
 import { Separator } from "@/components/ui/separator";
 import { AppHeader } from "@/components/AppHeader";
+import { ChatInterface } from "@/components/ChatInterface";
 import { 
   ChevronLeft,
   ChevronRight, 
@@ -69,6 +70,7 @@ export default function ProductDetailsPage() {
   const [sellerStats, setSellerStats] = useState<any>(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [showChatPopup, setShowChatPopup] = useState(false);
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
@@ -471,23 +473,10 @@ export default function ProductDetailsPage() {
                         </>
                       ) : (
                         <>
-                          <Button onClick={() => router.push(`/messages?productId=${product.id}`)} className="flex-1 h-9 text-sm">
+                          <Button onClick={() => setShowChatPopup(true)} className="flex-1 h-9 text-sm">
                             <MessageCircle className="w-3 h-3 mr-1" />
                             Contact Seller
                           </Button>
-                          {/* Show Make Offer button only for buyers and traders, and only when seller is a farmer or trader */}
-                          {user && 
-                           (user.userType === 'buyer' || user.userType === 'trader') && 
-                           (product.sellerType === 'farmer' || product.sellerType === 'trader') && (
-                            <Button 
-                              variant="outline" 
-                              onClick={() => router.push(`/messages?productId=${product.id}`)}
-                              className="flex-1 h-9 text-sm"
-                            >
-                              <Package className="w-3 h-3 mr-1" />
-                              Make Offer
-                            </Button>
-                          )}
                           <Button 
                             variant="outline" 
                             onClick={() => router.push(`/products/${product.id}/price-comparison`)}
@@ -793,6 +782,34 @@ export default function ProductDetailsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Chat Popup - Facebook Messenger Style (Same as Messages Page) */}
+      {showChatPopup && user && product && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="bg-white rounded-lg shadow-2xl w-96 h-[500px] flex flex-col border border-gray-200">
+            <ChatInterface
+              otherPartyName={product.sellerName}
+              otherPartyType={product.sellerType as 'farmer' | 'trader' | 'buyer'}
+              otherPartyAccountType={product.sellerVerificationStatus?.accountType as 'individual' | 'business' || 'individual'}
+              otherPartyLocation={product.location}
+              otherPartyRating={sellerStats?.ratings?.rating || 0}
+              productName={product.name}
+              productId={product.id}
+              otherPartyId={product.sellerId}
+              onClose={() => setShowChatPopup(false)}
+              otherPartyVerified={sellerStats?.verified || false}
+              otherPartyProfileImage={sellerStats?.profileImage}
+              otherPartyVerificationStatus={{
+                trustLevel: (product.sellerVerificationStatus?.trustLevel as 'unverified' | 'under-review' | 'id-verified' | 'business-verified') || 'unverified',
+                tierLabel: product.sellerVerificationStatus?.trustLevel === 'business-verified' ? 'Business ✓' : 
+                          product.sellerVerificationStatus?.trustLevel === 'id-verified' ? 'Verified' : 'Unverified',
+                levelBadge: product.sellerVerificationStatus?.trustLevel === 'unverified' ? '!' : '✓'
+              }}
+              currentUser={user}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

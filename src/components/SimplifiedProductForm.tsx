@@ -59,9 +59,27 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         priceType: typeof editingProduct.price,
         description: editingProduct.description || 'UNDEFINED',
         category: editingProduct.category || 'UNDEFINED',
-        hasImage: !!editingProduct.image || !!(editingProduct.images?.length)
+        hasImage: !!editingProduct.image || !!(editingProduct.images?.length),
+        images: editingProduct.images,
+        image: editingProduct.image,
+        imageUrl: editingProduct.imageUrl
       });
       
+      // Simplify image handling logic
+      let images: string[] = [];
+      let primaryImage = '';
+      
+      if (editingProduct.images && Array.isArray(editingProduct.images) && editingProduct.images.length > 0) {
+        images = editingProduct.images;
+        primaryImage = images[0] || '';
+      } else if (editingProduct.image) {
+        images = [editingProduct.image];
+        primaryImage = editingProduct.image;
+      } else if (editingProduct.imageUrl) {
+        images = [editingProduct.imageUrl];
+        primaryImage = editingProduct.imageUrl;
+      }
+
       const initialData = {
         id: editingProduct.id,
         sellerId: editingProduct.sellerId,
@@ -69,14 +87,14 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         price: editingProduct.price || 0,
         unit: editingProduct.unit || '',
         location: editingProduct.location || currentUser?.location || '',
-        region: editingProduct.region || currentUser?.region || 'yangon', // Default to Yangon if no region set
+        region: editingProduct.region || currentUser?.region || 'yangon',
         sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
         sellerName: editingProduct.sellerName || currentUser?.name || '',
-        image: editingProduct.image || editingProduct.imageUrl || '',
-        images: editingProduct.images || (editingProduct.image ? [editingProduct.image] : []) || (editingProduct.imageUrl ? [editingProduct.imageUrl] : []),
-        quantity: editingProduct.quantity || '',
+        image: primaryImage,
+        images: images,
+        quantity: editingProduct.availableQuantity || editingProduct.quantity || '',
         minimumOrder: editingProduct.minimumOrder || '',
-        availableQuantity: editingProduct.availableQuantity || '',
+        availableQuantity: editingProduct.availableQuantity || editingProduct.quantity || '',
         deliveryOptions: editingProduct.deliveryOptions || [],
         paymentTerms: editingProduct.paymentTerms || [],
         lastUpdated: editingProduct.lastUpdated || new Date().toISOString(),
@@ -89,6 +107,19 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       
       // Store original data for change tracking
       originalFormDataRef.current = { ...initialData };
+      
+      console.log('🖼️ Initial data images:', {
+        initialImages: initialData.images,
+        initialImage: initialData.image,
+        imagesLength: initialData.images?.length,
+        rawEditingProduct: {
+          images: editingProduct.images,
+          image: editingProduct.image,
+          imageUrl: editingProduct.imageUrl,
+          availableQuantity: editingProduct.availableQuantity,
+          quantity: editingProduct.quantity
+        }
+      });
       
       return initialData;
     }
@@ -135,7 +166,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         sellerName: editingProduct.sellerName || currentUser?.name || '',
         image: editingProduct.image || editingProduct.imageUrl || '',
         images: editingProduct.images || (editingProduct.image ? [editingProduct.image] : []) || (editingProduct.imageUrl ? [editingProduct.imageUrl] : []),
-        quantity: editingProduct.quantity || '',
+        quantity: editingProduct.availableQuantity || editingProduct.quantity || '',
         minimumOrder: editingProduct.minimumOrder || '',
         availableQuantity: editingProduct.availableQuantity || '',
         deliveryOptions: editingProduct.deliveryOptions || [],
@@ -449,10 +480,26 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   // Handle form submission
   const handleSubmit = useCallback(async () => {
     console.log('🚀 Form submission started');
+    console.log('🔍 Change detection debug:', {
+      hasEditingProduct: !!editingProduct,
+      hasFormChanges: hasFormChanges,
+      originalData: originalFormDataRef.current,
+      currentData: formData
+    });
     
     // Prevent submission if editing product and no changes made
     if (editingProduct && !hasFormChanges) {
       console.log('❌ No changes detected, skipping submission');
+      console.log('🔍 Debug - comparing original vs current:', {
+        original: originalFormDataRef.current,
+        current: formData,
+        fieldsComparison: ['name', 'price', 'quantity', 'availableQuantity', 'images'].map(field => ({
+          field,
+          original: originalFormDataRef.current?.[field as keyof Product],
+          current: formData[field as keyof Product],
+          changed: String(originalFormDataRef.current?.[field as keyof Product] || '') !== String(formData[field as keyof Product] || '')
+        }))
+      });
       return;
     }
     
@@ -466,7 +513,9 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       isEditing: formData.isEditing,
       hasImages: !!(formData.images?.length || formData.image),
       imagesCount: formData.images?.length || (formData.image ? 1 : 0),
-      hasChanges: hasFormChanges
+      hasChanges: hasFormChanges,
+      quantity: formData.quantity,
+      availableQuantity: formData.availableQuantity
     });
 
     if (!validateForm()) {

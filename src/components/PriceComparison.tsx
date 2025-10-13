@@ -41,7 +41,10 @@ export function PriceComparison({ productName, priceData, unit, onBack, isOwnPro
 
   // Filter data based on selected filters
   const filteredData = priceData.filter(item => {
-    const regionMatch = regionFilter === "all" || item.location === regionFilter;
+    const regionMatch = regionFilter === "all" || 
+      item.location === regionFilter ||
+      item.location.includes(regionFilter) ||
+      regionFilter.includes(item.location);
     const sellerTypeMatch = sellerTypeFilter === "all" || item.sellerType === sellerTypeFilter;
     return regionMatch && sellerTypeMatch;
   });

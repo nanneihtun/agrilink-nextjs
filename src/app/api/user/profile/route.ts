@@ -8,14 +8,18 @@ const sql = neon(process.env.DATABASE_URL!);
 function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('❌ No authorization header or invalid format');
     return null;
   }
 
   const token = authHeader.substring(7);
+  console.log('🔐 Verifying token:', token.substring(0, 20) + '...');
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    console.log('✅ Token verified successfully for user:', decoded.userId);
     return decoded;
   } catch (error: any) {
+    console.log('❌ Token verification failed:', error.message);
     return null;
   }
 }
@@ -32,7 +36,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user profile data
-    console.log('🔍 Querying database for userId:', user.userId);
+    console.log('🔍 Querying database for "userId":', user.userId);
+    console.log('📍 Profile API - Debugging location data for user:', user.userId);
     
     const [userProfile] = await sql`
       SELECT 
@@ -40,15 +45,27 @@ export async function GET(request: NextRequest) {
         u."businessName", u."businessDescription", u."businessLicenseNumber",
         u."verificationDocuments", u."rejectedDocuments",
         u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
-        up.location, up.phone, up."profileImage",
-        uv.verified, uv."phoneVerified", uv."verificationStatus", uv."verificationSubmitted"
+        up.location, up.phone, up."profileImage", up."storefrontImage",
+        uv.verified, uv."phoneVerified", uv."verificationStatus", uv."verificationSubmitted",
+        ur.rating, ur."totalReviews"
       FROM users u
       LEFT JOIN user_profiles up ON u.id = up."userId"
       LEFT JOIN user_verification uv ON u.id = uv."userId"
+      LEFT JOIN user_ratings ur ON u.id = ur."userId"
       WHERE u.id = ${user.userId}
     `;
     
     console.log('🔍 Database query completed. Result:', !!userProfile);
+    if (userProfile) {
+      console.log('📍 Profile API - Location data from database:', {
+        userId: userProfile.id,
+        location: userProfile.location,
+        locationType: typeof userProfile.location,
+        locationLength: userProfile.location?.length,
+        isEmpty: userProfile.location === '',
+        isNull: userProfile.location === null
+      });
+    }
     if (userProfile) {
       console.log('📊 User verification status from DB:', {
         verified: userProfile.verified,
@@ -88,6 +105,7 @@ export async function GET(request: NextRequest) {
         location: userProfile.location,
         phone: userProfile.phone,
         profileImage: userProfile.profileImage,
+        storefrontImage: userProfile.storefrontImage,
         verified: userProfile.verified,
         phoneVerified: userProfile.phoneVerified,
         businessName: userProfile.businessName,
@@ -98,7 +116,9 @@ export async function GET(request: NextRequest) {
         agriLinkVerificationRequested: userProfile.agriLinkVerificationRequested,
         agriLinkVerificationRequestedAt: userProfile.agriLinkVerificationRequestedAt,
         verificationStatus: userProfile.verificationStatus,
-        verificationSubmitted: userProfile.verificationSubmitted
+        verificationSubmitted: userProfile.verificationSubmitted,
+        rating: userProfile.rating || 0,
+        totalReviews: userProfile.totalReviews || 0
       }
     });
 
@@ -114,17 +134,21 @@ export async function GET(request: NextRequest) {
 // PUT /api/user/profile - Update user profile
 export async function PUT(request: NextRequest) {
   try {
+    console.log('🔐 PUT /api/user/profile - Verifying token...');
     const user = verifyToken(request);
     if (!user) {
+      console.log('❌ Authentication failed - no valid token');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+    console.log('✅ Authentication successful for user:', user.userId);
 
     const body = await request.json();
     const { 
       profileImage, 
+      storefrontImage,
       location, 
       phone, 
       phoneVerified,
@@ -140,25 +164,87 @@ export async function PUT(request: NextRequest) {
     } = body;
 
     // Update user profile
-    if (profileImage !== undefined) {
+    if (profileImage !== undefined || storefrontImage !== undefined) {
+      console.log('🖼️ Updating user profile images:', {
+        "userId": user.userId,
+        profileImage: profileImage ? 'provided' : 'undefined',
+        storefrontImage: storefrontImage ? 'provided' : 'undefined',
+        profileImageLength: profileImage?.length || 0,
+        storefrontImageLength: storefrontImage?.length || 0,
+        bodyKeys: Object.keys(body)
+      });
+      
       // Check if user_profiles record exists
       const [existingProfile] = await sql`
         SELECT "userId" FROM user_profiles WHERE "userId" = ${user.userId}
       `;
+      
+      console.log('🔍 Existing profile check:', existingProfile ? 'found' : 'not found');
 
       if (existingProfile) {
-        // Update existing record
-        await sql`
-          UPDATE user_profiles 
-          SET "profileImage" = ${profileImage}, "updatedAt" = NOW()
-          WHERE "userId" = ${user.userId}
-        `;
+        // Update existing record using template literals
+        console.log('🔄 Updating existing profile record...');
+        
+        if (profileImage !== undefined && storefrontImage !== undefined) {
+          // Update both images
+          await sql`
+            UPDATE user_profiles 
+            SET "profileImage" = ${profileImage}, "storefrontImage" = ${storefrontImage}, "updatedAt" = NOW()
+            WHERE "userId" = ${user.userId}
+          `;
+          console.log('✅ Updated both profile and storefront images');
+        } else if (profileImage !== undefined) {
+          // Update only profile image
+          await sql`
+            UPDATE user_profiles 
+            SET "profileImage" = ${profileImage}, "updatedAt" = NOW()
+            WHERE "userId" = ${user.userId}
+          `;
+          console.log('✅ Updated profile image only');
+        } else if (storefrontImage !== undefined) {
+          // Update only storefront image
+          await sql`
+            UPDATE user_profiles 
+            SET "storefrontImage" = ${storefrontImage}, "updatedAt" = NOW()
+            WHERE "userId" = ${user.userId}
+          `;
+          console.log('✅ Updated storefront image only');
+        }
+        
+        console.log('✅ Profile image update completed');
       } else {
         // Insert new record with default location
-        await sql`
-          INSERT INTO user_profiles ("userId", "profileImage", location, "updatedAt")
-          VALUES (${user.userId}, ${profileImage}, '', NOW())
-        `;
+        console.log('🆕 Creating new profile record for user:', user.userId);
+        
+        if (profileImage !== undefined && storefrontImage !== undefined) {
+          // Insert with both images
+          await sql`
+            INSERT INTO user_profiles ("userId", "profileImage", "storefrontImage", location, "updatedAt")
+            VALUES (${user.userId}, ${profileImage}, ${storefrontImage}, '', NOW())
+          `;
+          console.log('✅ New profile record created with both images');
+        } else if (profileImage !== undefined) {
+          // Insert with profile image only
+          await sql`
+            INSERT INTO user_profiles ("userId", "profileImage", location, "updatedAt")
+            VALUES (${user.userId}, ${profileImage}, '', NOW())
+          `;
+          console.log('✅ New profile record created with profile image');
+        } else if (storefrontImage !== undefined) {
+          // Insert with storefront image only
+          await sql`
+            INSERT INTO user_profiles ("userId", "storefrontImage", location, "updatedAt")
+            VALUES (${user.userId}, ${storefrontImage}, '', NOW())
+          `;
+          console.log('✅ New profile record created with storefront image');
+        } else {
+          // Insert with no images
+          await sql`
+            INSERT INTO user_profiles ("userId", location, "updatedAt")
+            VALUES (${user.userId}, '', NOW())
+          `;
+          console.log('✅ New profile record created without images');
+        }
       }
     }
 
@@ -214,7 +300,7 @@ export async function PUT(request: NextRequest) {
         business_name,
         business_description,
         business_license_number,
-        userId: user.userId
+        "userId": user.userId
       });
       
       try {
@@ -232,12 +318,12 @@ export async function PUT(request: NextRequest) {
         // Also update business_details table if business_name is provided
         if (business_name !== undefined) {
           await sql`
-            INSERT INTO business_details (user_id, business_name, updated_at)
+            INSERT INTO business_details ("userId", "businessName", "updatedAt")
             VALUES (${user.userId}, ${business_name}, NOW())
-            ON CONFLICT (user_id) 
+            ON CONFLICT ("userId") 
             DO UPDATE SET 
-              business_name = ${business_name},
-              updated_at = NOW()
+              "businessName" = ${business_name},
+              "updatedAt" = NOW()
           `;
         }
         
@@ -327,6 +413,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+
     // Get updated user profile
     const [updatedProfile] = await sql`
       SELECT 
@@ -335,14 +422,26 @@ export async function PUT(request: NextRequest) {
         u."verificationDocuments",
         u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
         u."verificationStatus", u."verificationSubmittedAt",
-        up.location, up.phone, up."profileImage",
+        up.location, up.phone, up."profileImage", up."storefrontImage",
         uv.verified, uv."phoneVerified"
       FROM users u
       LEFT JOIN user_profiles up ON u.id = up."userId"
       LEFT JOIN user_verification uv ON u.id = uv."userId"
       WHERE u.id = ${user.userId}
     `;
+    
+    console.log('🔍 Raw database result:', {
+      profileImage: updatedProfile.profileImage ? `${updatedProfile.profileImage.substring(0, 50)}... (${updatedProfile.profileImage.length})` : 'null',
+      storefrontImage: updatedProfile.storefrontImage ? `${updatedProfile.storefrontImage.substring(0, 50)}... (${updatedProfile.storefrontImage.length})` : 'null',
+      allKeys: Object.keys(updatedProfile)
+    });
 
+    // Return updated user data
+    console.log('📤 Returning updated profile:', {
+      profileImage: updatedProfile.profileImage ? `${updatedProfile.profileImage.substring(0, 50)}... (${updatedProfile.profileImage.length})` : 'null',
+      storefrontImage: updatedProfile.storefrontImage ? `${updatedProfile.storefrontImage.substring(0, 50)}... (${updatedProfile.storefrontImage.length})` : 'null'
+    });
+    
     return NextResponse.json({
       user: {
         id: updatedProfile.id,
@@ -353,6 +452,7 @@ export async function PUT(request: NextRequest) {
         location: updatedProfile.location,
         phone: updatedProfile.phone,
         profileImage: updatedProfile.profileImage,
+        storefrontImage: updatedProfile.storefrontImage,
         verified: updatedProfile.verified,
         phoneVerified: updatedProfile.phoneVerified,
         businessName: updatedProfile.businessName,

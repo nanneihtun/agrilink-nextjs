@@ -22,6 +22,8 @@ export interface OfferStatus {
   id: string;
   status: 'pending' | 'accepted' | 'rejected' | 'to_ship' | 'ready_to_pickup' | 'picked_up' | 'shipped' | 'to_receive' | 'completed' | 'cancelled' | 'expired';
   statusUpdatedAt: string;
+  readyToShipAt?: string;
+  readyToPickupAt?: string;
   shippedAt?: string;
   receivedAt?: string;
   completedAt?: string;
@@ -216,9 +218,21 @@ export function OfferStatusManager({ offer, onStatusUpdate, loading = false }: O
   };
 
   const canCancelOffer = () => {
-    // Both buyer and seller can cancel, but only if the offer is not already completed/cancelled/expired
+    // Both buyer and seller can cancel, but with different rules:
+    // - Before acceptance: Only buyer can cancel (seller can only accept/reject)
+    // - After acceptance: Both parties can cancel (buyer changes mind, seller can't fulfill, etc.)
     const finalStates = ['completed', 'cancelled', 'expired', 'rejected'];
-    return !finalStates.includes(offer.status);
+    
+    if (finalStates.includes(offer.status)) {
+      return false; // Can't cancel if already in final state
+    }
+    
+    if (offer.status === 'pending') {
+      return offer.isBuyer; // Only buyer can cancel pending offers
+    }
+    
+    // After acceptance (accepted, to_ship, shipped, etc.), both parties can cancel
+    return true;
   };
 
   const canUpdateStatus = (newStatus: string) => {
@@ -284,6 +298,18 @@ export function OfferStatusManager({ offer, onStatusUpdate, loading = false }: O
         <div className="space-y-2">
           <div className="text-sm font-medium text-muted-foreground">Status Timeline</div>
           <div className="space-y-1">
+            {offer.readyToShipAt && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-4 h-4 text-purple-600" />
+                <span>Ready to Ship: {formatDate(offer.readyToShipAt)}</span>
+              </div>
+            )}
+            {offer.readyToPickupAt && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-4 h-4 text-purple-600" />
+                <span>Ready to Pick Up: {formatDate(offer.readyToPickupAt)}</span>
+              </div>
+            )}
             {offer.shippedAt && (
               <div className="flex items-center gap-2 text-sm">
                 <Truck className="w-4 h-4 text-indigo-600" />

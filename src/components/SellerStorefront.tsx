@@ -5,10 +5,12 @@ import { Textarea } from "./ui/textarea";
 import { formatMemberSinceDate, getRelativeTime } from "../utils/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { UserBadge, PublicVerificationStatus, getUserVerificationLevel, getUserAccountType } from "./UserBadgeSystem";
+import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+import { UserBadge, PublicVerificationStatus, getUserVerificationLevel, getUserAccountType, AccountTypeBadge } from "./UserBadgeSystem";
 import { Separator } from "./ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { ReviewsService, type SellerStats } from "../services/reviews";
+import { ReviewSliderModal } from "./ReviewSliderModal";
 import { analyticsAPI } from "../services/analytics";
 import { 
   ChevronLeft, 
@@ -18,16 +20,18 @@ import {
   Star,
   MessageCircle,
   Eye,
+  Save,
+  X,
+  Edit,
+  Loader2,
   TrendingUp,
   TrendingDown,
   Store,
   Award,
+  User,
   Clock,
   Users,
   Camera,
-  Edit,
-  Save,
-  X,
   Plus,
   Phone,
   Mail,
@@ -76,6 +80,11 @@ interface Seller {
   responseTime: string;
   certifications: string[];
   joinedDate: string;
+  businessName?: string;
+  profileImage?: string;
+  storefrontImage?: string;
+  email?: string;
+  createdAt?: string;
   verified?: boolean;
 }
 
@@ -123,22 +132,25 @@ export function SellerStorefront({
   
   // Storefront data state - directly use seller prop data
   const [storefrontData, setStorefrontData] = useState(() => ({
-    description: seller.description || '',
-    businessHours: (seller as any).businessHours || '',
-    phone: (seller as any).phone || '',
-    email: (seller as any).email || '',
-    website: (seller as any).website || '',
-    facebook: (seller as any).facebook || '',
-    instagram: (seller as any).instagram || '',
-    whatsapp: (seller as any).whatsapp || '',
-    tiktok: (seller as any).tiktok || '',
-    specialties: (seller as any).specialties || [],
-    policies: (seller as any).policies || {
-      returns: '',
-      delivery: '',
-      payment: ''
-    }
-  }));
+      description: seller.description || '',
+      businessHours: (seller as any).businessHours || '',
+      phone: (seller as any).phone || '',
+      email: seller.email || (seller as any).email || '',
+      website: (seller as any).website || '',
+      facebook: (seller as any).facebook || '',
+      instagram: (seller as any).instagram || '',
+      whatsapp: (seller as any).whatsapp || '',
+      tiktok: (seller as any).tiktok || '',
+      specialties: (seller as any).specialties || [],
+      policies: (seller as any).policies || {
+        returns: '',
+        delivery: '',
+        payment: ''
+      }
+    }));
+
+  // Modal state
+  const [showAllReviewsModal, setShowAllReviewsModal] = useState(false);
 
   // Track profile view when component mounts
   useEffect(() => {
@@ -324,53 +336,104 @@ export function SellerStorefront({
           Back
         </Button>
         
-        {/* Title section - aligned with content */}
+        {/* Storefront Header - Business Name and Preview Toggle */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">{seller.name}</h1>
-            <p className="text-muted-foreground">
-              {seller.type === 'farmer' ? 'Farm' : 'Trading'} Storefront
+          {/* Business Name Section */}
+          <div className="flex-1">
+            {editingFarmName ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={farmName}
+                    onChange={(e) => setFarmName(e.target.value)}
+                    className="text-2xl md:text-3xl font-bold h-12 px-3"
+                    placeholder={`Enter your ${seller.userType === 'farmer' ? 'farm' : 'store'} name`}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveFarmName();
+                      if (e.key === 'Escape') {
+                        setEditingFarmName(false);
+                        setFarmName(seller.businessName || seller.name);
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveFarmName}
+                    disabled={savingFarmName || !farmName.trim()}
+                    className="h-8 px-3"
+                  >
+                    {savingFarmName ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingFarmName(false);
+                      setFarmName(seller.businessName || seller.name);
+                    }}
+                    disabled={savingFarmName}
+                    className="h-8 px-3"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="group">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+                  {farmName || seller.businessName || seller.name}
+                </h1>
+              </div>
+            )}
+            <p className="text-gray-600 text-sm">
+              {seller.userType === 'farmer' ? 'Farm' : 'Trading'} Storefront
             </p>
           </div>
 
           {/* Preview Mode Toggle - Only show for storefront owners */}
-        {isOwnStorefront && onTogglePreviewMode && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
-              <span className="text-sm text-muted-foreground">Preview Mode</span>
-              <button
-                onClick={() => onTogglePreviewMode(!previewMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                  previewMode ? 'bg-primary' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    previewMode ? 'translate-x-6' : 'translate-x-1'
+          {isOwnStorefront && onTogglePreviewMode && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+                <span className="text-sm text-gray-600">Preview Mode</span>
+                <button
+                  onClick={() => onTogglePreviewMode(!previewMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    previewMode ? 'bg-primary' : 'bg-gray-300'
                   }`}
-                />
-              </button>
-            </div>
-            
-            {previewMode && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
-                <Eye className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-primary">Customer View</span>
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      previewMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
-            )}
-          </div>
-        )}
+              
+              {previewMode && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-100 border border-green-300 rounded-lg">
+                  <Eye className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-600">Customer View</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+        
       </div>
 
       {/* Preview Mode Banner */}
       {isOwnStorefront && previewMode && (
-        <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-6">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
           <div className="flex items-center gap-3">
-            <Eye className="w-5 h-5 text-primary" />
+            <Eye className="w-5 h-5 text-green-600" />
             <div>
-              <h3 className="font-medium text-primary">Customer Preview Mode</h3>
-              <p className="text-sm text-primary/80">
+              <h3 className="font-medium text-green-800">Customer Preview Mode</h3>
+              <p className="text-sm text-green-600">
                 This is exactly how customers see your storefront. Toggle off to return to editing mode.
               </p>
             </div>
@@ -387,11 +450,20 @@ export function SellerStorefront({
               <div className="space-y-4">
                 {/* Seller Image */}
                 <div className="relative group">
-                  <img 
-                    src={seller.image} 
-                    alt={seller.name}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
+                  {seller.storefrontImage ? (
+                    <img 
+                      src={seller.storefrontImage} 
+                      alt={seller.name}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <Building className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">{seller.name}</p>
+                      </div>
+                    </div>
+                  )}
                   {isOwnStorefront && !previewMode && onEditStorefrontImage && (
                     <Button
                       size="sm"
@@ -407,58 +479,70 @@ export function SellerStorefront({
 
                 {/* Basic Info */}
                 <div className="group">
-                  <div className="flex items-center gap-2">
-                    {editingFarmName ? (
+                  {editingFarmName ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={farmName}
+                        onChange={(e) => setFarmName(e.target.value)}
+                        className="text-xl font-semibold h-8 px-2"
+                        placeholder="Enter farm name"
+                        disabled={savingFarmName}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleSaveFarmName}
+                        disabled={savingFarmName || !farmName.trim()}
+                        className="h-8 px-2"
+                      >
+                        {savingFarmName ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingFarmName(false);
+                          setFarmName(seller.businessName || seller.name);
+                        }}
+                        disabled={savingFarmName}
+                        className="h-8 px-2"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
                       <div className="flex items-center gap-2">
-                        <Input
-                          value={farmName}
-                          onChange={(e) => setFarmName(e.target.value)}
-                          className="text-xl font-semibold h-8 px-2"
-                          placeholder="Enter farm name"
-                          disabled={savingFarmName}
-                        />
-                        <Button
-                          size="sm"
-                          onClick={handleSaveFarmName}
-                          disabled={savingFarmName || !farmName.trim()}
-                          className="h-8 px-2"
-                        >
-                          {savingFarmName ? 'Saving...' : 'Save'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditingFarmName(false);
-                            setFarmName(seller.businessName || seller.name);
-                          }}
-                          disabled={savingFarmName}
-                          className="h-8 px-2"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
                         <h2 className="text-xl font-semibold">
                           {seller.businessName || seller.name}
                         </h2>
                         {/* Show edit button for farm name if user owns this storefront */}
-                        {isOwnStorefront && (seller.type === 'farmer' || seller.type === 'trader') && (
+                        {isOwnStorefront && !previewMode && (seller.userType === 'farmer' || seller.userType === 'trader') && (
                           <button
                             onClick={() => setEditingFarmName(true)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
-                            title="Edit farm name"
+                            className="opacity-100 p-1 hover:bg-muted rounded"
+                            title={`Edit ${seller.userType === 'farmer' ? 'farm' : 'store'} name`}
                           >
                             <Edit className="w-4 h-4 text-muted-foreground" />
                           </button>
                         )}
-                      </>
-                    )}
-                  </div>
+                      </div>
+                      
+                      {/* Show real name for transparency - always show for farmers and traders */}
+                      {(seller.userType === 'farmer' || seller.userType === 'trader') && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <User className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Owner: {seller.name}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">{seller.location}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {seller.location || 'Location not specified'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     {/* Show different verification badges for owners vs non-owners */}
@@ -472,23 +556,19 @@ export function SellerStorefront({
                         size="sm"
                       />
                     ) : (
-                      // Non-owner view OR preview mode: Show simplified PublicVerificationStatus
+                      // Non-owner view OR preview mode: Show simplified badges with icons
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline"
-                          className={`text-xs px-2 py-1 ${
-                            seller.type === 'farmer' 
-                              ? 'text-green-700 bg-green-50 border-green-200' 
-                              : seller.type === 'trader'
-                              ? 'text-orange-700 bg-orange-50 border-orange-200'
-                              : 'text-blue-700 bg-blue-50 border-blue-200'
-                          }`}
-                        >
-                          {seller.type === 'farmer' ? 'Farmer' : seller.type === 'trader' ? 'Trader' : 'Buyer'}
-                        </Badge>
-                        <PublicVerificationStatus 
-                          verificationLevel={seller.verified ? 'id-verified' : 'unverified'}
+                        <AccountTypeBadge 
+                          userType={seller.userType}
+                          accountType={getUserAccountType(seller)}
                           size="sm"
+                        />
+                        <PublicVerificationStatus 
+                          verificationLevel={getUserVerificationLevel(seller)}
+                          size="sm"
+                          title={seller.businessName && seller.businessName !== seller.name 
+                            ? `Individual verification - Owner: ${seller.name}` 
+                            : undefined}
                         />
                       </div>
                     )}
@@ -596,19 +676,20 @@ export function SellerStorefront({
               </CardHeader>
               <CardContent className="space-y-3">
                 {sellerStats.recentReviews.slice(0, 3).map((review: any) => (
-                  <div key={review.id} className="border border-gray-200 rounded-lg p-3">
+                  <div key={review.id || `review-${Math.random()}`} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex items-start gap-2">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-medium text-primary">
-                          {review.reviewer_name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={review.reviewer_image || review.reviewer?.profileImage} />
+                        <AvatarFallback className="text-xs font-medium">
+                          {(review.reviewer_name || review.reviewer?.name || 'U').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 mb-1">
-                          <span className="font-medium text-sm truncate">{review.reviewer_name}</span>
+                          <span className="font-medium text-sm truncate">{review.reviewer_name || review.reviewer?.name || 'Anonymous'}</span>
                           <span className="text-xs text-gray-500">
-                            {getRelativeTime(review.created_at)}
+                            {getRelativeTime(review.created_at || new Date())}
                           </span>
                         </div>
 
@@ -617,7 +698,7 @@ export function SellerStorefront({
                             <Star
                               key={i}
                               className={`w-3 h-3 ${
-                                i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                i < (review.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
                               }`}
                             />
                           ))}
@@ -625,14 +706,18 @@ export function SellerStorefront({
 
                         {review.comment && (
                           <p className="text-gray-700 text-xs leading-relaxed line-clamp-2">
-                            "{review.comment}"
+                            "{review.comment || 'No comment'}"
                           </p>
                         )}
 
-                        {review.product_name && (
-                          <p className="text-xs text-gray-500 mt-1 truncate">
-                            {review.product_name}
-                          </p>
+                        {review.productName && (
+                          <div className="mt-2 p-2 bg-gray-50 rounded-md">
+                            <div className="flex items-center gap-1">
+                              <Package className="w-3 h-3 text-gray-500" />
+                              <span className="text-xs font-medium text-gray-600">Product:</span>
+                              <span className="text-xs text-gray-700">{review.productName}</span>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -641,9 +726,18 @@ export function SellerStorefront({
                 
                 {sellerStats.totalReviews > 3 && (
                   <div className="text-center pt-2">
-                    <p className="text-xs text-muted-foreground">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        console.log('🔍 Opening reviews modal, sellerStats:', sellerStats);
+                        console.log('🔍 recentReviews:', sellerStats.recentReviews);
+                        setShowAllReviewsModal(true);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-foreground h-auto p-1"
+                    >
                       +{sellerStats.totalReviews - 3} more reviews
-                    </p>
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -744,9 +838,9 @@ export function SellerStorefront({
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {storefrontData.email || (isOwnStorefront && !previewMode ? 'Add email address' : null)}
-                      </p>
+                  <p className="text-sm text-muted-foreground">
+                    {storefrontData.email || (isOwnStorefront && !previewMode ? 'Add email address' : 'Email not provided')}
+                  </p>
                     )}
                   </div>
                 )}
@@ -1081,7 +1175,7 @@ export function SellerStorefront({
           )}
 
           {/* Certifications & Specialties - Only show if there's data or if owner in edit mode */}
-          {(seller.certifications.length > 0 || storefrontData.specialties.length > 0 || (isOwnStorefront && !previewMode)) && (
+          {((seller.certifications?.length || 0) > 0 || storefrontData.specialties.length > 0 || (isOwnStorefront && !previewMode)) && (
             <Card className="border-primary/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -1091,11 +1185,11 @@ export function SellerStorefront({
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Certifications - Only show if exists */}
-                {seller.certifications.length > 0 && (
+                {(seller.certifications?.length || 0) > 0 && (
                   <div className="space-y-2">
                     <span className="text-sm font-medium">Certifications</span>
                     <div className="flex flex-wrap gap-2">
-                      {seller.certifications.map((cert, index) => (
+                      {(seller.certifications || []).map((cert, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
                           {cert}
@@ -1179,7 +1273,7 @@ export function SellerStorefront({
                 )}
 
                 {/* Empty state for edit mode */}
-                {isOwnStorefront && !previewMode && seller.certifications.length === 0 && storefrontData.specialties.length === 0 && (
+                {isOwnStorefront && !previewMode && (seller.certifications?.length || 0) === 0 && storefrontData.specialties.length === 0 && (
                   <div className="text-center py-4 text-sm text-muted-foreground bg-muted/30 rounded-lg">
                     <Award className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="font-medium">Showcase your expertise</p>
@@ -1197,7 +1291,7 @@ export function SellerStorefront({
           <Card className="border-primary/30">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                About {seller.name}
+                About {seller.businessName || seller.name}
                 {isOwnStorefront && !previewMode && (
                   <Button
                     size="sm"
@@ -1442,7 +1536,7 @@ export function SellerStorefront({
                       <CardContent className="p-4">
                         <div className="flex gap-4">
                           <img 
-                            src={product.imageUrl || product.image} 
+                            src={product.imageUrl || product.image || undefined} 
                             alt={product.name}
                             className="w-20 h-20 object-cover rounded-lg"
                           />
@@ -1522,6 +1616,19 @@ export function SellerStorefront({
         </div>
       </div>
 
+      {/* Review Slider Modal */}
+      {sellerStats && sellerStats.recentReviews && (
+        <ReviewSliderModal
+          isOpen={showAllReviewsModal}
+          onClose={() => {
+            console.log('🔍 Closing reviews modal');
+            setShowAllReviewsModal(false);
+          }}
+          reviews={sellerStats.recentReviews}
+          totalReviews={sellerStats.totalReviews}
+          averageRating={sellerStats.averageRating}
+        />
+      )}
     </div>
   );
 }

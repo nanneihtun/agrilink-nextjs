@@ -27,14 +27,21 @@ export default function ProfilePage() {
 
         // Then fetch latest data from database to ensure we have the most recent profile image
         console.log('🔄 Fetching latest user profile from database...');
-        const response = await fetch('/api/user/profile', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const [profileResponse, publicResponse] = await Promise.all([
+          fetch('/api/user/profile', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }),
+          fetch(`/api/user/${parsedUser.id}/public`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+        ]);
 
-        if (response.ok) {
-          const latestUserData = await response.json();
+        if (profileResponse.ok) {
+          const latestUserData = await profileResponse.json();
           console.log('✅ Latest user data fetched:', latestUserData);
           console.log('📊 Original localStorage user data:', parsedUser);
           
@@ -65,6 +72,17 @@ export default function ProfilePage() {
             updatedUser.businessName = latestUserData.user.businessName;
             updatedUser.businessDescription = latestUserData.user.businessDescription;
             updatedUser.verificationStatus = latestUserData.user.verificationStatus;
+          }
+          
+          // Update with dynamic rating data from public API
+          if (publicResponse.ok) {
+            const publicData = await publicResponse.json();
+            console.log('📊 Dynamic rating data:', publicData.user?.ratings);
+            
+            if (publicData.user?.ratings) {
+              updatedUser.rating = publicData.user.ratings.rating || 0;
+              updatedUser.totalReviews = publicData.user.ratings.totalReviews || 0;
+            }
           }
           
           console.log('🔄 Final merged user data:', updatedUser);

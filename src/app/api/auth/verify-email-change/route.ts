@@ -12,9 +12,9 @@ export async function POST(request: NextRequest) {
 
     // Find user with this email change token
     const users = await sql`
-      SELECT id, email, name, pending_email, email_verification_expires
+      SELECT id, email, name, "pendingEmail", "emailVerificationExpires"
       FROM users 
-      WHERE email_verification_token = ${token}
+      WHERE "emailVerificationToken" = ${token}
     `;
 
     if (users.length === 0) {
@@ -23,22 +23,22 @@ export async function POST(request: NextRequest) {
 
     const user = users[0];
 
-    if (!user.pending_email) {
+    if (!user.pendingEmail) {
       return NextResponse.json({ message: 'No pending email change found' }, { status: 400 });
     }
 
     // Check if token is expired
     const now = new Date();
-    const expiresAt = new Date(user.email_verification_expires);
+    const expiresAt = new Date(user.emailVerificationExpires);
     
     if (now > expiresAt) {
       // Clear expired token
       await sql`
         UPDATE users 
         SET 
-          email_verification_token = NULL,
-          email_verification_expires = NULL,
-          pending_email = NULL,
+          "emailVerificationToken" = NULL,
+          "emailVerificationExpires" = NULL,
+          "pendingEmail" = NULL,
           "updatedAt" = NOW()
         WHERE id = ${user.id}
       `;
@@ -50,15 +50,15 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE users 
       SET 
-        email = ${user.pending_email},
-        email_verification_token = NULL,
-        email_verification_expires = NULL,
-        pending_email = NULL,
+        email = ${user.pendingEmail},
+        "emailVerificationToken" = NULL,
+        "emailVerificationExpires" = NULL,
+        "pendingEmail" = NULL,
         "updatedAt" = NOW()
       WHERE id = ${user.id}
     `;
 
-    console.log('✅ Email changed successfully for user:', user.id, 'from', user.email, 'to', user.pending_email);
+    console.log('✅ Email changed successfully for user:', user.id, 'from', user.email, 'to', user.pendingEmail);
 
     return NextResponse.json({
       message: 'Email address updated successfully!',

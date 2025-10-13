@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Get the verification request details
     const [verificationRequest] = await sql`
-      SELECT user_id, user_email, user_name, status
+      SELECT "userId", "userEmail", "userName", status
       FROM verification_requests 
       WHERE id = ${requestId}
     `;
@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Found verification request:', {
       requestId,
-      userId: verificationRequest.user_id,
-      userEmail: verificationRequest.user_email,
+      userId: verificationRequest.userId,
+      userEmail: verificationRequest.userEmail,
       currentStatus: verificationRequest.status
     });
 
@@ -65,10 +65,10 @@ export async function POST(request: NextRequest) {
       UPDATE verification_requests 
       SET 
         status = 'rejected',
-        reviewed_at = NOW(),
-        reviewed_by = ${adminUser.id},
-        review_notes = ${reviewNotes || 'Rejected by admin'},
-        updated_at = NOW()
+        "reviewedAt" = NOW(),
+        "reviewedBy" = ${adminUser.id},
+        "reviewNotes" = ${reviewNotes || 'Rejected by admin'},
+        "updatedAt" = NOW()
       WHERE id = ${requestId}
     `;
     console.log('✅ Updated verification_requests table');
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const [userWithDocs] = await sql`
       SELECT "verificationDocuments"
       FROM users 
-      WHERE id = ${verificationRequest.user_id}
+      WHERE id = ${verificationRequest.userId}
     `;
 
     // Move verification documents to rejected documents column
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
           "agriLinkVerificationRequested" = false,
           "agriLinkVerificationRequestedAt" = NULL,
           "updatedAt" = NOW()
-        WHERE id = ${verificationRequest.user_id}
+        WHERE id = ${verificationRequest.userId}
       `;
       console.log('✅ Moved documents to rejected documents column');
     } else {
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
           "agriLinkVerificationRequested" = false,
           "agriLinkVerificationRequestedAt" = NULL,
           "updatedAt" = NOW()
-        WHERE id = ${verificationRequest.user_id}
+        WHERE id = ${verificationRequest.userId}
       `;
       console.log('✅ Cleared verification documents');
     }
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     const [existingVerification] = await sql`
       SELECT "userId", "verificationStatus", verified
       FROM user_verification 
-      WHERE "userId" = ${verificationRequest.user_id}
+      WHERE "userId" = ${verificationRequest.userId}
     `;
 
     if (!existingVerification) {
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO user_verification (
           "userId", verified, "phoneVerified", "verificationStatus", "verificationSubmitted", "createdAt", "updatedAt"
         ) VALUES (
-          ${verificationRequest.user_id}, false, true, 'rejected', true, NOW(), NOW()
+          ${verificationRequest.userId}, false, true, 'rejected', true, NOW(), NOW()
         )
       `;
       console.log('✅ Created user_verification record');
@@ -137,12 +137,12 @@ export async function POST(request: NextRequest) {
           verified = false,
           "verificationSubmitted" = true,
           "updatedAt" = NOW()
-        WHERE "userId" = ${verificationRequest.user_id}
+        WHERE "userId" = ${verificationRequest.userId}
       `;
       console.log('✅ Updated user_verification table');
     }
 
-    console.log(`❌ Admin ${adminUser.email} rejected verification request for ${verificationRequest.user_email}`);
+    console.log(`❌ Admin ${adminUser.email} rejected verification request for ${verificationRequest.userEmail}`);
 
     return NextResponse.json({ 
       success: true, 

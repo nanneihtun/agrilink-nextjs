@@ -11,23 +11,47 @@ export default function VerifyPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const loadUserData = async () => {
+      const token = localStorage.getItem("token");
+      const userData = localStorage.getItem("user");
 
-    if (!token || !userData) {
-      router.push("/login");
-      return;
-    }
+      if (!token || !userData) {
+        router.push("/login");
+        return;
+      }
 
-    try {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-    } catch (error) {
-      console.error("Error parsing user data:", error);
-      router.push("/login");
-    } finally {
-      setIsLoading(false);
-    }
+      try {
+        // First load from localStorage for immediate display
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        
+        // Then fetch fresh data from API to get latest verification documents
+        console.log('🔄 Fetching latest user profile with verification documents...');
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const latestUserData = await response.json();
+          console.log('✅ Latest user data with verification documents:', latestUserData);
+          
+          // Update localStorage and state with fresh data
+          localStorage.setItem("user", JSON.stringify(latestUserData.user));
+          setUser(latestUserData.user);
+          
+          console.log('✅ Verification page: User data refreshed from API');
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        router.push("/login");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserData();
   }, [router]);
 
   const handleBack = () => {

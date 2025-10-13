@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AppHeader } from "@/components/AppHeader";
 import { UserProfile } from "@/components/UserProfile";
 import { SellerStorefront } from "@/components/SellerStorefront";
+import { ChatInterface } from "@/components/ChatInterface";
 
 interface UserProfileData {
   id: string;
@@ -54,6 +55,8 @@ export default function UserProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const router = useRouter();
   const params = useParams();
   const userId = params.id as string;
@@ -84,7 +87,11 @@ export default function UserProfilePage() {
           const productsResponse = await fetch(`/api/products?sellerId=${userId}`);
           if (productsResponse.ok) {
             const productsData = await productsResponse.json();
-            setUserProfile({ ...data.user, products: productsData.products || [] });
+            const mergedData = { 
+              ...data.user, 
+              products: productsData.products || []
+            };
+            setUserProfile(mergedData);
           }
         }
       } else {
@@ -168,20 +175,31 @@ export default function UserProfilePage() {
 
   const isSeller = userProfile.userType === 'farmer' || userProfile.userType === 'trader';
 
+  const handleChat = (productId: string) => {
+    const product = userProfile.products?.find(p => p.id === productId);
+    if (product) {
+      setSelectedProduct(product);
+      setIsChatOpen(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader currentUser={currentUser} onLogout={handleLogout} />
       
       {isSeller ? (
-        <SellerStorefront
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <SellerStorefront
           seller={{
             id: userProfile.id,
             name: userProfile.name,
+            email: userProfile.email || '',
             type: userProfile.userType as "farmer" | "trader",
             accountType: userProfile.accountType,
             location: userProfile.location || '',
             description: (userProfile as any).description || '',
             image: userProfile.profileImage || '',
+            storefrontImage: userProfile.storefrontImage || '',
             rating: userProfile.ratings?.rating || 0,
             totalReviews: userProfile.ratings?.totalReviews || 0,
             yearsActive: 0,
@@ -193,7 +211,7 @@ export default function UserProfilePage() {
           products={userProfile.products || []}
           onBack={() => router.push("/")}
           onViewProduct={(productId) => router.push(`/product/${productId}`)}
-          onChat={(productId) => router.push(`/messages?productId=${productId}`)}
+          onChat={handleChat}
           onEditProduct={(productId) => router.push(`/product/${productId}/edit`)}
           isOwnStorefront={isOwnProfile}
           onEditStorefrontImage={() => {
@@ -210,8 +228,9 @@ export default function UserProfilePage() {
             console.log('Toggle preview mode:', mode);
           }}
           currentUser={currentUser}
-        />
-      ) : (
+          />
+        </div>
+        ) : (
         <UserProfile
           userProfile={userProfile as any}
           currentUser={currentUser}
@@ -221,6 +240,45 @@ export default function UserProfilePage() {
           onTogglePreviewMode={handleTogglePreviewMode}
           onUpdateProfile={handleUpdateProfile}
         />
+      )}
+
+      {/* Chat Popup */}
+      {isChatOpen && selectedProduct && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="bg-white rounded-lg shadow-2xl w-96 h-[500px] flex flex-col border border-gray-200">
+            <ChatInterface
+              otherPartyName={userProfile.name}
+              otherPartyType={userProfile.userType}
+              otherPartyAccountType={userProfile.accountType}
+              otherPartyLocation={userProfile.location || ''}
+              otherPartyRating={userProfile.ratings?.rating || 0}
+              productName={selectedProduct.name}
+              productId={selectedProduct.id}
+              otherPartyId={userProfile.id}
+              onClose={() => {
+                setIsChatOpen(false);
+                setSelectedProduct(null);
+              }}
+              otherPartyVerified={userProfile.verification?.verified || false}
+              currentUserVerified={currentUser?.verified || false}
+              currentUserType={currentUser?.userType || 'buyer'}
+              otherPartyProfileImage={userProfile.profileImage}
+              otherPartyVerificationStatus={{
+                trustLevel: userProfile.verification?.verified ? (userProfile.accountType === 'business' ? 'business-verified' : 'id-verified') : 'unverified',
+                tierLabel: userProfile.verification?.verified ? (userProfile.accountType === 'business' ? 'Business ✓' : 'Verified') : 'Unverified',
+                levelBadge: userProfile.verification?.verified ? (userProfile.accountType === 'business' ? '✓' : '✓') : '⚠'
+              }}
+              product={{
+                id: selectedProduct.id,
+                name: selectedProduct.name,
+                price: selectedProduct.price,
+                unit: selectedProduct.unit,
+                image: selectedProduct.imageUrl
+              }}
+              currentUser={currentUser}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

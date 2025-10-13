@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { UserBadge, getUserVerificationLevel, getUserAccountType } from "./UserBadgeSystem";
+import { AccountTypeBadge, PublicVerificationStatus, getUserAccountType } from "./UserBadgeSystem";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Input } from "./ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -416,11 +416,14 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                         >
                           {conversation.otherParty.name}
                         </button>
-                        <UserBadge 
+                        <AccountTypeBadge 
                           userType={conversation.otherParty.type}
                           accountType={getUserAccountType(conversation.otherParty)}
-                          verificationLevel={getUserVerificationLevel(conversation.otherParty)}
                           size="sm"
+                        />
+                        <PublicVerificationStatus 
+                          verificationLevel={conversation.otherParty.verified || conversation.otherParty.phoneVerified ? 'id-verified' : 'unverified'}
+                          size="xs"
                         />
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -543,9 +546,9 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                 currentUser={effectiveCurrentUser}
                 otherPartyProfileImage={(conversation.otherParty as any).profileImage}
                 otherPartyVerificationStatus={{
-                  trustLevel: conversation.otherParty.verified ? 'id-verified' : 'unverified',
-                  tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
-                  levelBadge: conversation.otherParty.verified ? 'Tier 1' : 'Unverified'
+                  trustLevel: (conversation.otherParty.verified || conversation.otherParty.phoneVerified) ? 'id-verified' : 'unverified',
+                  tierLabel: (conversation.otherParty.verified || conversation.otherParty.phoneVerified) ? 'Verified' : 'Unverified',
+                  levelBadge: (conversation.otherParty.verified || conversation.otherParty.phoneVerified) ? 'Tier 1' : 'Unverified'
                 } as any)}
                 product={({
                   id: conversation.productId,
@@ -591,9 +594,9 @@ export function Messages({ currentUser, onBack, onStartChat }: MessagesProps) {
                 currentUser={effectiveCurrentUser}
                 otherPartyProfileImage={(conversation.otherParty as any).profileImage}
                 otherPartyVerificationStatus={{
-                  trustLevel: conversation.otherParty.verified ? 'id-verified' : 'unverified',
-                  tierLabel: conversation.otherParty.verified ? 'Verified' : 'Unverified',
-                  levelBadge: conversation.otherParty.verified ? 'Tier 1' : 'Unverified'
+                  trustLevel: (conversation.otherParty.verified || conversation.otherParty.phoneVerified) ? 'id-verified' : 'unverified',
+                  tierLabel: (conversation.otherParty.verified || conversation.otherParty.phoneVerified) ? 'Verified' : 'Unverified',
+                  levelBadge: (conversation.otherParty.verified || conversation.otherParty.phoneVerified) ? 'Tier 1' : 'Unverified'
                 } as any)}
                 product={({
                   id: conversation.productId,

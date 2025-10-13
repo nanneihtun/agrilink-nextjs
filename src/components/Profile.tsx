@@ -33,6 +33,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { formatMemberSinceDate } from "../utils/dates";
+import { AddressManagement } from "./AddressManagement";
 
 interface ProfileProps {
   user: any;
@@ -485,9 +486,29 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                   <Star className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm">Rating</span>
                 </div>
-                <span className="text-sm font-medium">
-                  {user.rating > 0 ? `${user.rating}/5 (${user.totalReviews} reviews)` : 'No ratings yet'}
-                </span>
+                <div className="flex items-center gap-2">
+                  {user.rating > 0 ? (
+                    <>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.round(user.rating)
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {user.rating.toFixed(1)} ({user.totalReviews} reviews)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground">No ratings yet</span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -654,6 +675,53 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     </Badge>
                   )}
                 </div>
+                
+                {/* Business Name / Farm Name - Only for farmers and traders */}
+                {(user.userType === 'farmer' || user.userType === 'trader') && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Store className="w-4 h-4" />
+                      {user.userType === 'farmer' ? 'Farm Name' : 'Store Name'}
+                    </div>
+                    {editing?.field === 'businessName' ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={editing.value}
+                          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                          placeholder={`Enter your ${user.userType === 'farmer' ? 'farm' : 'store'} name`}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSave('businessName', editing.value);
+                            if (e.key === 'Escape') cancelEditing();
+                          }}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" onClick={() => handleSave('businessName', editing.value)}>
+                            <Save className="w-4 h-4 mr-1" />
+                            Save
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={cancelEditing}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium flex-1">
+                          {formData.businessName || `Add your ${user.userType === 'farmer' ? 'farm' : 'store'} name`}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditing({ field: 'businessName', value: formData.businessName })}
+                          className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -919,7 +987,21 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
           </Card>
 
 
-          {/* Address Management - Removed for now, using simple location editing above */}
+          {/* Address Management */}
+          <Card className="border-primary/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Address Management
+              </CardTitle>
+              <CardDescription>
+                Manage your delivery addresses for orders and offers
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AddressManagement userId={user.id} />
+            </CardContent>
+          </Card>
 
           {/* Storefront Management */}
           {(user.userType === 'farmer' || user.userType === 'trader') && (

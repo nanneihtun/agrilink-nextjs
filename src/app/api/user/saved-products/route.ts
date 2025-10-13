@@ -46,15 +46,17 @@ export async function GET(request: NextRequest) {
         p.name as "productName",
         p.category,
         p.description,
-        p.price as "currentPrice",
-        p.unit,
-        p."imageUrl",
+        pp.price as "currentPrice",
+        pp.unit,
+        pi."imageData" as "imageUrl",
         p."sellerId",
         u.name as "sellerName",
         u."userType" as "sellerType",
         up.location as "sellerLocation"
       FROM saved_products sp
       LEFT JOIN products p ON sp."productId" = p.id
+      LEFT JOIN product_pricing pp ON p.id = pp."productId"
+      LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
       LEFT JOIN users u ON p."sellerId" = u.id
       LEFT JOIN user_profiles up ON u.id = up."userId"
       WHERE sp."userId" = ${userId}
@@ -122,7 +124,9 @@ export async function POST(request: NextRequest) {
 
     // Get current product price
     const product = await sql`
-      SELECT price FROM products WHERE id = ${productId}
+      SELECT pp.price FROM products p
+      LEFT JOIN product_pricing pp ON p.id = pp."productId"
+      WHERE p.id = ${productId}
     `;
 
     if (product.length === 0) {

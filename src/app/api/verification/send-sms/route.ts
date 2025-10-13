@@ -27,13 +27,13 @@ export async function POST(request: NextRequest) {
 
     // Store verification code in database
     await sql`
-      INSERT INTO verification_codes (user_id, phone, code, expires_at, created_at)
+      INSERT INTO verification_codes ("userId", phone, code, "expiresAt", "createdAt")
       VALUES (${userId}, ${phone}, ${verificationCode}, NOW() + INTERVAL '10 minutes', NOW())
-      ON CONFLICT (user_id) 
+      ON CONFLICT ("userId") 
       DO UPDATE SET 
         code = ${verificationCode},
-        expires_at = NOW() + INTERVAL '10 minutes',
-        created_at = NOW()
+        "expiresAt" = NOW() + INTERVAL '10 minutes',
+        "createdAt" = NOW()
     `;
 
     // In a real app, you would send SMS here using Twilio or similar service

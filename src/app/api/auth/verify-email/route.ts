@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
 
     // Find user by verification token
     const userData = await sql`
-      SELECT id, name, email, email_verified, email_verification_expires
+      SELECT id, name, email, "emailVerified", "emailVerificationExpires"
       FROM users 
-      WHERE email_verification_token = ${token}
+      WHERE "emailVerificationToken" = ${token}
     `;
 
     if (userData.length === 0) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const user = userData[0];
 
     // Check if already verified
-    if (user.email_verified) {
+    if (user.emailVerified) {
       return NextResponse.json({ 
         message: 'Email is already verified',
         user: {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Check if token is expired
     const now = new Date();
-    const expiresAt = new Date(user.email_verification_expires);
+    const expiresAt = new Date(user.emailVerificationExpires);
     
     if (now > expiresAt) {
       return NextResponse.json({ message: 'Verification token has expired' }, { status: 400 });
@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE users 
       SET 
-        email_verified = true,
-        email_verification_token = NULL,
-        email_verification_expires = NULL,
+        "emailVerified" = true,
+        "emailVerificationToken" = NULL,
+        "emailVerificationExpires" = NULL,
         "updatedAt" = NOW()
       WHERE id = ${user.id}
     `;

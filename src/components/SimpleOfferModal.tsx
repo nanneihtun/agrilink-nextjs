@@ -77,11 +77,15 @@ export function SimpleOfferModal({
   const [expirationHours, setExpirationHours] = useState<number>(24);
   const [productData, setProductData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch product data when modal opens
   useEffect(() => {
     if (isOpen && product.id) {
-      fetchProductData();
+      fetchProductData().catch(error => {
+        console.error('❌ Failed to fetch product data in useEffect:', error);
+        // Don't set any fallback data - let it fail
+      });
     }
   }, [isOpen, product.id]);
 
@@ -122,11 +126,17 @@ export function SimpleOfferModal({
 
   const fetchProductData = async () => {
     setLoading(true);
+    setError(null);
     try {
       console.log('🔍 Fetching product data for ID:', product.id);
+      
+      // Check if product ID is valid
+      if (!product.id || product.id === 'undefined' || product.id === 'null') {
+        throw new Error(`Invalid product ID: ${product.id}`);
+      }
+      
       const response = await fetch(`/api/products/${product.id}`);
       console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', response.headers);
       
       if (response.ok) {
         const data = await response.json();
@@ -140,34 +150,34 @@ export function SimpleOfferModal({
         const errorText = await response.text();
         console.error('❌ Failed to fetch product data, status:', response.status);
         console.error('❌ Error response:', errorText);
-        // Fallback to prop data
-        setProductData(product);
+        console.error('❌ Product ID that failed:', product.id);
+        throw new Error(`Failed to fetch product data: ${response.status} - ${errorText}`);
       }
     } catch (error) {
       console.error('❌ Error fetching product data:', error);
-      // Fallback to prop data
-      setProductData(product);
+      console.error('❌ Product ID that caused error:', product.id);
+      setError(error instanceof Error ? error.message : 'Failed to fetch product data');
+      throw error; // Re-throw the error instead of using fallback
     } finally {
       setLoading(false);
     }
   };
 
-  // Comprehensive options from product forms
+  // Aligned delivery and payment options (matching SimplifiedProductForm order)
   const deliveryOptionsList = [
-    // From SimplifiedProductForm
+    // Primary aligned options (matching SimplifiedProductForm)
     'Pickup',
-    'Local Delivery (Within 10km)',
+    'Local Delivery',
     'Regional Delivery', 
-    'Nationwide Shipping',
     'Express Delivery',
+    'Nationwide Shipping',
     'Cold Chain Transport',
-    // From products/new page
+    // Additional options
+    'Local Delivery (Within 10km)',
     'Delivery',
     'Shipping',
     'Local Transport',
-    // Additional delivery options
     'Farm Pickup',
-    'Local Delivery',
     'Regional Transport',
     'Cold Chain Delivery',
     'Bulk Transport',
@@ -175,17 +185,16 @@ export function SimpleOfferModal({
   ];
 
   const paymentTermOptionsList = [
-    // From SimplifiedProductForm
+    // Primary aligned options (matching SimplifiedProductForm)
+    'Cash on Pickup',
     'Cash on Delivery',
     'Bank Transfer',
     'Mobile Payment',
-    'Cash on Pickup',
     '50% Advance, 50% on Delivery',
     '30% Advance, 70% on Delivery',
-    // From products/new page
+    // Additional options
     'Credit',
     'Installments',
-    // Additional delivery options
     'Advance Payment',
     '30 Days Credit',
     '15 Days Credit',
@@ -279,7 +288,37 @@ export function SimpleOfferModal({
     
     if (requiresAddress) {
       if (showNewAddress) {
-        deliveryAddress = newAddress;
+        // Save the new address to user's address list first
+        try {
+          const token = localStorage.getItem('token');
+          const addressResponse = await fetch('/api/user/addresses', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(newAddress)
+          });
+
+          if (addressResponse.ok) {
+            const savedAddress = await addressResponse.json();
+            deliveryAddress = savedAddress.address;
+            console.log('✅ New address saved:', savedAddress.address);
+            
+            // Refresh the user addresses list
+            await fetchUserAddresses();
+          } else {
+            console.error('❌ Failed to save new address');
+            alert('Failed to save new address. Please try again.');
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Error saving new address:', error);
+          alert('Error saving new address. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
       } else {
         const selectedAddress = userAddresses.find(addr => addr.id === selectedAddressId);
         if (selectedAddress) {
@@ -317,6 +356,7 @@ export function SimpleOfferModal({
       setDeliveryOptions(['']);
       setPaymentTerms(['']);
       setShowNewAddress(false);
+      setSelectedAddressId('');
       setNewAddress({
         addressType: 'home',
         label: '',
@@ -344,8 +384,8 @@ export function SimpleOfferModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-w-[90vw]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-w-[90vw] max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
             Make an Offer
@@ -355,7 +395,8 @@ export function SimpleOfferModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex-1 overflow-y-auto px-1">
+          <form onSubmit={handleSubmit} className="space-y-4">
           {/* Product Info */}
           <Card>
             <CardContent className="p-3">
@@ -373,6 +414,32 @@ export function SimpleOfferModal({
                     <div className="h-4 bg-gray-200 rounded animate-pulse mb-1"></div>
                     <div className="h-3 bg-gray-200 rounded animate-pulse w-16"></div>
                   </div>
+                </div>
+              ) : error ? (
+                <div className="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm text-red-800">Failed to Load Product Data</h4>
+                    <p className="text-xs text-red-600 mt-1">{error}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setError(null);
+                      if (product.id) {
+                        fetchProductData().catch(err => {
+                          setError(err instanceof Error ? err.message : 'Failed to fetch product data');
+                        });
+                      }
+                    }}
+                    className="text-red-600 border-red-300 hover:bg-red-50"
+                  >
+                    Retry
+                  </Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -502,15 +569,7 @@ export function SimpleOfferModal({
           </div>
 
           {/* Address Selection for Delivery Options that require address */}
-          {deliveryOptions[0] && 
-           [
-             // From SimplifiedProductForm
-             'Local Delivery (Within 10km)', 'Regional Delivery', 'Nationwide Shipping', 'Express Delivery', 'Cold Chain Transport',
-             // From products/new page
-             'Delivery', 'Shipping', 'Local Transport',
-             // Additional delivery options
-             'Local Delivery', 'Regional Transport', 'Cold Chain Delivery', 'Bulk Transport', 'Custom Logistics'
-           ].includes(deliveryOptions[0]) && (
+          {deliveryOptions[0] && deliveryOptions[0] !== 'Pickup' && (
             <div className="space-y-3">
               <Label>Delivery Address</Label>
               
@@ -518,75 +577,58 @@ export function SimpleOfferModal({
                 <div className="space-y-2">
                   <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select an address">
-                        {selectedAddressId && userAddresses.find(addr => addr.id === selectedAddressId) && (
-                          <div className="flex items-start gap-2 w-full text-left">
-                            {(() => {
-                              const selectedAddress = userAddresses.find(addr => addr.id === selectedAddressId);
-                              return (
-                                <>
-                                  {selectedAddress?.addressType === 'home' && <Home className="w-4 h-4 mt-0.5" />}
-                                  {selectedAddress?.addressType === 'work' && <Building className="w-4 h-4 mt-0.5" />}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <p className="font-medium text-sm">{selectedAddress?.label}</p>
-                                      {selectedAddress?.isDefault && (
-                                        <Badge variant="secondary" className="text-xs">Default</Badge>
-                                      )}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground leading-relaxed">
-                                      {selectedAddress?.addressLine1}
-                                      {selectedAddress?.addressLine2 && `, ${selectedAddress.addressLine2}`}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground leading-relaxed">
-                                      {selectedAddress?.city}, {selectedAddress?.state}
-                                    </p>
-                                  </div>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </SelectValue>
+                      <SelectValue placeholder="Select an address" />
                     </SelectTrigger>
                     <SelectContent>
                       {userAddresses.map((address) => (
                         <SelectItem key={address.id} value={address.id}>
-                          <div className="flex items-start gap-2 w-full">
-                            {address.addressType === 'home' && <Home className="w-4 h-4 mt-1" />}
-                            {address.addressType === 'work' && <Building className="w-4 h-4 mt-1" />}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-medium text-sm">{address.label}</p>
-                                {address.isDefault && (
-                                  <Badge variant="secondary" className="text-xs">Default</Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                {address.fullName}
-                              </p>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                {address.addressLine1}
-                                {address.addressLine2 && `, ${address.addressLine2}`}
-                              </p>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                {address.city}, {address.state}
-                                {address.postalCode && ` ${address.postalCode}`}
-                              </p>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                {address.country}
-                              </p>
-                              {address.phone && (
-                                <p className="text-xs text-blue-600 leading-relaxed">
-                                  {address.phone}
-                                </p>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2 w-full">
+                            {address.addressType === 'home' && <Home className="w-4 h-4" />}
+                            {address.addressType === 'work' && <Building className="w-4 h-4" />}
+                            <span className="font-medium">{address.label}</span>
+                            {address.isDefault && (
+                              <Badge variant="secondary" className="text-xs">Default</Badge>
+                            )}
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  {/* Selected Address Display */}
+                  {selectedAddressId && userAddresses.find(addr => addr.id === selectedAddressId) && (
+                    <Card className="border-primary/20 bg-muted/30">
+                      <CardContent className="p-3">
+                        {(() => {
+                          const selectedAddress = userAddresses.find(addr => addr.id === selectedAddressId);
+                          return (
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-1">
+                                {selectedAddress?.addressType === 'home' && <Home className="w-4 h-4 text-primary" />}
+                                {selectedAddress?.addressType === 'work' && <Building className="w-4 h-4 text-primary" />}
+                                {selectedAddress?.addressType === 'other' && <MapPin className="w-4 h-4 text-primary" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h4 className="font-medium text-sm">{selectedAddress?.label}</h4>
+                                  {selectedAddress?.isDefault && (
+                                    <Badge variant="secondary" className="text-xs">Default</Badge>
+                                  )}
+                                </div>
+                                <div className="space-y-1 text-sm text-muted-foreground">
+                                  <p>{selectedAddress?.fullName}</p>
+                                  <p>{selectedAddress?.addressLine1}</p>
+                                  {selectedAddress?.addressLine2 && <p>{selectedAddress.addressLine2}</p>}
+                                  <p>{selectedAddress?.city}, {selectedAddress?.state}</p>
+                                  {selectedAddress?.phone && <p>{selectedAddress.phone}</p>}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </CardContent>
+                    </Card>
+                  )}
                   
                   <Button
                     type="button"
@@ -597,6 +639,22 @@ export function SimpleOfferModal({
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add New Address
+                  </Button>
+                </div>
+              )}
+
+              {/* Show "Add New Address" button when no addresses exist */}
+              {!userAddresses.length && !showNewAddress && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowNewAddress(true)}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Delivery Address
                   </Button>
                 </div>
               )}
@@ -778,7 +836,7 @@ export function SimpleOfferModal({
             <Button
               type="submit"
               className="flex-1"
-              disabled={isSubmitting || !offerPrice || !quantity}
+              disabled={isSubmitting || !offerPrice || !quantity || !!error}
             >
               {isSubmitting ? 'Submitting...' : 'Submit Offer'}
             </Button>
@@ -793,6 +851,7 @@ export function SimpleOfferModal({
             </div>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

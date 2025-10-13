@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
         id,
         name,
         email,
-        "userType" as user_type,
-        "createdAt" as created_at
+        "userType" as "userType",
+        "createdAt" as "createdAt"
       FROM users 
       WHERE "userType" != 'admin'
       ORDER BY "createdAt" DESC

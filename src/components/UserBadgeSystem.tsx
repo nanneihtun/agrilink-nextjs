@@ -444,12 +444,16 @@ export function UserBadge({
       {accountType === 'business' ? (
         <Building2 className={cn(
           iconSizes[size], 
-          userType === 'farmer' || userType === 'trader' ? 'text-white' : userTypeConfig.color
+          userType === 'farmer' ? 'text-white' : 
+          userType === 'trader' ? 'text-white' : 
+          userTypeConfig.color
         )} />
       ) : (
         <User className={cn(
           iconSizes[size],
-          userType === 'farmer' || userType === 'trader' ? 'text-white' : userTypeConfig.color
+          userType === 'farmer' ? 'text-white' : 
+          userType === 'trader' ? 'text-white' : 
+          userTypeConfig.color
         )} />
       )}
       {getPrimaryBadgeLabel()}
@@ -591,12 +595,16 @@ export function AccountTypeBadge({
       {accountType === 'business' ? (
         <Building2 className={cn(
           iconSizes[size], 
-          userType === 'farmer' || userType === 'trader' ? 'text-white' : userTypeConfig.color
+          userType === 'farmer' ? 'text-white' : 
+          userType === 'trader' ? 'text-white' : 
+          userTypeConfig.color
         )} />
       ) : (
         <User className={cn(
           iconSizes[size],
-          userType === 'farmer' || userType === 'trader' ? 'text-white' : userTypeConfig.color
+          userType === 'farmer' ? 'text-white' : 
+          userType === 'trader' ? 'text-white' : 
+          userTypeConfig.color
         )} />
       )}
       {getPrimaryBadgeLabel()}

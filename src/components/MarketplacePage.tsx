@@ -46,7 +46,7 @@ export function MarketplacePage({ products: initialProducts }: MarketplacePagePr
     
     const matchesCategory = !selectedCategory || product.category === selectedCategory;
     const matchesLocation = !selectedLocation || 
-      product.seller.location.toLowerCase().includes(selectedLocation.toLowerCase());
+      (product.seller.location || '').toLowerCase().includes(selectedLocation.toLowerCase());
 
     return matchesSearch && matchesCategory && matchesLocation;
   });
@@ -196,7 +196,23 @@ export function MarketplacePage({ products: initialProducts }: MarketplacePagePr
                       {product.seller.verified && (
                         <CheckCircle className="w-4 h-4 text-green-500" />
                       )}
-                      <Badge variant={product.seller.userType === 'farmer' ? 'default' : 'secondary'}>
+                      <Badge 
+                        variant="default"
+                        className={`text-xs px-2 py-1 ${
+                          product.seller.userType === 'farmer' 
+                            ? 'text-white bg-green-600 border-green-600' 
+                            : product.seller.userType === 'trader'
+                            ? 'text-white bg-orange-600 border-orange-600'
+                            : 'text-blue-700 bg-blue-50 border-blue-200'
+                        }`}
+                        style={
+                          product.seller.userType === 'farmer' 
+                            ? { backgroundColor: '#16a34a', color: '#ffffff', borderColor: '#16a34a' }
+                            : product.seller.userType === 'trader'
+                            ? { backgroundColor: '#ea580c', color: '#ffffff', borderColor: '#ea580c' }
+                            : undefined
+                        }
+                      >
                         {product.seller.userType}
                       </Badge>
                     </div>

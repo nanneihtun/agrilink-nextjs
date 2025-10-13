@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Create user in database
     const newUsers = await sql`
-      INSERT INTO users (email, name, "passwordHash", "userType", "accountType", email_verification_token, email_verification_expires, "createdAt", "updatedAt")
+      INSERT INTO users (email, name, "passwordHash", "userType", "accountType", "emailVerificationToken", "emailVerificationExpires", "createdAt", "updatedAt")
       VALUES (${email}, ${name}, ${passwordHash}, ${userType}, ${accountType}, ${emailVerificationToken}, ${verificationExpires.toISOString()}, NOW(), NOW())
       RETURNING id, email, name, "userType", "accountType", "createdAt"
     `;
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Create business details if business account
     if (accountType === 'business') {
       await sql`
-        INSERT INTO business_details (user_id, created_at, updated_at)
+        INSERT INTO business_details ("userId", "createdAt", "updatedAt")
         VALUES (${newUser.id}, NOW(), NOW())
       `;
     }

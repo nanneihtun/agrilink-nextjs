@@ -77,6 +77,7 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
   const [reviewNotes, setReviewNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Load verification requests from Neon database
   const loadRequests = async () => {
@@ -99,31 +100,31 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
       // Transform database data to component format
       const transformedRequests: VerificationRequest[] = requests.map((req: any) => ({
         id: req.id,
-        userId: req.user_id,
-        userEmail: req.user_email,
-        userName: req.user_name,
-        userType: req.user_type,
-        accountType: req.account_type,
+        userId: req.userId,
+        userEmail: req.userEmail,
+        userName: req.userName,
+        userType: req.userType,
+        accountType: req.accountType,
         verificationStatus: req.status === 'under_review' ? 'under_review' : 
-                           req.status === 'approved' ? 'verified' : 
+                           req.status === 'approved' ? 'approved' : 
                            req.status === 'rejected' ? 'rejected' : 'under_review',
         verificationSubmitted: true,
-        verificationDocuments: req.verification_documents || {},
+        verificationDocuments: req.user_verification_documents || req.verification_request_documents || {},
         businessInfo: {
-          businessName: req.business_name,
-          businessDescription: req.business_description,
-          location: req.business_info?.location,
-          region: req.business_info?.region,
+          businessName: req.businessName || req.user_business_name,
+          businessDescription: req.businessDescription || req.user_business_description,
+          location: req.location,
+          region: req.businessInfo?.region,
         },
-        phoneVerified: req.phone_verified || false,
-        submittedAt: req.submitted_at,
-        type: req.account_type === 'business' ? 'Business Account' : 'Individual Account',
+        phoneVerified: req.user_phone_verified || req.verification_phone_verified || false,
+        submittedAt: req.submittedAt,
+        type: req.accountType === 'business' ? 'Business Account' : 'Individual Account',
         status: req.status,
-        documents: req.verification_documents || {},
-        businessType: req.account_type,
-        business_name: req.business_name,
-        business_description: req.business_description,
-        business_license_number: req.business_license_number,
+        documents: req.user_verification_documents || req.verification_request_documents || {},
+        businessType: req.accountType,
+        business_name: req.businessName || req.user_business_name,
+        business_description: req.businessDescription || req.user_business_description,
+        business_license_number: req.businessLicenseNumber || req.user_business_license_number,
       }));
 
       setRequests(transformedRequests);
@@ -176,7 +177,7 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
           userType: req.user_type,
           accountType: req.account_type,
           verificationStatus: req.status === 'under_review' ? 'under_review' : 
-                             req.status === 'approved' ? 'verified' : 
+                             req.status === 'approved' ? 'approved' : 
                              req.status === 'rejected' ? 'rejected' : 'under_review',
           verificationSubmitted: true,
           verificationDocuments: req.verification_documents || {},
@@ -393,17 +394,26 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
                         <div className="flex items-center gap-2 mt-1">
                           {getStatusBadge(request.verificationStatus)}
                           <span className="text-xs text-gray-500">
-                            {new Date(request.submittedAt).toLocaleDateString()}
+                            {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'Date not available'}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <Dialog>
+                    <Dialog open={isDialogOpen && selectedRequest?.id === request.id} onOpenChange={(open) => {
+                      if (!open) {
+                        setIsDialogOpen(false);
+                        setSelectedRequest(null);
+                        setReviewNotes('');
+                      }
+                    }}>
                       <DialogTrigger asChild>
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => setSelectedRequest(request)}
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setIsDialogOpen(true);
+                          }}
                         >
                           <Eye className="w-4 h-4 mr-2" />
                           Review
@@ -455,7 +465,6 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
                                     <MapPin className="w-4 h-4 text-gray-500" />
                                     <span className="text-sm">{request.businessInfo?.location || 'N/A'}</span>
                                   </div>
-                                  <p className="text-sm text-gray-600">{request.business_description || request.businessInfo?.businessDescription || 'No description provided'}</p>
                                   {request.business_license_number && (
                                     <div className="flex items-center gap-2">
                                       <span className="text-sm text-gray-500">License #:</span>
@@ -468,6 +477,21 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
                           </div>
 
                           <Separator />
+
+                          {/* Business Description Card */}
+                          {(request.business_description || request.businessInfo?.businessDescription) && (
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              <div className="flex items-start gap-2">
+                                <FileText className="w-4 h-4 text-gray-500 mt-0.5" />
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-900 mb-2">Business Description</h4>
+                                  <p className="text-sm text-gray-600 leading-relaxed">
+                                    {request.business_description || request.businessInfo?.businessDescription}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Documents */}
                           <div>
@@ -577,6 +601,7 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
                             <Button
                               variant="outline"
                               onClick={() => {
+                                setIsDialogOpen(false);
                                 setSelectedRequest(null);
                                 setReviewNotes('');
                               }}
@@ -635,7 +660,7 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
                         <div className="flex items-center gap-2 mt-1">
                           {getStatusBadge(request.verificationStatus)}
                           <span className="text-xs text-gray-500">
-                            {new Date(request.submittedAt).toLocaleDateString()}
+                            {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'Date not available'}
                           </span>
                         </div>
                       </div>

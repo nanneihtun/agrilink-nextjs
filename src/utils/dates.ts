@@ -138,10 +138,13 @@ export function getRelativeTime(dateInput: string | undefined): string {
     let targetDate: Date;
 
     // Handle different date formats
-    if (dateInput.includes('T') || dateInput.includes('Z')) {
+    if (typeof dateInput === 'object' && dateInput instanceof Date) {
+      // Already a Date object
+      targetDate = dateInput;
+    } else if (typeof dateInput === 'string' && (dateInput.includes('T') || dateInput.includes('Z'))) {
       // ISO timestamp format (2025-09-28T17:24:05.772Z)
       targetDate = new Date(dateInput);
-    } else if (dateInput.includes('-')) {
+    } else if (typeof dateInput === 'string' && dateInput.includes('-')) {
       // Date format like "2025-09-29" or "2024-12-15"
       targetDate = new Date(dateInput + 'T00:00:00');
     } else {

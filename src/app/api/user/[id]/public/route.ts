@@ -19,9 +19,9 @@ export async function GET(
     if (isEmail) {
       userData = await sql`
         SELECT 
-          u.id, u.name, u."userType", u."accountType", u."createdAt" as "joinedDate",
+          u.id, u.name, u.email, u."userType", u."accountType", u."createdAt" as "joinedDate",
           u."businessName", u."businessDescription",
-          up.location, up."profileImage", up.phone, up.website,
+          up.location, up."profileImage", up."storefrontImage", up.phone, up.website,
           uv.verified, uv."phoneVerified", uv."verificationStatus"
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
@@ -32,9 +32,9 @@ export async function GET(
     } else {
       userData = await sql`
         SELECT 
-          u.id, u.name, u."userType", u."accountType", u."createdAt" as "joinedDate",
+          u.id, u.name, u.email, u."userType", u."accountType", u."createdAt" as "joinedDate",
           u."businessName", u."businessDescription",
-          up.location, up."profileImage", up.phone, up.website,
+          up.location, up."profileImage", up."storefrontImage", up.phone, up.website,
           uv.verified, uv."phoneVerified", uv."verificationStatus"
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
@@ -62,7 +62,7 @@ export async function GET(
           p."createdAt", p."updatedAt", p."isActive",
           pp.price as current_price, pp.unit as current_unit,
           pinv."availableQuantity", pinv."minimumOrder",
-          pimg."imageUrl"
+          pimg."imageData"
         FROM products p
         LEFT JOIN product_pricing pp ON p.id = pp."productId"
         LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
@@ -80,7 +80,7 @@ export async function GET(
         description: product.description,
         price: product.current_price || product.price,
         unit: product.current_unit || product.unit,
-        imageUrl: product.imageUrl,
+        imageUrl: product.imageData,
         availableQuantity: product.availableQuantity,
         minimumOrder: product.minimumOrder,
         createdAt: product.createdAt,
@@ -94,22 +94,22 @@ export async function GET(
         r.id,
         r.rating,
         r.comment,
-        r.created_at,
-        r.updated_at,
-        r.offer_id,
-        reviewer.id as reviewer_id,
-        reviewer.name as reviewer_name,
-        reviewer."userType" as reviewer_type,
-        reviewer."accountType" as reviewer_account_type,
-        reviewer_profile."profileImage" as reviewer_image,
-        p.name as product_name
+        r."createdAt",
+        r."updatedAt",
+        r."offerId",
+        reviewer.id as "reviewerId",
+        reviewer.name as "reviewerName",
+        reviewer."userType" as "reviewerType",
+        reviewer."accountType" as "reviewerAccountType",
+        reviewer_profile."profileImage" as "reviewerImage",
+        p.name as "productName"
       FROM offer_reviews r
-      INNER JOIN users reviewer ON r.reviewer_id = reviewer.id
+      INNER JOIN users reviewer ON r."reviewerId" = reviewer.id
       LEFT JOIN user_profiles reviewer_profile ON reviewer.id = reviewer_profile."userId"
-      INNER JOIN offers o ON r.offer_id = o.id
-      INNER JOIN products p ON o.product_id = p.id
-      WHERE r.reviewee_id = ${user.id}
-      ORDER BY r.created_at DESC
+      INNER JOIN offers o ON r."offerId" = o.id
+      INNER JOIN products p ON o."productId" = p.id
+      WHERE r."revieweeId" = ${user.id}
+      ORDER BY r."createdAt" DESC
       LIMIT 10
     `;
     
@@ -117,16 +117,16 @@ export async function GET(
       id: review.id,
       rating: review.rating,
       comment: review.comment,
-      createdAt: review.created_at,
-      updatedAt: review.updated_at,
-      offerId: review.offer_id,
-      productName: review.product_name,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      offerId: review.offerId,
+      productName: review.productName,
       reviewer: {
-        id: review.reviewer_id,
-        name: review.reviewer_name,
-        userType: review.reviewer_type,
-        accountType: review.reviewer_account_type,
-        profileImage: review.reviewer_image
+        id: review.reviewerId,
+        name: review.reviewerName,
+        userType: review.reviewerType,
+        accountType: review.reviewerAccountType,
+        profileImage: review.reviewerImage
       }
     }));
 
@@ -134,11 +134,13 @@ export async function GET(
     const transformedUser = {
       id: user.id,
       name: user.name,
+      email: user.email,
       userType: user.userType,
       accountType: user.accountType,
       joinedDate: user.joinedDate,
       location: user.location,
       profileImage: user.profileImage,
+      storefrontImage: user.storefrontImage,
       phone: user.phone,
       website: user.website,
       
@@ -158,7 +160,10 @@ export async function GET(
         tiktok: null
       },
       
-      // Verification status
+      // Verification status (flattened for compatibility with getUserVerificationLevel)
+      verified: user.verified || false,
+      phoneVerified: user.phoneVerified || false,
+      verificationStatus: user.verificationStatus || 'unverified',
       verification: {
         verified: user.verified || false,
         phoneVerified: user.phoneVerified || false,
