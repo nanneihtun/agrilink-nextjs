@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { neon } from '@neondatabase/serverless';
+import jwt from 'jsonwebtoken';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -6,6 +10,10 @@ export async function POST(request: NextRequest) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
 
     const body = await request.json();
     const { phoneNumber, code, verificationSid } = body;
@@ -28,6 +36,24 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Phone number ${phoneNumber} verified with code: ${code}`);
+
+    // Update user verification status in database
+    await sql`
+      UPDATE user_verification 
+      SET 
+        "phoneVerified" = true,
+        "updatedAt" = NOW()
+      WHERE "userId" = ${userId}
+    `;
+
+    // Also update the phone number in user_profiles if it exists
+    await sql`
+      UPDATE user_profiles 
+      SET 
+        phone = ${phoneNumber},
+        "updatedAt" = NOW()
+      WHERE "userId" = ${userId}
+    `;
 
     return NextResponse.json({
       success: true,

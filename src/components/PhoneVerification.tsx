@@ -159,18 +159,37 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
 
       console.log('✅ Phone verification successful');
       
-      // Update localStorage with the new phone verification status
+      // Fetch fresh user data from API to ensure we have the latest verification status
       try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const response = await fetch('/api/user/profile', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const updatedUser = data.user;
+            
+            // Update localStorage with fresh data from API
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            console.log('✅ Updated user data from API after phone verification');
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch updated user data:', error);
+        
+        // Fallback: update localStorage manually
         const currentUserData = localStorage.getItem('user');
         if (currentUserData) {
           const user = JSON.parse(currentUserData);
           user.phoneVerified = true;
           user.phone = phoneNumber;
           localStorage.setItem('user', JSON.stringify(user));
-          console.log('✅ Updated user data in localStorage');
+          console.log('✅ Updated user data in localStorage (fallback)');
         }
-      } catch (error) {
-        console.warn('Failed to update localStorage:', error);
       }
 
       // Call completion callback

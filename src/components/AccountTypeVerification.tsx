@@ -913,12 +913,6 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
           currentUser={currentUser}
           onVerificationComplete={(verifiedPhoneNumber) => {
             // Call verification complete callback to refresh user data
-            // Add a small delay to ensure database update is processed
-            // Then refresh the page to get updated user data
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
-            
             if (onVerificationComplete) {
               onVerificationComplete();
             }
