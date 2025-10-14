@@ -139,7 +139,7 @@ verifyDevDatabase();
     console.log('\n🎉 Development environment setup complete!');
     console.log('\n📋 Next steps:');
     console.log('1. Verify database connection: node verify-dev-db.js');
-    console.log('2. Import production data: psql -d "$(grep DATABASE_URL .env.dev | cut -d'=' -f2)" -f dump.sql');
+    console.log('2. Import production data: psql -d "$(grep DATABASE_URL .env.dev | cut -d\'=\' -f2)" -f dump.sql');
     console.log('3. Test indexes: node apply-indexes.js --env=.env.dev');
     console.log('4. Verify performance: node check-indexes.js --env=.env.dev');
 

@@ -9,8 +9,10 @@
 const { neon } = require('@neondatabase/serverless');
 const { config } = require('dotenv');
 
-// Load environment variables
-config({ path: '.env.local' });
+// Load environment variables (support both dev and prod)
+const envFile = process.argv.includes('--env') ? 
+  process.argv[process.argv.indexOf('--env') + 1] : '.env.local';
+config({ path: envFile });
 
 async function checkIndexes() {
   console.log('🔍 Checking Database Index Status\n');

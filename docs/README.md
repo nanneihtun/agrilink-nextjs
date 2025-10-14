@@ -11,6 +11,11 @@ Welcome to the AgriLink documentation hub! This folder contains all the technica
 ### 👨‍💻 **Developer Resources**
 - **[Developer Guide](DEVELOPER_GUIDE.md)** - Complete development guide with setup, architecture, API documentation, and best practices
 - **[Project Structure](PROJECT_STRUCTURE.md)** - Detailed overview of the project structure, file organization, and architecture
+- **[Pages Documentation](PAGES_DOCUMENTATION.md)** - Comprehensive documentation for all 25 pages with purpose, functionality, and navigation
+- **[API Documentation](API_DOCUMENTATION.md)** - Complete API reference for all 45 endpoints with request/response examples
+- **[Database Analysis](DATABASE_ANALYSIS.md)** - Comprehensive database schema analysis and optimization opportunities
+- **[Database ERD](DATABASE_ERD.md)** - Quick reference Entity Relationship Diagram
+- **[Database ERD Detailed](DATABASE_ERD_DETAILED.md)** - Comprehensive ERD with all 18 tables, relationships, and constraints
 
 ### 🚀 **Deployment & Setup**
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment instructions for production environments
@@ -36,9 +41,9 @@ Welcome to the AgriLink documentation hub! This folder contains all the technica
 
 ## 📈 **Documentation Stats**
 
-- **Total Documents**: 12
+- **Total Documents**: 17
 - **Component Documentation**: 2 files
-- **Developer Resources**: 2 files  
+- **Developer Resources**: 7 files  
 - **Deployment Guides**: 3 files
 - **Project Documentation**: 5 files
 
@@ -49,6 +54,9 @@ Welcome to the AgriLink documentation hub! This folder contains all the technica
 This documentation is maintained alongside the codebase. When making changes to components, APIs, or architecture, please update the relevant documentation files to keep them current.
 
 **Recent Updates**: 
+- ✅ Created comprehensive Database ERD with all 18 tables and relationships
+- ✅ Created comprehensive API Documentation for all 45 endpoints with examples
+- ✅ Created comprehensive Pages Documentation covering all 25 pages
 - ✅ Separated User Journey Flows into dedicated document
 - ✅ Updated all URLs to current production deployment
 - ✅ Cleaned up component references and removed unused components
