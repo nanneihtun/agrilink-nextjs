@@ -54,6 +54,35 @@ export async function POST(request: NextRequest) {
       phoneVerified = false
     } = body;
 
+    // Idempotency guard: if there's already a pending/under_review request, return it instead of inserting a new one
+    const existingOpen = await sql`
+      SELECT id, status, "submittedAt"
+      FROM verification_requests
+      WHERE "userId" = ${userId}
+        AND status IN ('pending', 'under_review')
+      ORDER BY "submittedAt" DESC
+      LIMIT 1
+    `;
+
+    if (existingOpen.length > 0) {
+      console.log('ℹ️ Existing open verification request found, returning existing ID:', existingOpen[0].id);
+      // Ensure user_verification reflects under_review state
+      await sql`
+        UPDATE user_verification 
+        SET 
+          "verificationStatus" = 'under_review',
+          "verificationSubmitted" = true,
+          "updatedAt" = NOW()
+        WHERE "userId" = ${userId}
+      `;
+      return NextResponse.json({
+        success: true,
+        message: 'Verification request already submitted',
+        requestId: existingOpen[0].id,
+        existing: true
+      });
+    }
+
     // Insert verification request into database
     console.log('🔄 Inserting verification request...');
     const result = await sql`
@@ -102,17 +131,7 @@ export async function POST(request: NextRequest) {
     `;
     console.log('✅ User verification status updated');
 
-    // Update agriLinkVerificationRequested in users table
-    console.log('🔄 Updating agriLinkVerificationRequested in users table...');
-    await sql`
-      UPDATE users 
-      SET 
-        "agriLinkVerificationRequested" = true,
-        "agriLinkVerificationRequestedAt" = NOW(),
-        "updatedAt" = NOW()
-      WHERE id = ${userId}
-    `;
-    console.log('✅ agriLinkVerificationRequested updated in users table');
+    // Note: Skipping users table flags (agriLinkVerificationRequested*) as these columns do not exist
 
     return NextResponse.json({
       success: true,

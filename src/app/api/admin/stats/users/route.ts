@@ -25,16 +25,91 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    // Get total user count
-    const [userCount] = await sql`
+    // Get comprehensive user statistics
+    const [
+      totalUsers,
+      userTypeStats,
+      verificationStats,
+      recentUsers,
+      businessUsers
+    ] = await Promise.all([
+      // Total users (excluding admin)
+      sql`SELECT COUNT(*) as count FROM users WHERE "userType" != 'admin'`,
+      
+      // User type breakdown
+      sql`
+        SELECT "userType", COUNT(*) as count
+        FROM users 
+        WHERE "userType" != 'admin'
+        GROUP BY "userType"
+      `,
+      
+      // Verification status breakdown
+      sql`
+        SELECT 
+          uv."verificationStatus",
+          COUNT(*) as count
+        FROM user_verification uv
+        JOIN users u ON uv."userId" = u.id
+        WHERE u."userType" != 'admin'
+        GROUP BY uv."verificationStatus"
+      `,
+      
+      // Recent users (last 7 days)
+      sql`
+        SELECT COUNT(*) as count
+        FROM users
+        WHERE "userType" != 'admin' 
+        AND "createdAt" >= NOW() - INTERVAL '7 days'
+      `,
+      
+      // Business users with completed details
+      sql`
+        SELECT COUNT(*) as count
+        FROM users u
+        JOIN user_verification uv ON u.id = uv."userId"
+        WHERE u."userType" != 'admin' 
+        AND u."accountType" = 'business'
+        AND uv."businessDetailsCompleted" = true
+      `
+    ]);
+
+    // Get verification requests count
+    const [verificationRequests] = await sql`
       SELECT COUNT(*) as count
-      FROM users
-      WHERE "userType" != 'admin'
+      FROM verification_requests
+    `;
+
+    // Get products count
+    const [productsCount] = await sql`
+      SELECT COUNT(*) as count
+      FROM products
+    `;
+
+    // Get offers count
+    const [offersCount] = await sql`
+      SELECT COUNT(*) as count
+      FROM offers
     `;
 
     return NextResponse.json({ 
       success: true, 
-      count: parseInt(userCount.count) 
+      stats: {
+        totalUsers: parseInt(totalUsers[0].count),
+        recentUsers: parseInt(recentUsers[0].count),
+        businessUsers: parseInt(businessUsers[0].count),
+        verificationRequests: parseInt(verificationRequests.count),
+        products: parseInt(productsCount.count),
+        offers: parseInt(offersCount.count),
+        userTypes: userTypeStats.map((stat: any) => ({
+          type: stat.userType,
+          count: parseInt(stat.count)
+        })),
+        verificationStatus: verificationStats.map((stat: any) => ({
+          status: stat.verificationStatus || 'not_started',
+          count: parseInt(stat.count)
+        }))
+      }
     });
 
   } catch (error: any) {

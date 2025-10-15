@@ -55,7 +55,7 @@ interface Offer {
   offerPrice: number;
   quantity: number;
   message?: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'to_ship' | 'shipped' | 'to_receive' | 'completed' | 'cancelled' | 'expired';
+  status: 'pending' | 'accepted' | 'rejected' | 'to_ship' | 'shipped' | 'delivered' | 'received' | 'completed' | 'cancelled' | 'expired';
   deliveryOptions: string[];
   deliveryAddress?: any;
   paymentTerms: string[];
@@ -235,13 +235,19 @@ export default function OffersPage() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className={`grid w-full ${(user.userType === 'farmer' || user.userType === 'buyer') ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {(user.userType === 'buyer' || user.userType === 'trader') && (
-              <TabsTrigger value="sent" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="sent" 
+                className={`flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold transition-colors`}
+              >
                 <Package className="w-4 h-4" />
                 {user.userType === 'buyer' ? 'My Offers' : 'Sent Offers'} ({offers.sent?.length || 0})
               </TabsTrigger>
             )}
             {(user.userType === 'farmer' || user.userType === 'trader') && (
-              <TabsTrigger value="received" className="flex items-center gap-2">
+              <TabsTrigger 
+                value="received" 
+                className={`flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold transition-colors`}
+              >
                 <MessageSquare className="w-4 h-4" />
                 Received Offers ({offers.received?.length || 0})
               </TabsTrigger>

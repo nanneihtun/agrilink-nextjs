@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { db, sql } from '@/lib/db';
+import { offers as offersTable, products as productsTable, productImages, users as usersTable, userProfiles, categories, offerTimeline } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
 
 function verifyToken(request: NextRequest) {
   try {
@@ -46,7 +46,7 @@ export async function PUT(
     });
 
     // Validate status
-    const validStatuses = ['pending', 'accepted', 'rejected', 'to_ship', 'ready_to_pickup', 'shipped', 'to_receive', 'completed', 'cancelled', 'expired'];
+    const validStatuses = ['pending', 'accepted', 'rejected', 'to_ship', 'shipped', 'delivered', 'received', 'completed', 'cancelled', 'expired'];
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { message: 'Invalid status' },
@@ -55,7 +55,7 @@ export async function PUT(
     }
 
     // Check if offer exists and user has permission to update it
-    const [existingOffer] = await sql`
+    const existingOfferResult = await sql`
       SELECT 
         o.id,
         o."buyerId",
@@ -70,6 +70,8 @@ export async function PUT(
       INNER JOIN users seller ON o."sellerId" = seller.id
       WHERE o.id = ${offerId}
     `;
+    
+    const [existingOffer] = existingOfferResult;
 
     if (!existingOffer) {
       return NextResponse.json(
@@ -90,80 +92,98 @@ export async function PUT(
     }
 
     // Get current offer to check delivery options
-    const [currentOffer] = await sql`
+    const currentOfferResult = await sql`
       SELECT "deliveryOptions" FROM offers WHERE id = ${offerId}
     `;
+    
+    const [currentOffer] = currentOfferResult;
 
-    // Auto-complete logic: if buyer marks as "to_receive", automatically complete the transaction
+    // Auto-complete logic: if buyer marks as "received", automatically complete the transaction
     let finalStatus = status;
     
-    if (status === 'to_receive') {
-      // Check if pickup is in delivery options to determine workflow (case-insensitive)
-      const isPickup = currentOffer.deliveryOptions && currentOffer.deliveryOptions.some((option: string) => 
-        option.toLowerCase() === 'pickup'
-      );
-      
-      if (isPickup) {
-        finalStatus = 'completed'; // Auto-complete pickup orders immediately
-      } else {
-        finalStatus = 'completed'; // Auto-complete delivery orders immediately
-      }
+    if (status === 'received') {
+      // For items marked as received by buyer, auto-complete
+      finalStatus = 'completed';
     }
 
-    // Update the offer with new status workflow
+    // Update the offer with new status workflow using Drizzle
     const updateData: any = {
       status: finalStatus,
-      "updatedAt": new Date().toISOString()
+      updatedAt: new Date()
     };
 
     // Add cancellation details if cancelling
     if (finalStatus === 'cancelled') {
+      // Validate cancellation reason for sellers
+      if (isSeller && (!cancellationReason || cancellationReason.trim().length < 10)) {
+        return NextResponse.json(
+          { message: 'Cancellation reason is required and must be at least 10 characters for seller cancellations' },
+          { status: 400 }
+        );
+      }
+      
       updateData.cancelledBy = user.userId;
       updateData.cancellationReason = cancellationReason || null;
     }
 
-    const [updatedOffer] = await sql`
-      UPDATE offers
-      SET 
-        status = ${finalStatus},
-        "updatedAt" = NOW(),
-        ${finalStatus === 'accepted' ? sql`"acceptedAt" = NOW(),` : sql``}
-        ${finalStatus === 'to_ship' ? sql`"readyToShipAt" = NOW(),` : sql``}
-        ${finalStatus === 'ready_to_pickup' ? sql`"readyToPickupAt" = NOW(),` : sql``}
-        ${finalStatus === 'cancelled' ? sql`"cancelledBy" = ${user.userId},` : sql``}
-        ${finalStatus === 'cancelled' ? sql`"cancellationReason" = ${cancellationReason || null},` : sql``}
-        ${finalStatus === 'cancelled' ? sql`"cancelledAt" = NOW(),` : sql``}
-        ${finalStatus === 'shipped' ? sql`"shippedAt" = NOW(),` : sql``}
-        ${status === 'to_receive' ? sql`"receivedAt" = NOW(),` : sql``}
-        ${finalStatus === 'completed' ? sql`"completedAt" = NOW(),` : sql``}
-        "statusUpdatedAt" = NOW()
-      WHERE id = ${offerId}
-      RETURNING *
-    `;
+    // Note: Timestamp fields like acceptedAt, readyToShipAt, etc. are not in the current schema
+    // They would need to be added to the offers table if needed for tracking
+
+    const [updatedOffer] = await db
+      .update(offersTable)
+      .set(updateData)
+      .where(eq(offersTable.id, offerId))
+      .returning();
 
     console.log('✅ Offer updated successfully:', updatedOffer.id);
+
+    // Add timeline entry for status change
+    const statusEventMapping = {
+      'pending': { eventType: 'created', description: 'Created' },
+      'accepted': { eventType: 'accepted', description: 'Accepted' },
+      'rejected': { eventType: 'rejected', description: 'Rejected' },
+      'to_ship': { eventType: 'preparing', description: 'To ship' },
+      'shipped': { eventType: 'shipped', description: 'Shipped' },
+      'delivered': { eventType: 'delivered', description: 'Delivered' },
+      'received': { eventType: 'received', description: 'Received' },
+      'completed': { eventType: 'completed', description: 'Completed' },
+      'cancelled': { eventType: 'cancelled', description: 'Cancelled' },
+      'expired': { eventType: 'expired', description: 'Expired' }
+    };
+
+    const eventInfo = statusEventMapping[finalStatus as keyof typeof statusEventMapping] || { 
+      eventType: 'status_updated', 
+      description: `Status changed to ${finalStatus}` 
+    };
+    
+    await db.insert(offerTimeline).values({
+      offerId: offerId,
+      eventType: eventInfo.eventType,
+      eventDescription: eventInfo.description,
+      eventData: {
+        oldStatus: existingOffer.status,
+        newStatus: finalStatus,
+        changedBy: user.userId,
+        changedAt: new Date().toISOString()
+      },
+      userId: user.userId
+    });
+
+    console.log('✅ Timeline entry added for status change:', finalStatus);
 
     return NextResponse.json({
       offer: {
         id: updatedOffer.id,
         conversationId: updatedOffer.conversationId,
-        offerPrice: parseFloat(updatedOffer.offerPrice),
+        offerPrice: parseFloat(updatedOffer.offerPrice?.toString() || '0'),
         quantity: updatedOffer.quantity,
         message: updatedOffer.message,
         status: updatedOffer.status,
         deliveryOptions: updatedOffer.deliveryOptions || [],
         paymentTerms: updatedOffer.paymentTerms || [],
         expiresAt: updatedOffer.expiresAt,
-        acceptedAt: updatedOffer.acceptedAt,
-        readyToShipAt: updatedOffer.readyToShipAt,
-        readyToPickupAt: updatedOffer.readyToPickupAt,
         createdAt: updatedOffer.createdAt,
         updatedAt: updatedOffer.updatedAt,
-        statusUpdatedAt: updatedOffer.statusUpdatedAt,
-        shippedAt: updatedOffer.shippedAt,
-        receivedAt: updatedOffer.receivedAt,
-        completedAt: updatedOffer.completedAt,
-        cancelledAt: updatedOffer.cancelledAt,
         cancelledBy: updatedOffer.cancelledBy,
         cancellationReason: updatedOffer.cancellationReason
       },
@@ -195,59 +215,54 @@ export async function GET(
       );
     }
 
-    const [offer] = await sql`
+    const offerResult = await sql`
       SELECT 
         o.id,
         o."conversationId",
-        o."offerPrice",
+        o."offerPrice" as "offerPrice",
         o.quantity,
         o.message,
         o.status,
         o."deliveryAddress",
-        o."deliveryOptions",
-        o."paymentTerms",
-        o."expiresAt",
-        o."acceptedAt",
-        o."confirmedAt",
-        o."readyToShipAt",
-        o."readyToPickupAt",
-        o."shippedAt",
-        o."deliveredAt",
-        o."completedAt",
-        o."autoCompleteAt",
+        o."deliveryOptions" as "deliveryOptions",
+        o."paymentTerms" as "paymentTerms",
+        o."expiresAt" as "expiresAt",
         o."createdAt",
         o."updatedAt",
-        o."statusUpdatedAt",
-        o."cancelledAt",
         o."cancelledBy",
         o."cancellationReason",
         p.id as "productId",
         p.name as "productName",
-        p.category as "productCategory",
+        c.name as "productCategory",
         pi."imageData" as "productImage",
         buyer.id as "buyerId",
         buyer.name as "buyerName",
         buyer.email as "buyerEmail",
         buyer."userType" as "buyerType",
         buyer."accountType" as "buyerAccountType",
-        buyer."verificationStatus" as "buyerVerificationLevel",
+        COALESCE(buyer_ver."verificationStatus", 'unverified') as "buyerVerificationLevel",
         buyer_profile."profileImage" as "buyerImage",
         seller.id as "sellerId",
         seller.name as "sellerName",
         seller.email as "sellerEmail",
         seller."userType" as "sellerType",
         seller."accountType" as "sellerAccountType",
-        seller."verificationStatus" as "sellerVerificationLevel",
+        COALESCE(seller_ver."verificationStatus", 'unverified') as "sellerVerificationLevel",
         seller_profile."profileImage" as "sellerImage"
       FROM offers o
       INNER JOIN products p ON o."productId" = p.id
+      LEFT JOIN categories c ON p."categoryId" = c.id
       LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
       INNER JOIN users buyer ON o."buyerId" = buyer.id
       LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
+      LEFT JOIN user_verification buyer_ver ON buyer.id = buyer_ver."userId"
       INNER JOIN users seller ON o."sellerId" = seller.id
       LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
+      LEFT JOIN user_verification seller_ver ON seller.id = seller_ver."userId"
       WHERE o.id = ${offerId}
     `;
+    
+    const [offer] = offerResult;
 
     if (!offer) {
       return NextResponse.json(
@@ -255,6 +270,31 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Fetch timeline events for this offer (simplified query for better performance)
+    const timelineResult = await sql`
+      SELECT 
+        ot.id,
+        ot."eventType",
+        ot."eventDescription",
+        ot."eventData",
+        ot."createdAt",
+        u.name as "userName"
+      FROM offer_timeline ot
+      LEFT JOIN users u ON ot."userId" = u.id
+      WHERE ot."offerId" = ${offerId}
+      ORDER BY ot."createdAt" DESC
+      LIMIT 10
+    `;
+
+    const timeline = timelineResult.map((event: any) => ({
+      id: event.id,
+      eventType: event.eventType,
+      eventDescription: event.eventDescription,
+      eventData: event.eventData,
+      createdAt: event.createdAt,
+      userName: event.userName
+    }));
 
     // Check if user has permission to view this offer
     const isSeller = offer.sellerId === user.userId;
@@ -271,7 +311,7 @@ export async function GET(
       offer: {
         id: offer.id,
         conversationId: offer.conversationId,
-        offerPrice: parseFloat(offer.offerPrice),
+        offerPrice: parseFloat(offer.offerPrice?.toString() || '0'),
         quantity: offer.quantity,
         message: offer.message,
         status: offer.status,
@@ -279,18 +319,19 @@ export async function GET(
         deliveryOptions: offer.deliveryOptions || [],
         paymentTerms: offer.paymentTerms || [],
         expiresAt: offer.expiresAt,
-        acceptedAt: offer.acceptedAt,
-        confirmedAt: offer.confirmedAt,
-        readyToShipAt: offer.readyToShipAt,
-        readyToPickupAt: offer.readyToPickupAt,
-        shippedAt: offer.shippedAt,
-        deliveredAt: offer.deliveredAt,
-        completedAt: offer.completedAt,
-        autoCompleteAt: offer.autoCompleteAt,
+        // Timeline fields - these would come from offerTimeline table if needed
+        acceptedAt: null,
+        confirmedAt: null,
+        readyToShipAt: null,
+        readyToPickupAt: null,
+        shippedAt: null,
+        deliveredAt: null,
+        completedAt: null,
+        autoCompleteAt: null,
+        statusUpdatedAt: offer.updatedAt, // Use updatedAt as fallback
+        cancelledAt: null,
         createdAt: offer.createdAt,
         updatedAt: offer.updatedAt,
-        statusUpdatedAt: offer.statusUpdatedAt,
-        cancelledAt: offer.cancelledAt,
         cancelledBy: offer.cancelledBy,
         cancellationReason: offer.cancellationReason,
         productId: offer.productId,
@@ -303,7 +344,7 @@ export async function GET(
         buyerUserType: offer.buyerType,
         buyerAccountType: offer.buyerAccountType,
         buyerVerificationLevel: offer.buyerVerificationLevel,
-        buyerImage: null, // We don't have buyer image in this query
+        buyerImage: offer.buyerImage,
         sellerId: offer.sellerId,
         sellerName: offer.sellerName,
         sellerEmail: offer.sellerEmail,
@@ -332,7 +373,8 @@ export async function GET(
           accountType: offer.sellerAccountType,
           verificationLevel: offer.sellerVerificationLevel,
           profileImage: offer.sellerImage
-        }
+        },
+        timeline: timeline
       },
       message: 'Offer fetched successfully'
     });

@@ -16,6 +16,7 @@ interface Product {
   description: string;
   price: number;
   unit: string;
+  quantity?: string | number;
   imageUrl?: string;
   seller: {
     id: string;
@@ -132,6 +133,13 @@ export function ProductCard({
             </>
           )}
         </div>
+        
+        {/* Available Stock */}
+        {product.quantity && product.quantity !== 'Contact seller' && (
+          <div className="text-xs text-muted-foreground mb-1">
+            Available: {product.quantity}
+          </div>
+        )}
         
         <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
           <MapPin className="w-3 h-3" />

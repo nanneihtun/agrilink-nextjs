@@ -212,9 +212,11 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     // Check if AgriLink verification was already requested or completed
     const userRequested = (currentUser as any).agriLinkVerificationRequested;
     const isVerified = currentUser.verified;
+    const isUnderReview = currentUser.verificationStatus === 'under_review';
     
-    console.log('✅ AgriLink verification state:', userRequested || isVerified ? 'true' : 'false');
-    setAgriLinkVerificationRequested(userRequested || isVerified);
+    console.log('✅ AgriLink verification state:', (userRequested || isVerified || isUnderReview) ? 'true' : 'false');
+    // Treat under_review as requested so the button shows blue and stays disabled after refresh
+    setAgriLinkVerificationRequested(Boolean(userRequested || isVerified || isUnderReview));
     
     // Reset verification submitted flag when user data refreshes
     if (userRequested || isVerified) {
@@ -222,8 +224,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     }
     
     // Show success message if verification was requested but user is still under review
-    const hasRequestedVerification = userRequested;
-    const isUnderReview = currentUser.verificationStatus === 'under_review';
+    const hasRequestedVerification = userRequested || isUnderReview;
     const isNotYetVerified = !isVerified;
     
     console.log('🔄 Syncing success message state:', {
@@ -235,6 +236,17 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     
     setShowSuccessMessage(hasRequestedVerification && isUnderReview && isNotYetVerified);
   }, [currentUser.verificationStatus, currentUser.verified, (currentUser as any).agriLinkVerificationRequested]);
+
+  // Keep button dimmed/disabled on refresh while under review
+  useEffect(() => {
+    if (currentUser.verificationStatus === 'under_review' && !currentUser.verified) {
+      setIsSubmittingVerification(true);
+      setVerificationSubmitted(true);
+    } else {
+      setIsSubmittingVerification(false);
+      setVerificationSubmitted(false);
+    }
+  }, [currentUser.verificationStatus, currentUser.verified]);
   
   // Monitor verification status changes to hide success message when status changes
   useEffect(() => {

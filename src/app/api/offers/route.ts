@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
 const sql = neon(process.env.DATABASE_URL!);
+import { 
+  offers as offersTable,
+  products as productsTable,
+  productImages,
+  users as usersTable,
+  userProfiles,
+  
+  
+  categories,
+  conversations
+} from '@/lib/db/schema';
+import { eq, and, or, desc } from 'drizzle-orm';
 
 function verifyToken(request: NextRequest) {
   try {
@@ -12,6 +25,18 @@ function verifyToken(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1];
+    
+    // For development mode, try to verify the token, but allow any valid token
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const user = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        return user;
+      } catch (error) {
+        // If token verification fails in development, return null to force re-authentication
+        return null;
+      }
+    }
+    
     const user = jwt.verify(token, process.env.JWT_SECRET!) as any;
     return user;
   } catch (error: any) {
@@ -40,49 +65,47 @@ export async function GET(request: NextRequest) {
     
     console.log('🔍 Offers API - Query params:', { type, status, conversationId });
 
-    // Build the query based on parameters
+    // Build the query based on parameters using Drizzle ORM
     let offers;
     
     if (conversationId) {
-      // Fetch offers for a specific conversation
+      // Fetch offers for a specific conversation with detailed product and user info
       console.log('🔍 Fetching offers for conversation:', conversationId);
-      offers = await sql`
+      const offersResult = await sql`
         SELECT 
           o.id,
           o."conversationId",
-          o."offerPrice",
+          o."offerPrice" as "offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o."deliveryOptions",
-          o."paymentTerms",
-          o."expiresAt",
-          o."acceptedAt",
-          o."confirmedAt",
-          o."readyToShipAt",
-          o."readyToPickupAt",
-          o."shippedAt",
-          o."deliveredAt",
-          o."completedAt",
-          o."autoCompleteAt",
+          o."deliveryAddress",
+          o."deliveryOptions" as "deliveryOptions",
+          o."paymentTerms" as "paymentTerms",
+          o."expiresAt" as "expiresAt",
           o."createdAt",
           o."updatedAt",
+          o."cancelledBy",
+          o."cancellationReason",
           p.id as "productId",
           p.name as "productName",
-          p.category as "productCategory",
+          c.name as "productCategory",
           pi."imageData" as "productImage",
           buyer.id as "buyerId",
           buyer.name as "buyerName",
+          buyer.email as "buyerEmail",
           buyer."userType" as "buyerType",
           buyer."accountType" as "buyerAccountType",
           buyer_profile."profileImage" as "buyerImage",
           seller.id as "sellerId",
           seller.name as "sellerName",
+          seller.email as "sellerEmail",
           seller."userType" as "sellerType",
           seller."accountType" as "sellerAccountType",
           seller_profile."profileImage" as "sellerImage"
         FROM offers o
         INNER JOIN products p ON o."productId" = p.id
+        LEFT JOIN categories c ON p."categoryId" = c.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
         INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
@@ -91,45 +114,45 @@ export async function GET(request: NextRequest) {
         WHERE o."conversationId" = ${conversationId}
         ORDER BY o."createdAt" DESC
       `;
+      offers = offersResult;
       console.log('✅ Offers query executed, found', offers.length, 'offers');
     } else if (type === 'sent') {
-      offers = await sql`
+      // Fetch sent offers with detailed product and user info
+      const sentOffersResult = await sql`
         SELECT 
           o.id,
           o."conversationId",
-          o."offerPrice",
+          o."offerPrice" as "offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o."deliveryOptions",
-          o."paymentTerms",
-          o."expiresAt",
-          o."acceptedAt",
-          o."confirmedAt",
-          o."readyToShipAt",
-          o."readyToPickupAt",
-          o."shippedAt",
-          o."deliveredAt",
-          o."completedAt",
-          o."autoCompleteAt",
+          o."deliveryAddress",
+          o."deliveryOptions" as "deliveryOptions",
+          o."paymentTerms" as "paymentTerms",
+          o."expiresAt" as "expiresAt",
           o."createdAt",
           o."updatedAt",
+          o."cancelledBy",
+          o."cancellationReason",
           p.id as "productId",
           p.name as "productName",
-          p.category as "productCategory",
+          c.name as "productCategory",
           pi."imageData" as "productImage",
           buyer.id as "buyerId",
           buyer.name as "buyerName",
+          buyer.email as "buyerEmail",
           buyer."userType" as "buyerType",
           buyer."accountType" as "buyerAccountType",
           buyer_profile."profileImage" as "buyerImage",
           seller.id as "sellerId",
           seller.name as "sellerName",
+          seller.email as "sellerEmail",
           seller."userType" as "sellerType",
           seller."accountType" as "sellerAccountType",
           seller_profile."profileImage" as "sellerImage"
         FROM offers o
         INNER JOIN products p ON o."productId" = p.id
+        LEFT JOIN categories c ON p."categoryId" = c.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
         INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
@@ -138,44 +161,44 @@ export async function GET(request: NextRequest) {
         WHERE o."buyerId" = ${user.userId}
         ORDER BY o."createdAt" DESC
       `;
+      offers = sentOffersResult;
     } else if (type === 'received') {
-      offers = await sql`
+      // Fetch received offers with detailed product and user info
+      const receivedOffersResult = await sql`
         SELECT 
           o.id,
           o."conversationId",
-          o."offerPrice",
+          o."offerPrice" as "offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o."deliveryOptions",
-          o."paymentTerms",
-          o."expiresAt",
-          o."acceptedAt",
-          o."confirmedAt",
-          o."readyToShipAt",
-          o."readyToPickupAt",
-          o."shippedAt",
-          o."deliveredAt",
-          o."completedAt",
-          o."autoCompleteAt",
+          o."deliveryAddress",
+          o."deliveryOptions" as "deliveryOptions",
+          o."paymentTerms" as "paymentTerms",
+          o."expiresAt" as "expiresAt",
           o."createdAt",
           o."updatedAt",
+          o."cancelledBy",
+          o."cancellationReason",
           p.id as "productId",
           p.name as "productName",
-          p.category as "productCategory",
+          c.name as "productCategory",
           pi."imageData" as "productImage",
           buyer.id as "buyerId",
           buyer.name as "buyerName",
+          buyer.email as "buyerEmail",
           buyer."userType" as "buyerType",
           buyer."accountType" as "buyerAccountType",
           buyer_profile."profileImage" as "buyerImage",
           seller.id as "sellerId",
           seller.name as "sellerName",
+          seller.email as "sellerEmail",
           seller."userType" as "sellerType",
           seller."accountType" as "sellerAccountType",
           seller_profile."profileImage" as "sellerImage"
         FROM offers o
         INNER JOIN products p ON o."productId" = p.id
+        LEFT JOIN categories c ON p."categoryId" = c.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
         INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
@@ -184,96 +207,90 @@ export async function GET(request: NextRequest) {
         WHERE o."sellerId" = ${user.userId}
         ORDER BY o."createdAt" DESC
       `;
+      offers = receivedOffersResult;
     } else {
-      // Default: fetch all offers for the user (both sent and received)
-      offers = await sql`
+      // Default: fetch all offers for the user (both sent and received) with detailed info
+      const allOffersResult = await sql`
         SELECT 
           o.id,
           o."conversationId",
-          o."offerPrice",
+          o."offerPrice" as "offerPrice",
           o.quantity,
           o.message,
           o.status,
-          o."deliveryOptions",
-          o."paymentTerms",
-          o."expiresAt",
-          o."acceptedAt",
-          o."confirmedAt",
-          o."readyToShipAt",
-          o."readyToPickupAt",
-          o."shippedAt",
-          o."deliveredAt",
-          o."completedAt",
-          o."autoCompleteAt",
+          o."deliveryAddress",
+          o."deliveryOptions" as "deliveryOptions",
+          o."paymentTerms" as "paymentTerms",
+          o."expiresAt" as "expiresAt",
           o."createdAt",
           o."updatedAt",
+          o."cancelledBy",
+          o."cancellationReason",
           p.id as "productId",
           p.name as "productName",
-          p.category as "productCategory",
+          c.name as "productCategory",
           pi."imageData" as "productImage",
           buyer.id as "buyerId",
           buyer.name as "buyerName",
+          buyer.email as "buyerEmail",
           buyer."userType" as "buyerType",
           buyer."accountType" as "buyerAccountType",
           buyer_profile."profileImage" as "buyerImage",
           seller.id as "sellerId",
           seller.name as "sellerName",
+          seller.email as "sellerEmail",
           seller."userType" as "sellerType",
           seller."accountType" as "sellerAccountType",
           seller_profile."profileImage" as "sellerImage"
         FROM offers o
         INNER JOIN products p ON o."productId" = p.id
+        LEFT JOIN categories c ON p."categoryId" = c.id
         LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
         INNER JOIN users buyer ON o."buyerId" = buyer.id
         LEFT JOIN user_profiles buyer_profile ON buyer.id = buyer_profile."userId"
         INNER JOIN users seller ON o."sellerId" = seller.id
         LEFT JOIN user_profiles seller_profile ON seller.id = seller_profile."userId"
-        WHERE o."buyerId" = ${user.userId} OR o."sellerId" = ${user.userId}
+        WHERE (o."buyerId" = ${user.userId} OR o."sellerId" = ${user.userId})
         ORDER BY o."createdAt" DESC
       `;
+      offers = allOffersResult;
     }
 
     console.log('🔍 Offers API - Query successful, found', offers.length, 'offers');
 
-    const transformedOffers = offers.map(offer => ({
+    const transformedOffers = offers.map((offer: any) => ({
       id: offer.id,
       conversationId: offer.conversationId,
-      offerPrice: parseFloat(offer.offerPrice),
+      offerPrice: parseFloat(offer.offerPrice?.toString() || '0'),
       quantity: offer.quantity,
       message: offer.message,
       status: offer.status,
       deliveryOptions: offer.deliveryOptions || [],
       paymentTerms: offer.paymentTerms || [],
       expiresAt: offer.expiresAt,
-      acceptedAt: offer.acceptedAt,
-      confirmedAt: offer.confirmedAt,
-      readyToShipAt: offer.readyToShipAt,
-      readyToPickupAt: offer.readyToPickupAt,
-      shippedAt: offer.shippedAt,
-      deliveredAt: offer.deliveredAt,
-      completedAt: offer.completedAt,
-      autoCompleteAt: offer.autoCompleteAt,
       createdAt: offer.createdAt,
       updatedAt: offer.updatedAt,
+      cancelledBy: offer.cancelledBy,
+      cancellationReason: offer.cancellationReason,
       product: {
         id: offer.productId,
-        name: offer.productName,
-        category: offer.productCategory,
-        image: offer.productImage
+        name: offer.productName || 'Unknown Product',
+        category: offer.productCategory || 'Uncategorized',
+        image: offer.productImage || '/api/placeholder/400/300'
       },
       buyer: {
         id: offer.buyerId,
-        name: offer.buyerName,
-        userType: offer.buyerType,
-        accountType: offer.buyerAccountType,
-        profileImage: offer.buyerImage
+        name: offer.buyerName || 'Unknown Buyer',
+        userType: offer.buyerType || 'farmer',
+        accountType: offer.buyerAccountType || 'individual',
+        profileImage: offer.buyerImage || '/api/placeholder/150/150'
       },
       seller: {
         id: offer.sellerId,
-        name: offer.sellerName,
-        userType: offer.sellerType,
-        accountType: offer.sellerAccountType,
-        profileImage: offer.sellerImage
+        name: offer.sellerName || 'Unknown Seller',
+        userType: offer.sellerType || 'farmer',
+        accountType: offer.sellerAccountType || 'individual',
+        profileImage: offer.sellerImage || '/api/placeholder/150/150'
       }
     }));
 
@@ -283,11 +300,12 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
+    const { searchParams } = new URL(request.url);
     console.error('❌ Error fetching offers:', {
       message: error.message,
       stack: error.stack,
-      query: conversationId ? 'conversationId query' : 'other query',
-      conversationId: conversationId || 'none'
+      query: searchParams.get('conversationId') ? 'conversationId query' : 'other query',
+      conversationId: searchParams.get('conversationId') || 'none'
     });
     return NextResponse.json(
       { message: 'Internal server error', error: error.message, details: error.stack },
@@ -338,13 +356,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get product and seller info
-    const product = await sql`
-      SELECT p.*, u.id as "sellerId", u."userType" as "sellerType"
-      FROM products p
-      INNER JOIN users u ON p."sellerId" = u.id
-      WHERE p.id = ${productId}
-    `;
+    // Get product and seller info using normalized structure
+    const product = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        sellerId: productsTable.sellerId,
+        sellerType: productsTable.sellerType,
+        sellerName: productsTable.sellerName,
+      })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .limit(1);
 
     if (product.length === 0) {
       return NextResponse.json(
@@ -364,12 +387,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is a farmer (farmers can't make offers, only traders/buyers can)
-    const currentUser = await sql`
-      SELECT "userType" FROM users WHERE id = ${user.userId}
-    `;
+    const currentUser = await db
+      .select({
+        userType: usersTable.userType,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, user.userId))
+      .limit(1);
 
     // Only buyers and traders can make offers (farmers sell products)
-    if (currentUser[0]?.userType === 'farmer') {
+    if (currentUser.length > 0 && currentUser[0].userType === 'farmer') {
       return NextResponse.json(
         { message: 'Farmers cannot make offers, they sell products' },
         { status: 400 }
@@ -378,55 +405,67 @@ export async function POST(request: NextRequest) {
 
     // Get or create conversation between buyer and seller
     let conversationId;
-    const existingConversation = await sql`
-      SELECT id FROM conversations 
-      WHERE ("buyerId" = ${user.userId} AND "sellerId" = ${productData.sellerId})
-         OR ("buyerId" = ${productData.sellerId} AND "sellerId" = ${user.userId})
-      LIMIT 1
-    `;
+    const existingConversation = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(
+        or(
+          and(eq(conversations.buyerId, user.userId), eq(conversations.sellerId, productData.sellerId)),
+          and(eq(conversations.buyerId, productData.sellerId), eq(conversations.sellerId, user.userId))
+        )
+      )
+      .limit(1);
     
     if (existingConversation.length > 0) {
       conversationId = existingConversation[0].id;
     } else {
       // Create new conversation
-      const [newConversation] = await sql`
-        INSERT INTO conversations ("buyerId", "sellerId", "productId", "createdAt")
-        VALUES (${user.userId}, ${productData.sellerId}, ${productId}, NOW())
-        RETURNING id
-      `;
-      conversationId = newConversation.id;
+      const newConversation = await db
+        .insert(conversations)
+        .values({
+          buyerId: user.userId,
+          sellerId: productData.sellerId,
+          productId: productId,
+        })
+        .returning({ id: conversations.id });
+      conversationId = newConversation[0].id;
     }
 
-    // Create the offer
-    const [newOffer] = await sql`
-      INSERT INTO offers (
-        "productId", "buyerId", "sellerId", "conversationId", "offerPrice", quantity, 
-        message, status, "deliveryAddress", "deliveryOptions", "paymentTerms",
-        "expiresAt", "createdAt", "updatedAt"
-      )
-      VALUES (
-        ${productId}, ${user.userId}, ${productData.sellerId}, ${conversationId}, 
-        ${offerPrice}, ${quantity}, ${message || null}, 'pending', 
-        ${deliveryAddress ? JSON.stringify(deliveryAddress) : null},
-        ${deliveryOptions || null}, ${paymentTerms || null},
-        NOW() + INTERVAL '1 hour' * ${expirationHours || 24}, NOW(), NOW()
-      )
-      RETURNING *
-    `;
+    // Create the offer using normalized structure
+    const expirationDate = new Date();
+    expirationDate.setHours(expirationDate.getHours() + (expirationHours || 24));
+
+    const newOffer = await db
+      .insert(offersTable)
+      .values({
+        productId: productId,
+        buyerId: user.userId,
+        sellerId: productData.sellerId,
+        conversationId: conversationId,
+        offerPrice: offerPrice.toString(),
+        quantity: quantity,
+        message: message || null,
+        status: 'pending',
+        deliveryAddress: deliveryAddress || null,
+        deliveryOptions: deliveryOptions || null,
+        paymentTerms: paymentTerms || null,
+        expiresAt: expirationDate,
+      })
+      .returning();
 
     return NextResponse.json({
       offer: {
-        id: newOffer.id,
-        conversationId: newOffer.conversationId,
-        offerPrice: parseFloat(newOffer.offerPrice),
-        quantity: newOffer.quantity,
-        message: newOffer.message,
-        status: newOffer.status,
-        deliveryOptions: newOffer.deliveryOptions || [],
-        paymentTerms: newOffer.paymentTerms || [],
-        expiresAt: newOffer.expiresAt,
-        createdAt: newOffer.createdAt,
-        updatedAt: newOffer.updatedAt
+        id: newOffer[0].id,
+        conversationId: newOffer[0].conversationId,
+        offerPrice: parseFloat(newOffer[0].offerPrice?.toString() || '0'),
+        quantity: newOffer[0].quantity,
+        message: newOffer[0].message,
+        status: newOffer[0].status,
+        deliveryOptions: newOffer[0].deliveryOptions || [],
+        paymentTerms: newOffer[0].paymentTerms || [],
+        expiresAt: newOffer[0].expiresAt,
+        createdAt: newOffer[0].createdAt,
+        updatedAt: newOffer[0].updatedAt
       },
       message: 'Offer created successfully'
     });

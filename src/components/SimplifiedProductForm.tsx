@@ -86,8 +86,8 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         name: editingProduct.name || '',
         price: editingProduct.price || 0,
         unit: editingProduct.unit || '',
-        location: editingProduct.location || currentUser?.location || '',
-        region: editingProduct.region || currentUser?.region || 'yangon',
+        location: editingProduct.location || '', // Use product's location or let user choose
+        region: editingProduct.region || '', // Use product's region or let user choose
         sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
         sellerName: editingProduct.sellerName || currentUser?.name || '',
         image: primaryImage,
@@ -130,8 +130,8 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       name: '',
       price: 0,
       unit: '',
-      location: currentUser?.location || '',
-      region: currentUser?.region || 'yangon', // Default to Yangon if no region set
+      location: '', // Let user choose any city
+      region: '', // Let user choose any region
       sellerType: currentUser?.userType || 'farmer',
       sellerName: currentUser?.name || '',
       image: '',
@@ -160,8 +160,8 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         name: editingProduct.name || '',
         price: editingProduct.price || 0,
         unit: editingProduct.unit || '',
-        location: editingProduct.location || currentUser?.location || '',
-        region: editingProduct.region || currentUser?.region || 'yangon',
+        location: editingProduct.location || '', // Use product's location or let user choose
+        region: editingProduct.region || '', // Use product's region or let user choose
         sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
         sellerName: editingProduct.sellerName || currentUser?.name || '',
         image: editingProduct.image || editingProduct.imageUrl || '',
@@ -314,14 +314,14 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     }
     
     if (!formData.location?.trim()) {
-      errors.location = 'City/Location is required';
+      errors.location = 'City is required';
     }
     
-    if (formData.deliveryOptions.length === 0) {
+    if (!formData.deliveryOptions || formData.deliveryOptions.length === 0) {
       errors.deliveryOptions = 'At least one delivery option is required';
     }
     
-    if (formData.paymentTerms.length === 0) {
+    if (!formData.paymentTerms || formData.paymentTerms.length === 0) {
       errors.paymentTerms = 'At least one payment term is required';
     }
     
@@ -333,9 +333,9 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   const toggleDeliveryOption = useCallback((option: string) => {
     setFormData(prev => ({
       ...prev,
-      deliveryOptions: prev.deliveryOptions.includes(option)
-        ? prev.deliveryOptions.filter(o => o !== option)
-        : [...prev.deliveryOptions, option]
+      deliveryOptions: (prev.deliveryOptions || []).includes(option)
+        ? (prev.deliveryOptions || []).filter(o => o !== option)
+        : [...(prev.deliveryOptions || []), option]
     }));
   }, []);
 
@@ -343,9 +343,9 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   const togglePaymentTerm = useCallback((term: string) => {
     setFormData(prev => ({
       ...prev,
-      paymentTerms: prev.paymentTerms.includes(term)
-        ? prev.paymentTerms.filter(t => t !== term)
-        : [...prev.paymentTerms, term]
+      paymentTerms: (prev.paymentTerms || []).includes(term)
+        ? (prev.paymentTerms || []).filter(t => t !== term)
+        : [...(prev.paymentTerms || []), term]
     }));
   }, []);
 
@@ -368,7 +368,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     // Also remove from current form if selected
     setFormData(prev => ({
       ...prev,
-      deliveryOptions: prev.deliveryOptions.filter(o => o !== option)
+      deliveryOptions: (prev.deliveryOptions || []).filter(o => o !== option)
     }));
   }, [availableCustomDeliveryOptions, saveCustomDeliveryToStorage]);
 
@@ -391,7 +391,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     // Also remove from current form if selected
     setFormData(prev => ({
       ...prev,
-      paymentTerms: prev.paymentTerms.filter(t => t !== term)
+      paymentTerms: (prev.paymentTerms || []).filter(t => t !== term)
     }));
   }, [availableCustomPaymentTerms, saveCustomPaymentTermsToStorage]);
 
@@ -859,7 +859,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="location">City/Location *</Label>
+              <Label htmlFor="location">City *</Label>
               <Select 
                 value={formData.location} 
                 onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}
@@ -892,7 +892,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
                 <div key={option} className="flex items-center space-x-2">
                   <Checkbox
                     id={`delivery-${option}`}
-                    checked={formData.deliveryOptions.includes(option)}
+                    checked={(formData.deliveryOptions || []).includes(option)}
                     onCheckedChange={() => toggleDeliveryOption(option)}
                   />
                   <Label 
@@ -956,7 +956,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
                 <div key={term} className="flex items-center space-x-2">
                   <Checkbox
                     id={`payment-${term}`}
-                    checked={formData.paymentTerms.includes(term)}
+                    checked={(formData.paymentTerms || []).includes(term)}
                     onCheckedChange={() => togglePaymentTerm(term)}
                   />
                   <Label 

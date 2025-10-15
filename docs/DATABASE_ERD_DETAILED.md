@@ -629,3 +629,7 @@ erDiagram
 *This ERD provides a comprehensive view of the AgriLink database structure, enabling developers to understand relationships, optimize queries, and extend the system effectively.*
 
 
+
+
+
+

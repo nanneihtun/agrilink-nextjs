@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { users, userProfiles, userVerification, userRatings, locations } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,29 +16,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user from database with all related data
-    const users = await sql`
-      SELECT 
-        u.id, u.email, u.name, u."passwordHash", u."userType", u."accountType",
-        up.location, up.phone, up."profileImage",
-        uv.verified, uv."phoneVerified", uv."verificationStatus",
-        ur.rating, ur."totalReviews"
-      FROM users u
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      LEFT JOIN user_verification uv ON u.id = uv."userId"
-      LEFT JOIN user_ratings ur ON u.id = ur."userId"
-      WHERE u.email = ${email}
-      LIMIT 1
-    `;
+    // Get user from database with all related data using Drizzle (simplified structure)
+    const userResult = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        passwordHash: users.passwordHash,
+        emailVerified: users.emailVerified,
+        userType: users.userType,
+        accountType: users.accountType,
+        phone: userProfiles.phone,
+        profileImage: userProfiles.profileImage,
+        location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
+        region: locations.region,
+        city: locations.city,
+        verified: userVerification.verified,
+        phoneVerified: userVerification.phoneVerified,
+        verificationStatus: userVerification.verificationStatus,
+        rating: userRatings.rating,
+        totalReviews: userRatings.totalReviews,
+      })
+      .from(users)
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .leftJoin(locations, eq(userProfiles.locationId, locations.id))
+      .leftJoin(userVerification, eq(users.id, userVerification.userId))
+      .leftJoin(userRatings, eq(users.id, userRatings.userId))
+      .where(eq(users.email, email))
+      .limit(1);
 
-    if (users.length === 0) {
+    if (userResult.length === 0) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    const user = users[0];
+    const user = userResult[0];
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
@@ -69,13 +83,16 @@ export async function POST(request: NextRequest) {
       name: user.name,
       userType: user.userType,
       accountType: user.accountType,
+      emailVerified: user.emailVerified,
       location: user.location,
+      region: user.region,
+      city: user.city,
       phone: user.phone,
       profileImage: user.profileImage,
       verified: user.verified,
       phoneVerified: user.phoneVerified,
       verificationStatus: user.verificationStatus,
-      rating: parseFloat(user.rating) || 0,
+      rating: parseFloat(user.rating?.toString() || '0'),
       totalReviews: user.totalReviews || 0,
     };
 

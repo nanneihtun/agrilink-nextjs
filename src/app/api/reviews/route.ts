@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { db, sql } from '@/lib/db';
+import { offerReviews, userRatings, offers as offersTable, products as productsTable, users as usersTable, userProfiles } from '@/lib/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
 
 function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     if (offerId) {
       // Get reviews for a specific offer
-      const reviews = await sql`
+      const reviewsResult = await sql`
         SELECT 
           r.id,
           r.rating,
@@ -61,6 +61,8 @@ export async function GET(request: NextRequest) {
         WHERE r."offerId" = ${offerId}
         ORDER BY r."createdAt" DESC
       `;
+      
+      const reviews = reviewsResult;
 
       return NextResponse.json({
         reviews: reviews.map(review => ({
@@ -89,7 +91,7 @@ export async function GET(request: NextRequest) {
 
     if (userId) {
       // Get reviews for a specific user (reviews they received)
-      const reviews = await sql`
+      const reviewsResult = await sql`
         SELECT 
           r.id,
           r.rating,
@@ -111,6 +113,8 @@ export async function GET(request: NextRequest) {
         WHERE r."revieweeId" = ${userId}
         ORDER BY r."createdAt" DESC
       `;
+      
+      const reviews = reviewsResult;
 
       return NextResponse.json({
         reviews: reviews.map(review => ({
@@ -177,7 +181,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if offer exists and is completed
-    const [offer] = await sql`
+    const offerResult = await sql`
       SELECT 
         o.id,
         o.status,
@@ -190,6 +194,8 @@ export async function POST(request: NextRequest) {
       INNER JOIN users seller ON o."sellerId" = seller.id
       WHERE o.id = ${offerId}
     `;
+    
+    const [offer] = offerResult;
 
     if (!offer) {
       return NextResponse.json(
@@ -220,10 +226,12 @@ export async function POST(request: NextRequest) {
     const revieweeId = isBuyer ? offer.sellerId : offer.buyerId;
 
     // Check if user has already reviewed this offer
-    const [existingReview] = await sql`
+    const existingReviewResult = await sql`
       SELECT id FROM offer_reviews 
       WHERE "offerId" = ${offerId} AND "reviewerId" = ${user.userId}
     `;
+    
+    const [existingReview] = existingReviewResult;
 
     if (existingReview) {
       return NextResponse.json(
@@ -232,33 +240,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the review
-    const [newReview] = await sql`
-      INSERT INTO offer_reviews ("offerId", "reviewerId", "revieweeId", rating, comment)
-      VALUES (${offerId}, ${user.userId}, ${revieweeId}, ${rating}, ${comment || null})
-      RETURNING *
-    `;
+    // Create the review using Drizzle
+    const [newReview] = await db
+      .insert(offerReviews)
+      .values({
+        offerId,
+        reviewerId: user.userId,
+        revieweeId,
+        rating,
+        comment: comment || null
+      })
+      .returning();
 
     // Update user_ratings table with new average rating and total reviews
-    const allReviewsForUser = await sql`
+    const allReviewsResult = await sql`
       SELECT rating FROM offer_reviews WHERE "revieweeId" = ${revieweeId}
     `;
-
+    
+    const allReviewsForUser = allReviewsResult;
     const totalReviews = allReviewsForUser.length;
     const averageRating = totalReviews > 0 
       ? allReviewsForUser.reduce((sum, review) => sum + review.rating, 0) / totalReviews 
       : 0;
 
-    // Upsert user_ratings table
-    await sql`
-      INSERT INTO user_ratings ("userId", rating, "totalReviews", "updatedAt")
-      VALUES (${revieweeId}, ${averageRating}, ${totalReviews}, NOW())
-      ON CONFLICT ("userId") 
-      DO UPDATE SET 
-        rating = ${averageRating},
-        "totalReviews" = ${totalReviews},
-        "updatedAt" = NOW()
-    `;
+    // Upsert user_ratings table using Drizzle
+    await db
+      .insert(userRatings)
+      .values({
+        userId: revieweeId,
+        rating: averageRating.toFixed(2),
+        totalReviews: totalReviews,
+        updatedAt: new Date()
+      })
+      .onConflictDoUpdate({
+        target: userRatings.userId,
+        set: {
+          rating: averageRating.toFixed(2),
+          totalReviews: totalReviews,
+          updatedAt: new Date()
+        }
+      });
 
     return NextResponse.json({
       review: {

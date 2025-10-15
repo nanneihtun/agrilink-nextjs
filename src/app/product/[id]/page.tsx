@@ -93,10 +93,10 @@ export default function ProductDetailsPage() {
 
   const loadProduct = async () => {
     try {
-      const response = await fetch(`/api/products/${productId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProduct(data.product);
+        const response = await fetch(`/api/products/${productId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProduct(data.product);
         
         // Fetch seller stats if we have a seller ID
         if (data.product?.sellerId) {
@@ -542,45 +542,46 @@ export default function ProductDetailsPage() {
                   )}
                 </div>
 
-                {/* Payment Terms */}
-                {product.paymentTerms && product.paymentTerms.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-muted-foreground" />
-                        Payment Terms
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {product.paymentTerms.map((term, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {term}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
+                {/* Payment Terms - Always show for debugging */}
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    Payment Terms
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {product.paymentTerms && product.paymentTerms.length > 0 ? (
+                      product.paymentTerms.map((term, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {term}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No payment terms specified</span>
+                    )}
+                  </div>
+                </div>
 
-                {/* Delivery Options */}
-                {product.deliveryOptions && product.deliveryOptions.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2">
-                        <Truck className="w-4 h-4 text-muted-foreground" />
-                        Delivery Options
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {product.deliveryOptions.map((option, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {option}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
+                {/* Delivery Options - Always show for debugging */}
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    Delivery Options
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {product.deliveryOptions && product.deliveryOptions.length > 0 ? (
+                      product.deliveryOptions.map((option, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {option}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No delivery options specified</span>
+                    )}
+                  </div>
+                </div>
+
 
                 {/* Additional Notes */}
                 {product.additionalNotes && (

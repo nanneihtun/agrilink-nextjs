@@ -22,11 +22,21 @@ import {
   Calendar,
   User,
   Mail,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
 import { OfferStatusManager } from "@/components/OfferStatusManager";
 import { ReviewSection } from "@/components/ReviewSection";
 import { AccountTypeBadge, PublicVerificationStatus } from "@/components/UserBadgeSystem";
+
+interface TimelineEvent {
+  id: string;
+  eventType: string;
+  eventDescription: string;
+  eventData: any;
+  createdAt: string;
+  userName?: string;
+}
 
 interface OfferDetails {
   id: string;
@@ -68,7 +78,7 @@ interface OfferDetails {
   offerPrice: number;
   quantity: number;
   message?: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'to_ship' | 'shipped' | 'to_receive' | 'completed' | 'cancelled' | 'expired';
+  status: 'pending' | 'accepted' | 'rejected' | 'to_ship' | 'shipped' | 'delivered' | 'received' | 'completed' | 'cancelled' | 'expired';
   deliveryOptions: string[];
   deliveryAddress?: any;
   paymentTerms?: string[];
@@ -87,6 +97,7 @@ interface OfferDetails {
   cancelledAt?: string;
   cancelledBy?: string;
   cancellationReason?: string;
+  timeline?: TimelineEvent[];
 }
 
 export default function OfferDetailsPage() {
@@ -176,9 +187,11 @@ export default function OfferDetailsPage() {
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setOffer(data.offer);
+          if (response.ok) {
+            const data = await response.json();
+            console.log('📊 Offer details API response:', data);
+            console.log('📊 Timeline data:', data.offer?.timeline);
+            setOffer(data.offer);
       } else if (response.status === 404) {
         setError("Offer not found");
       } else if (response.status === 403) {
@@ -276,10 +289,9 @@ export default function OfferDetailsPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit'
     });
   };
@@ -457,10 +469,27 @@ export default function OfferDetailsPage() {
                   <div>
                     <label className="text-sm font-medium text-gray-700">Delivery Address</label>
                     <div className="mt-1 p-3 bg-gray-50 rounded-lg">
-                      <p className="font-medium">{offer.deliveryAddress.label}</p>
-                      <p className="text-gray-600">
-                        {offer.deliveryAddress.addressLine1}, {offer.deliveryAddress.city}
-                      </p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <span className="font-medium">{offer.deliveryAddress.label || 'Delivery Address'}</span>
+                      </div>
+                      <div className="text-sm text-gray-600 space-y-1">
+                        {offer.deliveryAddress.fullName && (
+                          <p className="font-medium">{offer.deliveryAddress.fullName}</p>
+                        )}
+                        <p>{offer.deliveryAddress.addressLine1}</p>
+                        {offer.deliveryAddress.addressLine2 && offer.deliveryAddress.addressLine2.trim() !== '' && (
+                          <p>{offer.deliveryAddress.addressLine2}</p>
+                        )}
+                        <p>
+                          {[offer.deliveryAddress.city, offer.deliveryAddress.state]
+                            .filter(field => field && field.trim() !== '')
+                            .join(', ')}
+                        </p>
+                        {offer.deliveryAddress.postalCode && <p>{offer.deliveryAddress.postalCode}</p>}
+                        <p>{offer.deliveryAddress.country || 'Myanmar'}</p>
+                        {offer.deliveryAddress.phone && <p>{offer.deliveryAddress.phone}</p>}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -540,7 +569,17 @@ export default function OfferDetailsPage() {
                     )}
                   </div>
                   <div>
-                    <p className="font-semibold">{otherParty.name}</p>
+                    <button
+                      onClick={() => {
+                        const targetUrl = isBuyer ? `/seller/${otherParty.id}` : `/user/${otherParty.id}`;
+                        window.open(targetUrl, '_blank');
+                      }}
+                      className="font-semibold text-green-600 hover:text-green-700 hover:underline transition-colors cursor-pointer text-left flex items-center gap-1 group hover:bg-green-50 px-1 py-0.5 rounded"
+                      title={`View ${isBuyer ? 'seller' : 'buyer'} profile`}
+                    >
+                      {otherParty.name}
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
                     <div className="flex items-center gap-2 mt-1">
                       <AccountTypeBadge 
                         userType={otherParty.userType}
@@ -577,58 +616,110 @@ export default function OfferDetailsPage() {
 
             {/* Timeline */}
             <Card className="border-primary/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-green-600" />
-                  Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span>Created: {formatDate(offer.createdAt)}</span>
-                </div>
-                {offer.acceptedAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span>Accepted: {formatDate(offer.acceptedAt)}</span>
-                  </div>
-                )}
-                {offer.readyToShipAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Package className="w-4 h-4 text-purple-600" />
-                    <span>Ready to Ship: {formatDate(offer.readyToShipAt)}</span>
-                  </div>
-                )}
-                {offer.readyToPickupAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Package className="w-4 h-4 text-purple-600" />
-                    <span>Ready to Pick Up: {formatDate(offer.readyToPickupAt)}</span>
-                  </div>
-                )}
-                {offer.shippedAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Truck className="w-4 h-4 text-indigo-600" />
-                    <span>Shipped: {formatDate(offer.shippedAt)}</span>
-                  </div>
-                )}
-                {offer.deliveredAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle className="w-4 h-4 text-orange-600" />
-                    <span>Delivered: {formatDate(offer.deliveredAt)}</span>
-                  </div>
-                )}
-                {offer.completedAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span>Completed: {formatDate(offer.completedAt)}</span>
-                  </div>
-                )}
-                {offer.cancelledAt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <XCircle className="w-4 h-4 text-red-600" />
-                    <span>Cancelled: {formatDate(offer.cancelledAt)}</span>
-                  </div>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-green-600" />
+            Timeline
+          </CardTitle>
+        </CardHeader>
+              <CardContent className="space-y-2">
+                {/* Show timeline events if available, otherwise fallback to individual timestamps */}
+                {offer.timeline && offer.timeline.length > 0 ? (
+                  offer.timeline.map((event, index) => {
+                    const getEventIcon = (eventType: string) => {
+                      switch (eventType) {
+                        case 'created':
+                          return <Clock className="w-3 h-3 text-gray-400" />;
+                        case 'accepted':
+                          return <CheckCircle className="w-3 h-3 text-green-600" />;
+                        case 'rejected':
+                          return <XCircle className="w-3 h-3 text-red-600" />;
+                        case 'preparing':
+                        case 'ready_to_pickup':
+                          return <Package className="w-3 h-3 text-purple-600" />;
+                        case 'shipped':
+                          return <Truck className="w-3 h-3 text-indigo-600" />;
+                        case 'delivered':
+                          return <CheckCircle className="w-3 h-3 text-orange-600" />;
+                        case 'picked_up':
+                          return <CheckCircle className="w-3 h-3 text-green-600" />;
+                        case 'completed':
+                          return <CheckCircle className="w-3 h-3 text-green-600" />;
+                        case 'cancelled':
+                          return <XCircle className="w-3 h-3 text-red-600" />;
+                        case 'expired':
+                          return <AlertCircle className="w-3 h-3 text-yellow-600" />;
+                        case 'message_sent':
+                          return <MessageSquare className="w-3 h-3 text-blue-600" />;
+                        case 'status_updated':
+                          return <Clock className="w-3 h-3 text-gray-400" />;
+                        default:
+                          return <Clock className="w-3 h-3 text-gray-400" />;
+                      }
+                    };
+
+                    return (
+                      <div key={event.id} className="flex items-center gap-2 text-xs">
+                        {getEventIcon(event.eventType)}
+                        <span className="font-medium">
+                          {event.eventDescription}
+                        </span>
+                        <span className="text-muted-foreground ml-auto text-xs">
+                          {formatDate(event.createdAt)}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  // Fallback to individual timestamp fields
+                  <>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span>Created: {formatDate(offer.createdAt)}</span>
+                    </div>
+                    {offer.acceptedAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Accepted: {formatDate(offer.acceptedAt)}</span>
+                      </div>
+                    )}
+                    {offer.readyToShipAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Package className="w-4 h-4 text-purple-600" />
+                        <span>Ready to Ship: {formatDate(offer.readyToShipAt)}</span>
+                      </div>
+                    )}
+                    {offer.readyToPickupAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Package className="w-4 h-4 text-purple-600" />
+                        <span>Ready to Pick Up: {formatDate(offer.readyToPickupAt)}</span>
+                      </div>
+                    )}
+                    {offer.shippedAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Truck className="w-4 h-4 text-indigo-600" />
+                        <span>Shipped: {formatDate(offer.shippedAt)}</span>
+                      </div>
+                    )}
+                    {offer.deliveredAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-orange-600" />
+                        <span>Delivered: {formatDate(offer.deliveredAt)}</span>
+                      </div>
+                    )}
+                    {offer.completedAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span>Completed: {formatDate(offer.completedAt)}</span>
+                      </div>
+                    )}
+                    {offer.cancelledAt && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <XCircle className="w-4 h-4 text-red-600" />
+                        <span>Cancelled: {formatDate(offer.cancelledAt)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>

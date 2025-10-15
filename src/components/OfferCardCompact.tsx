@@ -129,7 +129,13 @@ export function OfferCardCompact({
               <div>
                 <p className="font-medium">{offer.deliveryAddress.label}</p>
                 <p className="text-xs">
-                  {offer.deliveryAddress.addressLine1}, {offer.deliveryAddress.city}
+                  {[
+                    offer.deliveryAddress.addressLine1,
+                    offer.deliveryAddress.addressLine2,
+                    offer.deliveryAddress.city,
+                    offer.deliveryAddress.state,
+                    offer.deliveryAddress.postalCode
+                  ].filter(field => field && field !== '').join(', ')}
                 </p>
               </div>
             </div>

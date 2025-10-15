@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all verification requests with user profile data
+    console.log('🔍 Fetching verification requests...');
+    
+    // Fetch verification requests with complete user and business data
     const requests = await sql`
       SELECT 
         vr.id,
@@ -41,26 +44,33 @@ export async function GET(request: NextRequest) {
         vr."reviewedBy",
         vr."verificationDocuments" as verification_request_documents,
         vr."businessInfo",
-        vr."businessName",
-        vr."businessDescription",
-        vr."businessLicenseNumber",
         vr."phoneVerified" as verification_phone_verified,
         vr."reviewNotes",
         vr."createdAt",
         vr."updatedAt",
-        up.location,
         up.phone,
         uv."phoneVerified" as user_phone_verified,
-        u."businessName" as user_business_name,
-        u."businessDescription" as user_business_description,
-        u."businessLicenseNumber" as user_business_license_number,
-        u."verificationDocuments" as user_verification_documents
+        uv."verificationDocuments" as user_verification_documents,
+        uv."rejectedDocuments" as user_rejected_documents,
+        uv."businessDetailsCompleted",
+        bd."businessName",
+        bd."businessDescription", 
+        bd."businessLicenseNumber",
+        CASE 
+          WHEN l.city IS NOT NULL AND l.region IS NOT NULL 
+          THEN l.city || ', ' || l.region
+          ELSE 'Unknown Location'
+        END as location
       FROM verification_requests vr
       LEFT JOIN user_profiles up ON vr."userId" = up."userId"
       LEFT JOIN users u ON vr."userId" = u.id
       LEFT JOIN user_verification uv ON vr."userId" = uv."userId"
+      LEFT JOIN business_details bd ON vr."userId" = bd."userId"
+      LEFT JOIN locations l ON up."locationId" = l.id
       ORDER BY vr."submittedAt" DESC
     `;
+
+    console.log('✅ Verification requests fetched:', requests.length);
 
     return NextResponse.json({ 
       success: true, 

@@ -81,6 +81,7 @@ export const useChat = () => {
 
   const loadMessages = useCallback(async (conversationId: string) => {
     console.log('🔄 loadMessages called for conversation:', conversationId);
+    console.log('🔄 Current messages state before API call:', messages[conversationId]?.length || 0);
     
     try {
       const response = await fetch(`/api/chat/messages?conversationId=${conversationId}`, {
@@ -94,6 +95,8 @@ export const useChat = () => {
       }
 
       const data = await response.json()
+      console.log('🔄 Raw API response:', data);
+      
       const formattedMessages = data.messages?.map((msg: any) => ({
         id: msg.id,
         conversationId: msg.conversationId,
@@ -106,11 +109,20 @@ export const useChat = () => {
       })) || []
 
       console.log('✅ Messages loaded:', formattedMessages.length)
+      console.log('🔄 Formatted messages:', formattedMessages.map(m => ({ id: m.id, content: m.content.substring(0, 30) })));
 
-      setMessages(prev => ({
-        ...prev,
-        [conversationId]: formattedMessages
-      }))
+      setMessages(prev => {
+        const newState = {
+          ...prev,
+          [conversationId]: formattedMessages
+        };
+        console.log('🔄 Updated messages state:', {
+          conversationId,
+          newMessagesCount: formattedMessages.length,
+          allConversations: Object.keys(newState)
+        });
+        return newState;
+      })
       
     } catch (err) {
       console.error('❌ Failed to load messages:', err)

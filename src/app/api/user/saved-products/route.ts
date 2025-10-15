@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { db } from '@/lib/db';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { 
+  savedProducts,
+  products as productsTable,
+  productImages,
+  users,
+  userProfiles
+} from '@/lib/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 
 function verifyToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -35,38 +41,37 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Fetching saved products for userId:', userId);
 
-    // Get saved products with product details
-    const savedProducts = await sql`
-      SELECT 
-        sp.id,
-        sp."productId",
-        sp."savedDate",
-        sp."priceWhenSaved",
-        sp.alerts,
-        p.name as "productName",
-        p.category,
-        p.description,
-        pp.price as "currentPrice",
-        pp.unit,
-        pi."imageData" as "imageUrl",
-        p."sellerId",
-        u.name as "sellerName",
-        u."userType" as "sellerType",
-        up.location as "sellerLocation"
-      FROM saved_products sp
-      LEFT JOIN products p ON sp."productId" = p.id
-      LEFT JOIN product_pricing pp ON p.id = pp."productId"
-      LEFT JOIN product_images pi ON p.id = pi."productId" AND pi."isPrimary" = true
-      LEFT JOIN users u ON p."sellerId" = u.id
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      WHERE sp."userId" = ${userId}
-      ORDER BY sp."savedDate" DESC
-    `;
+    // Get saved products with product details using normalized structure
+    const savedProductsResult = await db
+      .select({
+        id: savedProducts.id,
+        productId: savedProducts.productId,
+        savedDate: savedProducts.savedDate,
+        priceWhenSaved: savedProducts.priceWhenSaved,
+        alerts: savedProducts.alerts,
+        productName: productsTable.name,
+        description: productsTable.description,
+        currentPrice: productsTable.price,
+        packageSize: productsTable.packageSize,
+        imageUrl: productImages.imageData,
+        sellerId: users.id,
+        sellerName: users.name,
+        userType: users.userType,
+        accountType: users.accountType,
+        sellerLocation: userProfiles.phone, // Using phone as location placeholder
+      })
+      .from(savedProducts)
+      .leftJoin(productsTable, eq(savedProducts.productId, productsTable.id))
+      .leftJoin(productImages, and(eq(productImages.productId, productsTable.id), eq(productImages.isPrimary, true)))
+      .leftJoin(users, eq(productsTable.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .where(eq(savedProducts.userId, userId))
+      .orderBy(desc(savedProducts.savedDate));
 
-    console.log('✅ Found saved products:', savedProducts.length);
+    console.log('✅ Found saved products:', savedProductsResult.length);
 
     return NextResponse.json({
-      savedProducts: savedProducts.map(sp => ({
+      savedProducts: savedProductsResult.map(sp => ({
         id: sp.id,
         productId: sp.productId,
         savedDate: sp.savedDate,
@@ -75,16 +80,16 @@ export async function GET(request: NextRequest) {
         product: {
           id: sp.productId,
           name: sp.productName,
-          category: sp.category,
           description: sp.description,
-          price: sp.currentPrice,
-          unit: sp.unit,
+          price: parseFloat(sp.currentPrice?.toString() || '0') || 0,
+          unit: sp.packageSize || 'kg',
           imageUrl: sp.imageUrl,
           seller: {
             id: sp.sellerId,
             name: sp.sellerName,
-            userType: sp.sellerType,
-            location: sp.sellerLocation
+            userType: sp.userType || 'farmer',
+            accountType: sp.accountType || 'individual',
+            location: sp.sellerLocation || 'Myanmar'
           }
         }
       }))
@@ -123,26 +128,27 @@ export async function POST(request: NextRequest) {
     console.log('💾 Saving product for user:', { userId: user.userId, productId });
 
     // Get current product price
-    const product = await sql`
-      SELECT pp.price FROM products p
-      LEFT JOIN product_pricing pp ON p.id = pp."productId"
-      WHERE p.id = ${productId}
-    `;
+    const productResult = await db
+      .select({ price: productsTable.price })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .limit(1);
 
-    if (product.length === 0) {
+    if (productResult.length === 0) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404 }
       );
     }
 
-    const currentPrice = product[0].price;
+    const currentPrice = productResult[0].price;
 
     // Check if already saved
-    const existing = await sql`
-      SELECT id FROM saved_products 
-      WHERE "userId" = ${user.userId} AND "productId" = ${productId}
-    `;
+    const existing = await db
+      .select({ id: savedProducts.id })
+      .from(savedProducts)
+      .where(and(eq(savedProducts.userId, user.userId), eq(savedProducts.productId, productId)))
+      .limit(1);
 
     if (existing.length > 0) {
       return NextResponse.json(
@@ -152,27 +158,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Save the product
-    const result = await sql`
-      INSERT INTO saved_products (
-        "userId", 
-        "productId", 
-        "savedDate", 
-        "priceWhenSaved", 
-        alerts,
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES (
-        ${user.userId}, 
-        ${productId}, 
-        NOW(), 
-        ${currentPrice}, 
-        ${JSON.stringify({ priceAlert: false, stockAlert: false })},
-        NOW(),
-        NOW()
-      )
-      RETURNING *
-    `;
+    const result = await db.insert(savedProducts).values({
+      userId: user.userId,
+      productId: productId,
+      priceWhenSaved: currentPrice,
+      alerts: { priceAlert: false, stockAlert: false },
+    }).returning();
 
     console.log('✅ Product saved successfully');
 
@@ -214,11 +205,10 @@ export async function DELETE(request: NextRequest) {
     console.log('🗑️ Unsaving product for user:', { userId: user.userId, productId });
 
     // Remove the saved product
-    const result = await sql`
-      DELETE FROM saved_products 
-      WHERE "userId" = ${user.userId} AND "productId" = ${productId}
-      RETURNING *
-    `;
+    const result = await db
+      .delete(savedProducts)
+      .where(and(eq(savedProducts.userId, user.userId), eq(savedProducts.productId, productId)))
+      .returning();
 
     if (result.length === 0) {
       return NextResponse.json(

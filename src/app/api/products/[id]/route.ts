@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from '@neondatabase/serverless';
+import { db } from '@/lib/db';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { 
+  products as productsTable, 
+  productImages, 
+  users,
+  userProfiles,
+  userVerification,
+  userRatings,
+  locations,
+  categories,
+  deliveryOptions as deliveryOptionsTable,
+  paymentTerms as paymentTermsTable,
+  sellerCustomDeliveryOptions,
+  sellerCustomPaymentTerms
+} from '@/lib/db/schema';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -10,92 +23,143 @@ export async function GET(
 ) {
   try {
     const { id: productId } = await params;
-    // Get product with seller info using the same approach as the main products API
-    const products = await sql`
-      SELECT 
-        p.id, p.name, p.category, p.description, p."isActive", p."createdAt",
-        pp.price, pp.unit,
-        pinv."availableQuantity", pinv."minimumOrder",
-        pd.location as delivery_location, pd."deliveryOptions", pd."paymentTerms", pd."additionalNotes",
-        u.id as "sellerId", u.name as "sellerName", u."userType" as "sellerType", u."accountType" as "sellerAccountType",
-        up.location, up."profileImage",
-        uv.verified, uv."phoneVerified", uv."verificationStatus",
-        ur.rating, ur."totalReviews"
-      FROM products p
-      LEFT JOIN product_pricing pp ON p.id = pp."productId"
-      LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
-      LEFT JOIN product_delivery pd ON p.id = pd."productId"
-      LEFT JOIN users u ON p."sellerId" = u.id
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      LEFT JOIN user_verification uv ON u.id = uv."userId"
-      LEFT JOIN user_ratings ur ON u.id = ur."userId"
-      WHERE p.id = ${productId} AND p."isActive" = true
-      LIMIT 1
-    `;
+    
+    // Get product with seller info using normalized structure
+    const productResult = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        description: productsTable.description,
+        isActive: productsTable.isActive,
+        createdAt: productsTable.createdAt,
+        price: productsTable.price,
+        packageSize: productsTable.packageSize,
+        availableStock: productsTable.availableStock,
+        minimumOrder: productsTable.minimumOrder,
+        deliveryOptions: productsTable.deliveryOptions,
+        paymentTerms: productsTable.paymentTerms,
+        additionalNotes: productsTable.additionalNotes,
+        sellerType: productsTable.sellerType,
+        sellerName: productsTable.sellerName,
+        sellerId: users.id,
+        sellerNameFromUser: users.name,
+        userType: users.userType,
+        accountType: users.accountType,
+        category: categories.name,
+        location: locations.city,
+        region: locations.region,
+        city: locations.city,
+        profileImage: userProfiles.profileImage,
+        verified: userVerification.verified,
+        phoneVerified: userVerification.phoneVerified,
+        verificationStatus: userVerification.verificationStatus,
+        rating: userRatings.rating,
+        totalReviews: userRatings.totalReviews,
+      })
+      .from(productsTable)
+      .leftJoin(categories, eq(productsTable.categoryId, categories.id))
+      .leftJoin(locations, eq(productsTable.locationId, locations.id))
+      .leftJoin(users, eq(productsTable.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .leftJoin(userVerification, eq(users.id, userVerification.userId))
+      .leftJoin(userRatings, eq(users.id, userRatings.userId))
+      .where(and(eq(productsTable.id, productId), eq(productsTable.isActive, true)))
+      .limit(1);
 
-    if (products.length === 0) {
+    if (productResult.length === 0) {
       return NextResponse.json(
         { message: "Product not found" },
         { status: 404 }
       );
     }
 
-    const product = products[0];
+    const product = productResult[0];
+
+    // Resolve delivery options and payment terms UUIDs to names
+    let deliveryOptionNames: string[] = [];
+    let paymentTermNames: string[] = [];
+
+
+    if (product.deliveryOptions && product.deliveryOptions.length > 0) {
+      // Get standard delivery options
+      const standardDeliveryResults = await db
+        .select({ name: deliveryOptionsTable.name })
+        .from(deliveryOptionsTable)
+        .where(inArray(deliveryOptionsTable.id, product.deliveryOptions));
+      
+      // Get custom delivery options for this seller
+      const customDeliveryResults = await db
+        .select({ name: sellerCustomDeliveryOptions.name })
+        .from(sellerCustomDeliveryOptions)
+        .where(inArray(sellerCustomDeliveryOptions.id, product.deliveryOptions));
+      
+      // Combine both results
+      deliveryOptionNames = [...standardDeliveryResults.map(r => r.name), ...customDeliveryResults.map(r => r.name)];
+    }
+
+    if (product.paymentTerms && product.paymentTerms.length > 0) {
+      // Get standard payment terms
+      const standardPaymentResults = await db
+        .select({ name: paymentTermsTable.name })
+        .from(paymentTermsTable)
+        .where(inArray(paymentTermsTable.id, product.paymentTerms));
+      
+      // Get custom payment terms for this seller
+      const customPaymentResults = await db
+        .select({ name: sellerCustomPaymentTerms.name })
+        .from(sellerCustomPaymentTerms)
+        .where(inArray(sellerCustomPaymentTerms.id, product.paymentTerms));
+      
+      // Combine both results
+      paymentTermNames = [...standardPaymentResults.map(r => r.name), ...customPaymentResults.map(r => r.name)];
+    }
 
     // Get all images for this product
-    const productImages = await sql`
-      SELECT "imageData", "isPrimary", "createdAt"
-      FROM product_images 
-      WHERE "productId" = ${productId}
-      ORDER BY "createdAt" ASC
-    `;
+    const productImagesResult = await db
+      .select({
+        imageData: productImages.imageData,
+        isPrimary: productImages.isPrimary,
+        createdAt: productImages.createdAt,
+      })
+      .from(productImages)
+      .where(eq(productImages.productId, productId))
+      .orderBy(productImages.createdAt);
 
-    console.log('🖼️ Found images for product:', productImages.length);
+    console.log('🖼️ Found images for product:', productImagesResult.length);
 
     // Transform the data to match the expected format
-    const primaryImage = productImages.find(img => img.isPrimary);
-    const allImageUrls = productImages.map(img => img.imageData);
+    const primaryImage = productImagesResult.find(img => img.isPrimary);
+    const allImageUrls = productImagesResult.map(img => img.imageData);
     
     const transformedProduct = {
       id: product.id,
       name: product.name,
-      category: product.category,
+      category: product.category || 'Uncategorized',
       description: product.description,
-      price: product.price,
-      unit: product.unit,
+      price: parseFloat(product.price?.toString() || '0') || 0,
+      unit: product.packageSize || 'kg',
       imageUrl: primaryImage?.imageData || allImageUrls[0] || null,
       image: primaryImage?.imageData || allImageUrls[0] || null, // Add legacy image field for compatibility
       images: allImageUrls,
       sellerId: product.sellerId,
-      sellerName: product.sellerName || 'Unknown Seller',
-      sellerType: product.sellerType || 'farmer',
-      location: product.delivery_location || product.location || 'Unknown Location',
-      region: 'yangon', // Default region since region field is not available in user_profiles table
+      sellerName: product.sellerNameFromUser || product.sellerName || 'Unknown Seller',
+      sellerType: product.userType || 'farmer',
+      location: product.city || 'Unknown Location', // Show only city, not city/region
+      region: product.region || '',
+      city: product.city || '',
       lastUpdated: product.createdAt,
-      availableQuantity: product.availableQuantity || '',
+      availableQuantity: product.availableStock || '',
       minimumOrder: product.minimumOrder || '',
-      deliveryOptions: product.deliveryOptions || [],
-      paymentTerms: product.paymentTerms || [],
+      deliveryOptions: deliveryOptionNames,
+      paymentTerms: paymentTermNames,
       additionalNotes: product.additionalNotes || '',
       sellerVerificationStatus: {
-        accountType: product.sellerAccountType || 'individual',
-        trustLevel: product.verified ? (product.sellerAccountType === 'business' ? 'business-verified' : 'id-verified') : 'unverified',
-        businessVerified: product.verified && product.sellerAccountType === 'business',
+        accountType: product.accountType || 'individual',
+        trustLevel: product.verified ? (product.accountType === 'business' ? 'business-verified' : 'id-verified') : 'unverified',
+        businessVerified: product.verified && product.accountType === 'business',
       },
     };
 
-    console.log('🔍 Product API Response Debug:', {
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      availableQuantity: product.availableQuantity,
-      region: 'yangon (default)',
-      location: product.location,
-      deliveryLocation: product.delivery_location,
-      imagesCount: allImageUrls.length,
-      images: allImageUrls,
-      primaryImage: primaryImage?.imageData
-    });
 
     return NextResponse.json({
       product: transformedProduct,
@@ -249,9 +313,55 @@ export async function PUT(
       console.log('✅ Updated inventory:', inventoryResult[0]);
     }
 
-    // Update user profile location and region if provided
+    // Handle location data - find or create location and update product
     if (body.location || body.region) {
-      // First get the seller ID from the product
+      console.log('📍 Processing location data:', { location: body.location, region: body.region });
+      
+      let locationId = null;
+      
+      if (body.location && body.region) {
+        try {
+          // First, try to find existing location using Drizzle ORM
+          const existingLocation = await db
+            .select({ id: locations.id })
+            .from(locations)
+            .where(and(eq(locations.city, body.location), eq(locations.region, body.region)))
+            .limit(1);
+          
+          if (existingLocation.length > 0) {
+            locationId = existingLocation[0].id;
+            console.log('📍 Found existing location:', locationId);
+          } else {
+            // Create new location using Drizzle ORM
+            const newLocation = await db
+              .insert(locations)
+              .values({
+                city: body.location,
+                region: body.region
+              })
+              .returning({ id: locations.id });
+            locationId = newLocation[0].id;
+            console.log('📍 Created new location:', locationId);
+          }
+        } catch (error) {
+          console.error('❌ Error handling location:', error);
+        }
+      }
+      
+      // Update product's locationId using Drizzle ORM
+      if (locationId) {
+        const productLocationUpdate = await db
+          .update(productsTable)
+          .set({
+            locationId: locationId,
+            updatedAt: new Date()
+          })
+          .where(eq(productsTable.id, productId))
+          .returning();
+        console.log('✅ Updated product locationId:', productLocationUpdate[0]);
+      }
+      
+      // Also update user profile location for consistency
       const productWithSeller = await sql`
         SELECT "sellerId" FROM products WHERE id = ${productId}
       `;
@@ -297,40 +407,55 @@ export async function PUT(
         preview: img?.substring(0, 50) + '...' || 'null'
       })));
       
-      // Delete existing images for this product
-      console.log('🗑️ Deleting existing images for product:', productId);
-      await sql`DELETE FROM product_images WHERE "productId" = ${productId}`;
-      console.log('✅ Deleted existing images');
-      
-      // Insert new images
-      for (let i = 0; i < body.images.length; i++) {
-        const imageUrl = body.images[i];
-        if (imageUrl) {
-          console.log(`🖼️ Processing image ${i + 1}:`, {
-            length: imageUrl.length,
-            isBase64: imageUrl.startsWith('data:'),
-            preview: imageUrl.substring(0, 50) + '...'
-          });
-          
-          try {
-            // Check if image URL is too long (base64 images can be very large)
-            if (imageUrl.length > 1000000) { // 1MB limit for base64
-              console.log('⚠️ Image too large, skipping:', imageUrl.length, 'characters');
-              continue;
-            }
+      try {
+        // Delete existing images for this product
+        console.log('🗑️ Deleting existing images for product:', productId);
+        await db.delete(productImages).where(eq(productImages.productId, productId));
+        console.log('✅ Deleted existing images');
+        
+        // Insert new images
+        for (let i = 0; i < body.images.length; i++) {
+          const imageUrl = body.images[i];
+          if (imageUrl) {
+            console.log(`🖼️ Processing image ${i + 1}:`, {
+              length: imageUrl.length,
+              isBase64: imageUrl.startsWith('data:'),
+              preview: imageUrl.substring(0, 50) + '...'
+            });
             
-            await sql`
-              INSERT INTO product_images ("productId", "imageData", "isPrimary", "createdAt")
-              VALUES (${productId}, ${imageUrl}, ${i === 0}, NOW())
-            `;
-            console.log(`✅ Inserted image ${i + 1}`);
-          } catch (imageError) {
-            console.error(`❌ Failed to insert image ${i + 1}:`, imageError);
-            // Continue with other images even if one fails
+            try {
+              // Check if image URL is too long (base64 images can be very large)
+              if (imageUrl.length > 1000000) { // 1MB limit for base64
+                console.log('⚠️ Image too large, skipping:', imageUrl.length, 'characters');
+                continue;
+              }
+              
+              console.log(`🔍 About to insert image ${i + 1} with ${imageUrl.length} characters`);
+              
+              // Use Drizzle insert instead of raw SQL
+              const insertResult = await db.insert(productImages).values({
+                productId: productId,
+                imageData: imageUrl,
+                isPrimary: i === 0,
+              }).returning();
+              console.log(`✅ Inserted image ${i + 1} with ID:`, insertResult[0]?.id);
+            } catch (imageError) {
+              console.error(`❌ Failed to insert image ${i + 1}:`, imageError);
+              // Continue with other images even if one fails
+            }
           }
         }
+        console.log('✅ Updated product images:', body.images.length, 'images');
+        
+        // Verify images were actually saved
+        const verifyImages = await db.select({ count: sql<number>`count(*)` })
+          .from(productImages)
+          .where(eq(productImages.productId, productId));
+        console.log('🔍 Verification - Images in database:', verifyImages[0]?.count || 0);
+      } catch (imageUpdateError) {
+        console.error('❌ Failed to update product images:', imageUpdateError);
+        // Don't throw error, continue with other updates
       }
-      console.log('✅ Updated product images:', body.images.length, 'images');
     } else if (body.image) {
       console.log('🖼️ Processing single image (legacy)');
       
@@ -465,9 +590,11 @@ export async function DELETE(
     }
 
     // First, check if the product exists and get the seller ID
-    const productCheck = await sql`
-      SELECT "sellerId" FROM products WHERE id = ${productId}
-    `;
+    const productCheck = await db
+      .select({ sellerId: productsTable.sellerId })
+      .from(productsTable)
+      .where(eq(productsTable.id, productId))
+      .limit(1);
 
     if (productCheck.length === 0) {
       return NextResponse.json(
@@ -492,23 +619,18 @@ export async function DELETE(
     console.log('🗑️ Deleting product and related data:', productId);
 
     // Delete related data first (due to foreign key constraints)
-    await sql`DELETE FROM product_images WHERE "productId" = ${productId}`;
+    // In normalized structure, we only need to delete product_images
+    // Other data is stored directly in the products table
+    await db.delete(productImages).where(eq(productImages.productId, productId));
     console.log('✅ Deleted product images');
 
-    await sql`DELETE FROM product_pricing WHERE "productId" = ${productId}`;
-    console.log('✅ Deleted product pricing');
-
-    await sql`DELETE FROM product_inventory WHERE "productId" = ${productId}`;
-    console.log('✅ Deleted product inventory');
-
-    await sql`DELETE FROM product_delivery WHERE "productId" = ${productId}`;
-    console.log('✅ Deleted product delivery');
-
-    // Finally, delete the product itself
-    const deleteResult = await sql`
-      DELETE FROM products WHERE id = ${productId}
-      RETURNING id, name
-    `;
+    // Delete the product itself (this will cascade delete related data)
+    const deleteResult = await db.delete(productsTable)
+      .where(eq(productsTable.id, productId))
+      .returning({
+        id: productsTable.id,
+        name: productsTable.name
+      });
 
     if (deleteResult.length === 0) {
       return NextResponse.json(

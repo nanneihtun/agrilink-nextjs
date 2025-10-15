@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { Resend } from 'resend';
+import { 
+  users, 
+  userProfiles, 
+  userVerification, 
+  userRatings, 
+  businessDetails,
+  locations
+} from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,10 +25,11 @@ export async function POST(request: NextRequest) {
       userType, 
       accountType, 
       location,
+      region,
       phone 
     } = await request.json();
 
-    if (!email || !password || !name || !userType || !accountType || !location) {
+    if (!email || !password || !name || !userType || !accountType || !location || !region) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -29,9 +37,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUsers = await sql`
-      SELECT id FROM users WHERE email = ${email} LIMIT 1
-    `;
+    const existingUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
 
     if (existingUsers.length > 0) {
       return NextResponse.json(
@@ -48,39 +58,122 @@ export async function POST(request: NextRequest) {
     const verificationExpires = new Date();
     verificationExpires.setHours(verificationExpires.getHours() + 24); // 24 hours
 
-    // Create user in database
-    const newUsers = await sql`
-      INSERT INTO users (email, name, "passwordHash", "userType", "accountType", "emailVerificationToken", "emailVerificationExpires", "createdAt", "updatedAt")
-      VALUES (${email}, ${name}, ${passwordHash}, ${userType}, ${accountType}, ${emailVerificationToken}, ${verificationExpires.toISOString()}, NOW(), NOW())
-      RETURNING id, email, name, "userType", "accountType", "createdAt"
-    `;
+    // Validate userType and accountType values
+    const validUserTypes = ['farmer', 'trader', 'buyer', 'admin'];
+    const validAccountTypes = ['individual', 'business'];
+    
+    if (!validUserTypes.includes(userType)) {
+      return NextResponse.json(
+        { error: 'Invalid user type. Must be one of: farmer, trader, buyer, admin' },
+        { status: 400 }
+      );
+    }
+    
+    if (!validAccountTypes.includes(accountType)) {
+      return NextResponse.json(
+        { error: 'Invalid account type. Must be one of: individual, business' },
+        { status: 400 }
+      );
+    }
 
-    const newUser = newUsers[0];
+    // Find or create location
+    let locationId = null;
+    console.log('📍 Registration - Location (city) received:', location);
+    console.log('📍 Registration - Region received:', region);
+    
+    if (location && region) {
+      console.log('📍 Registration - Looking up location in database...');
+      
+      // Try exact match with city and region
+      let locationResult = await db
+        .select({ id: locations.id, city: locations.city, region: locations.region })
+        .from(locations)
+        .where(and(
+          sql`LOWER(${locations.city}) = LOWER(${location})`,
+          sql`LOWER(${locations.region}) = LOWER(${region})`
+        ))
+        .limit(1);
+
+      console.log('📍 Registration - Exact match result:', locationResult);
+      
+      // If no exact match, try just city match (in case region doesn't match exactly)
+      if (locationResult.length === 0) {
+        console.log('📍 Registration - Trying city-only match...');
+        locationResult = await db
+          .select({ id: locations.id, city: locations.city, region: locations.region })
+          .from(locations)
+          .where(sql`LOWER(${locations.city}) = LOWER(${location})`)
+          .limit(1);
+        console.log('📍 Registration - City-only match result:', locationResult);
+      }
+
+      if (locationResult.length > 0) {
+        locationId = locationResult[0].id;
+        console.log('📍 Registration - Location ID found:', locationId, 'for city:', locationResult[0].city, 'region:', locationResult[0].region);
+      } else {
+        console.log('📍 Registration - Location not found, creating new location for city:', location, 'region:', region);
+        
+        // Create new location if it doesn't exist
+        const newLocation = await db.insert(locations).values({
+          city: location,
+          region: region,
+        }).returning({ id: locations.id });
+        
+        locationId = newLocation[0].id;
+        console.log('📍 Registration - New location created with ID:', locationId);
+      }
+    } else {
+      console.log('📍 Registration - No location or region provided');
+    }
+
+
+    // Create user in database using Drizzle (simplified structure)
+    const newUser = await db.insert(users).values({
+      email,
+      name,
+      passwordHash,
+      userType,
+      accountType,
+      emailVerified: false,
+    }).returning({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      createdAt: users.createdAt,
+    });
 
     // Create user profile
-    await sql`
-      INSERT INTO user_profiles ("userId", location, phone, "createdAt", "updatedAt")
-      VALUES (${newUser.id}, ${location}, ${phone || ''}, NOW(), NOW())
-    `;
+    console.log('📍 Registration - Creating user profile with locationId:', locationId);
+    await db.insert(userProfiles).values({
+      userId: newUser[0].id,
+      locationId,
+      phone: phone || null,
+    });
 
     // Create verification record
-    await sql`
-      INSERT INTO user_verification ("userId", verified, "phoneVerified", "verificationStatus", "createdAt", "updatedAt")
-      VALUES (${newUser.id}, false, false, 'not_started', NOW(), NOW())
-    `;
+    await db.insert(userVerification).values({
+      userId: newUser[0].id,
+      verified: false,
+      phoneVerified: false,
+      verificationStatus: 'not_started',
+      verificationSubmitted: false,
+      businessDetailsCompleted: false,
+    });
 
     // Create ratings record
-    await sql`
-      INSERT INTO user_ratings ("userId", rating, "totalReviews", "createdAt", "updatedAt")
-      VALUES (${newUser.id}, 0, 0, NOW(), NOW())
-    `;
+    await db.insert(userRatings).values({
+      userId: newUser[0].id,
+      rating: '0',
+      totalReviews: 0,
+    });
+
+    // Email verification will be handled separately if needed
 
     // Create business details if business account
     if (accountType === 'business') {
-      await sql`
-        INSERT INTO business_details ("userId", "createdAt", "updatedAt")
-        VALUES (${newUser.id}, NOW(), NOW())
-      `;
+      await db.insert(businessDetails).values({
+        userId: newUser[0].id,
+      });
     }
 
     // Send verification email - use environment variable for URL
@@ -92,7 +185,7 @@ export async function POST(request: NextRequest) {
     
     console.log('🔗 Using base URL:', baseUrl);
     
-    console.log('📧 Sending verification email to:', newUser.email);
+    console.log('📧 Sending verification email to:', newUser[0].email);
     console.log('🔗 VERIFICATION URL FOR TESTING:', verificationUrl);
     
     if (process.env.RESEND_API_KEY) {
@@ -100,12 +193,12 @@ export async function POST(request: NextRequest) {
         console.log('📧 Attempting to send verification email...');
         const emailResult = await resend.emails.send({
           from: 'AgriLink <noreply@hthheh.com>',
-          to: [newUser.email],
+          to: [newUser[0].email],
           subject: 'Verify Your AgriLink Account',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #16a34a;">Welcome to AgriLink!</h2>
-              <p>Hello ${newUser.name},</p>
+              <p>Hello ${newUser[0].name},</p>
               <p>Thank you for joining AgriLink! To complete your registration, please verify your email address by clicking the button below:</p>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${verificationUrl}" 
@@ -140,10 +233,10 @@ export async function POST(request: NextRequest) {
     // Create JWT token
     const token = jwt.sign(
       { 
-        userId: newUser.id, 
-        email: newUser.email,
-        userType: newUser.userType,
-        accountType: newUser.accountType
+        userId: newUser[0].id, 
+        email: newUser[0].email,
+        userType: userType,
+        accountType: accountType
       },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
@@ -151,14 +244,14 @@ export async function POST(request: NextRequest) {
 
     // Return user data
     const userData = {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      userType: newUser.userType,
-      accountType: newUser.accountType,
+      id: newUser[0].id,
+      email: newUser[0].email,
+      name: newUser[0].name,
+      userType: userType,
+      accountType: accountType,
+      emailVerified: false,
       location,
       phone: phone || '',
-      emailVerified: false,
       verified: false,
       phoneVerified: false,
       verificationStatus: 'not_started',

@@ -19,13 +19,15 @@ export async function GET(
     if (isEmail) {
       userData = await sql`
         SELECT 
-          u.id, u.name, u.email, u."userType", u."accountType", u."createdAt" as "joinedDate",
-          u."businessName", u."businessDescription",
-          up.location, up."profileImage", up."storefrontImage", up.phone, up.website,
-          uv.verified, uv."phoneVerified", uv."verificationStatus"
+          u.id, u.name, u.email, u."createdAt" as "joinedDate",
+          u."userType", u."accountType",
+          l.city as location, l.region, up."profileImage", up."storefrontImage", up.phone, up.website,
+          uv.verified, uv."phoneVerified", uv."verificationStatus", bd.specialties
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
+        LEFT JOIN locations l ON up."locationId" = l.id
         LEFT JOIN user_verification uv ON u.id = uv."userId"
+        LEFT JOIN business_details bd ON u.id = bd."userId"
         WHERE u.email = ${identifier}
         LIMIT 1
       `;
@@ -33,12 +35,13 @@ export async function GET(
       userData = await sql`
         SELECT 
           u.id, u.name, u.email, u."userType", u."accountType", u."createdAt" as "joinedDate",
-          u."businessName", u."businessDescription",
-          up.location, up."profileImage", up."storefrontImage", up.phone, up.website,
-          uv.verified, uv."phoneVerified", uv."verificationStatus"
+          l.city as location, l.region, up."profileImage", up."storefrontImage", up.phone, up.website,
+          uv.verified, uv."phoneVerified", uv."verificationStatus", bd.specialties
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
+        LEFT JOIN locations l ON up."locationId" = l.id
         LEFT JOIN user_verification uv ON u.id = uv."userId"
+        LEFT JOIN business_details bd ON u.id = bd."userId"
         WHERE u.id = ${identifier}
         LIMIT 1
       `;
@@ -58,14 +61,11 @@ export async function GET(
     if (user.userType === 'farmer' || user.userType === 'trader') {
       const productData = await sql`
         SELECT 
-          p.id, p.name, p.category, p.description,
+          p.id, p.name, p.description, p.price,
+          p."packageSize", p."availableStock", p."minimumOrder",
           p."createdAt", p."updatedAt", p."isActive",
-          pp.price as current_price, pp.unit as current_unit,
-          pinv."availableQuantity", pinv."minimumOrder",
           pimg."imageData"
         FROM products p
-        LEFT JOIN product_pricing pp ON p.id = pp."productId"
-        LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
         LEFT JOIN product_images pimg ON p.id = pimg."productId" AND pimg."isPrimary" = true
         WHERE p."sellerId" = ${user.id}
         AND p."isActive" = true
@@ -76,12 +76,11 @@ export async function GET(
       products = productData.map(product => ({
         id: product.id,
         name: product.name,
-        category: product.category,
         description: product.description,
-        price: product.current_price || product.price,
-        unit: product.current_unit || product.unit,
+        price: product.price,
+        packageSize: product.packageSize,
         imageUrl: product.imageData,
-        availableQuantity: product.availableQuantity,
+        availableStock: product.availableStock,
         minimumOrder: product.minimumOrder,
         createdAt: product.createdAt,
         lastUpdated: product.updatedAt
@@ -148,7 +147,7 @@ export async function GET(
       businessName: user.businessName,
       businessDescription: user.businessDescription,
       businessHours: null,
-      specialties: null,
+      specialties: user.specialties,
       policies: null,
       
       // Social media (placeholder)

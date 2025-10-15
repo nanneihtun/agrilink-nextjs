@@ -106,7 +106,7 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
         userType: req.userType,
         accountType: req.accountType,
         verificationStatus: req.status === 'under_review' ? 'under_review' : 
-                           req.status === 'approved' ? 'approved' : 
+                           req.status === 'approved' ? 'verified' : 
                            req.status === 'rejected' ? 'rejected' : 'under_review',
         verificationSubmitted: true,
         verificationDocuments: req.user_verification_documents || req.verification_request_documents || {},
@@ -117,7 +117,7 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
           region: req.businessInfo?.region,
         },
         phoneVerified: req.user_phone_verified || req.verification_phone_verified || false,
-        submittedAt: req.submittedAt,
+        submittedAt: req.submittedAt || req.submitted_at,
         type: req.accountType === 'business' ? 'Business Account' : 'Individual Account',
         status: req.status,
         documents: req.user_verification_documents || req.verification_request_documents || {},
@@ -171,31 +171,31 @@ export function AdminVerificationPanel({ currentAdmin, onBack }: AdminVerificati
         
         const transformedRequests: VerificationRequest[] = requests.map((req: any) => ({
           id: req.id,
-          userId: req.user_id,
-          userEmail: req.user_email,
-          userName: req.user_name,
-          userType: req.user_type,
-          accountType: req.account_type,
+          userId: req.userId,
+          userEmail: req.userEmail,
+          userName: req.userName,
+          userType: req.userType,
+          accountType: req.accountType,
           verificationStatus: req.status === 'under_review' ? 'under_review' : 
-                             req.status === 'approved' ? 'approved' : 
+                             req.status === 'approved' ? 'verified' : 
                              req.status === 'rejected' ? 'rejected' : 'under_review',
           verificationSubmitted: true,
-          verificationDocuments: req.verification_documents || {},
+          verificationDocuments: req.user_verification_documents || req.verification_request_documents || {},
           businessInfo: {
-            businessName: req.business_name,
-            businessDescription: req.business_description,
-            location: req.business_info?.location,
-            region: req.business_info?.region,
+            businessName: req.businessName || req.user_business_name,
+            businessDescription: req.businessDescription || req.user_business_description,
+            location: req.location,
+            region: req.businessInfo?.region,
           },
-          phoneVerified: req.phone_verified || false,
-          submittedAt: req.submitted_at,
-          type: req.account_type === 'business' ? 'Business Account' : 'Individual Account',
+          phoneVerified: req.user_phone_verified || req.verification_phone_verified || false,
+          submittedAt: req.submittedAt || req.submitted_at,
+          type: req.accountType === 'business' ? 'Business Account' : 'Individual Account',
           status: req.status,
-          documents: req.verification_documents || {},
-          businessType: req.account_type,
-          business_name: req.business_name,
-          business_description: req.business_description,
-          business_license_number: req.business_license_number,
+          documents: req.user_verification_documents || req.verification_request_documents || {},
+          businessType: req.accountType,
+          business_name: req.businessName || req.user_business_name,
+          business_description: req.businessDescription || req.user_business_description,
+          business_license_number: req.businessLicenseNumber || req.user_business_license_number,
         }));
 
         setRequests(transformedRequests);

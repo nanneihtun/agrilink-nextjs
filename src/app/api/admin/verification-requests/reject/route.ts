@@ -73,40 +73,42 @@ export async function POST(request: NextRequest) {
     `;
     console.log('✅ Updated verification_requests table');
 
-    // Get current verification documents before moving them to rejected
+    // Get current verification documents before moving them to rejected (from user_verification table)
     const [userWithDocs] = await sql`
       SELECT "verificationDocuments"
-      FROM users 
-      WHERE id = ${verificationRequest.userId}
+      FROM user_verification 
+      WHERE "userId" = ${verificationRequest.userId}
     `;
 
-    // Move verification documents to rejected documents column
-    if (userWithDocs?.verificationDocuments) {
-      console.log('📄 Moving verification documents to rejected documents...');
-      await sql`
-        UPDATE users 
-        SET 
-          "rejectedDocuments" = ${JSON.stringify(userWithDocs.verificationDocuments)},
-          "verificationDocuments" = NULL,
-          "agriLinkVerificationRequested" = false,
-          "agriLinkVerificationRequestedAt" = NULL,
-          "updatedAt" = NOW()
-        WHERE id = ${verificationRequest.userId}
-      `;
-      console.log('✅ Moved documents to rejected documents column');
-    } else {
-      // Just clear the verification documents if none exist
-      await sql`
-        UPDATE users 
-        SET 
-          "verificationDocuments" = NULL,
-          "agriLinkVerificationRequested" = false,
-          "agriLinkVerificationRequestedAt" = NULL,
-          "updatedAt" = NOW()
-        WHERE id = ${verificationRequest.userId}
-      `;
-      console.log('✅ Cleared verification documents');
-    }
+    // Ensure rejectedDocuments column exists
+    await sql`
+      ALTER TABLE user_verification
+      ADD COLUMN IF NOT EXISTS "rejectedDocuments" jsonb
+    `;
+
+    // Prefer documents attached to the verification request; fallback to user_verification
+    const [reqDocsRow] = await sql`
+      SELECT "verificationDocuments"
+      FROM verification_requests
+      WHERE id = ${requestId}
+    `;
+    const [uvDocsRow] = await sql`
+      SELECT "verificationDocuments"
+      FROM user_verification
+      WHERE "userId" = ${verificationRequest.userId}
+    `;
+    const docsToReject = (reqDocsRow && reqDocsRow.verificationDocuments) || (uvDocsRow && uvDocsRow.verificationDocuments) || null;
+
+    // Move/clear documents in user_verification
+    await sql`
+      UPDATE user_verification 
+      SET 
+        "rejectedDocuments" = ${docsToReject},
+        "verificationDocuments" = NULL,
+        "updatedAt" = NOW()
+      WHERE "userId" = ${verificationRequest.userId}
+    `;
+    console.log('✅ Moved documents to rejectedDocuments and cleared active documents');
 
     // Check if user_verification record exists
     const [existingVerification] = await sql`

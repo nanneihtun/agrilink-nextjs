@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { db, sql } from '@/lib/db';
+import { messages as messagesTable, conversations as conversationsTable } from '@/lib/db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
 
 // Helper function to verify JWT token
 function verifyToken(request: NextRequest) {
@@ -14,6 +14,17 @@ function verifyToken(request: NextRequest) {
   }
 
   try {
+    // For development mode, allow any token
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const user = jwt.verify(token, process.env.JWT_SECRET!) as any;
+        return user;
+      } catch (error) {
+        // If token verification fails in development, return null to force re-authentication
+        return null;
+      }
+    }
+    
     return jwt.verify(token, process.env.JWT_SECRET!) as any;
   } catch (error: any) {
     return null;
@@ -41,20 +52,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get messages for the conversation
-    const messages = await sql`
-      SELECT 
-        id,
-        "conversationId",
-        "senderId",
-        content,
-        "createdAt" as timestamp,
-        "messageType" as type,
-        "isRead"
-      FROM messages
-      WHERE "conversationId" = ${conversationId}
-      ORDER BY "createdAt" ASC
-    `;
+    // Get messages for the conversation using Drizzle ORM
+    const messages = await db
+      .select({
+        id: messagesTable.id,
+        conversationId: messagesTable.conversationId,
+        senderId: messagesTable.senderId,
+        content: messagesTable.content,
+        timestamp: messagesTable.createdAt,
+        type: messagesTable.messageType,
+        isRead: messagesTable.isRead
+      })
+      .from(messagesTable)
+      .where(eq(messagesTable.conversationId, conversationId))
+      .orderBy(messagesTable.createdAt);
 
     return NextResponse.json({
       messages: messages,
@@ -91,42 +102,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new message
-    const newMessage = await sql`
-      INSERT INTO messages (
-        "conversationId",
-        "senderId",
+    // Insert new message using Drizzle
+    const [newMessage] = await db
+      .insert(messagesTable)
+      .values({
+        conversationId,
+        senderId,
         content,
-        "messageType",
-        "isRead"
-      ) VALUES (
-        ${conversationId},
-        ${senderId},
-        ${content},
-        ${type},
-        false
-      )
-      RETURNING *
-    `;
+        messageType: type,
+        isRead: false
+      })
+      .returning();
 
-    // Update conversation last message
-    await sql`
-      UPDATE conversations
-      SET 
-        "lastMessage" = ${content},
-        "lastMessageTime" = NOW(),
-        "updatedAt" = NOW()
-      WHERE id = ${conversationId}
-    `;
+    // Update conversation last message using Drizzle
+    await db
+      .update(conversationsTable)
+      .set({
+        lastMessage: content,
+        lastMessageTime: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(conversationsTable.id, conversationId));
 
     const message = {
-      id: newMessage[0].id,
-      conversationId: newMessage[0].conversationId,
-      senderId: newMessage[0].senderId,
-      content: newMessage[0].content,
-      timestamp: newMessage[0].createdAt,
-      type: newMessage[0].messageType,
-      isRead: newMessage[0].isRead
+      id: newMessage.id,
+      conversationId: newMessage.conversationId,
+      senderId: newMessage.senderId,
+      content: newMessage.content,
+      timestamp: newMessage.createdAt,
+      type: newMessage.messageType,
+      isRead: newMessage.isRead
     };
 
     return NextResponse.json({

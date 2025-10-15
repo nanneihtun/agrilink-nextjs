@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from '@neondatabase/serverless';
+import { db } from '@/lib/db';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { 
+  users, 
+  userProfiles, 
+  userVerification, 
+  userRatings, 
+  businessDetails,
+  locations
+} from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 // Helper function to verify JWT token
 function verifyToken(request: NextRequest) {
@@ -35,25 +42,47 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user profile data
+    // Get user profile data using normalized structure
     console.log('🔍 Querying database for "userId":', user.userId);
     console.log('📍 Profile API - Debugging location data for user:', user.userId);
     
-    const [userProfile] = await sql`
-      SELECT 
-        u.id, u.email, u.name, u."userType", u."accountType",
-        u."businessName", u."businessDescription", u."businessLicenseNumber",
-        u."verificationDocuments", u."rejectedDocuments",
-        u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
-        up.location, up.phone, up."profileImage", up."storefrontImage",
-        uv.verified, uv."phoneVerified", uv."verificationStatus", uv."verificationSubmitted",
-        ur.rating, ur."totalReviews"
-      FROM users u
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      LEFT JOIN user_verification uv ON u.id = uv."userId"
-      LEFT JOIN user_ratings ur ON u.id = ur."userId"
-      WHERE u.id = ${user.userId}
-    `;
+    const userProfileResult = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        emailVerified: users.emailVerified,
+        createdAt: users.createdAt,
+        userType: users.userType,
+        accountType: users.accountType,
+        phone: userProfiles.phone,
+        profileImage: userProfiles.profileImage,
+        storefrontImage: userProfiles.storefrontImage,
+        location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
+        region: locations.region,
+        city: locations.city,
+        verified: userVerification.verified,
+        phoneVerified: userVerification.phoneVerified,
+        verificationStatus: userVerification.verificationStatus,
+        verificationDocuments: userVerification.verificationDocuments,
+        businessDetailsCompleted: userVerification.businessDetailsCompleted,
+        rating: userRatings.rating,
+        totalReviews: userRatings.totalReviews,
+        businessName: businessDetails.businessName,
+        businessDescription: businessDetails.businessDescription,
+        businessLicenseNumber: businessDetails.businessLicenseNumber,
+        specialties: businessDetails.specialties,
+      })
+      .from(users)
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .leftJoin(locations, eq(userProfiles.locationId, locations.id))
+      .leftJoin(userVerification, eq(users.id, userVerification.userId))
+      .leftJoin(userRatings, eq(users.id, userRatings.userId))
+      .leftJoin(businessDetails, eq(users.id, businessDetails.userId))
+      .where(eq(users.id, user.userId))
+      .limit(1);
+
+    const userProfile = userProfileResult[0];
     
     console.log('🔍 Database query completed. Result:', !!userProfile);
     if (userProfile) {
@@ -71,7 +100,7 @@ export async function GET(request: NextRequest) {
         verified: userProfile.verified,
         phoneVerified: userProfile.phoneVerified,
         verificationStatus: userProfile.verificationStatus,
-        verificationSubmitted: userProfile.verificationSubmitted
+        businessDetailsCompleted: userProfile.businessDetailsCompleted
       });
     }
 
@@ -88,21 +117,18 @@ export async function GET(request: NextRequest) {
       phone: userProfile.phone,
       name: userProfile.name
     });
-    
-    // Check if user_profiles record exists separately
-    const [profileRecord] = await sql`
-      SELECT * FROM user_profiles WHERE "userId" = ${user.userId}
-    `;
-    console.log('🔍 Separate user_profiles query result:', profileRecord);
 
     return NextResponse.json({
       user: {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.name,
+        emailVerified: userProfile.emailVerified,
         userType: userProfile.userType,
         accountType: userProfile.accountType,
         location: userProfile.location,
+        region: userProfile.region,
+        city: userProfile.city,
         phone: userProfile.phone,
         profileImage: userProfile.profileImage,
         storefrontImage: userProfile.storefrontImage,
@@ -112,13 +138,12 @@ export async function GET(request: NextRequest) {
         businessDescription: userProfile.businessDescription,
         businessLicenseNumber: userProfile.businessLicenseNumber,
         verificationDocuments: userProfile.verificationDocuments,
-        rejectedDocuments: userProfile.rejectedDocuments,
-        agriLinkVerificationRequested: userProfile.agriLinkVerificationRequested,
-        agriLinkVerificationRequestedAt: userProfile.agriLinkVerificationRequestedAt,
         verificationStatus: userProfile.verificationStatus,
-        verificationSubmitted: userProfile.verificationSubmitted,
-        rating: userProfile.rating || 0,
-        totalReviews: userProfile.totalReviews || 0
+        businessDetailsCompleted: userProfile.businessDetailsCompleted,
+        rating: parseFloat(userProfile.rating?.toString() || '0'),
+        totalReviews: userProfile.totalReviews || 0,
+        joinedDate: userProfile.createdAt,
+        specialties: userProfile.specialties
       }
     });
 
@@ -160,10 +185,11 @@ export async function PUT(request: NextRequest) {
       agriLinkVerificationRequested,
       agriLinkVerificationRequestedAt,
       verificationStatus,
-      verificationSubmittedAt
+      verificationSubmittedAt,
+      specialties
     } = body;
 
-    // Update user profile
+    // Update user profile images
     if (profileImage !== undefined || storefrontImage !== undefined) {
       console.log('🖼️ Updating user profile images:', {
         "userId": user.userId,
@@ -174,123 +200,146 @@ export async function PUT(request: NextRequest) {
         bodyKeys: Object.keys(body)
       });
       
-      // Check if user_profiles record exists
-      const [existingProfile] = await sql`
-        SELECT "userId" FROM user_profiles WHERE "userId" = ${user.userId}
-      `;
-      
-      console.log('🔍 Existing profile check:', existingProfile ? 'found' : 'not found');
+      const profileUpdates: any = {};
+      if (profileImage !== undefined) profileUpdates.profileImage = profileImage;
+      if (storefrontImage !== undefined) profileUpdates.storefrontImage = storefrontImage;
 
-      if (existingProfile) {
-        // Update existing record using template literals
+      // Check if user_profiles record exists
+      const existingProfile = await db
+        .select({ userId: userProfiles.userId })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, user.userId))
+        .limit(1);
+      
+      console.log('🔍 Existing profile check:', existingProfile.length > 0 ? 'found' : 'not found');
+
+      if (existingProfile.length > 0) {
+        // Update existing record
         console.log('🔄 Updating existing profile record...');
-        
-        if (profileImage !== undefined && storefrontImage !== undefined) {
-          // Update both images
-          await sql`
-            UPDATE user_profiles 
-            SET "profileImage" = ${profileImage}, "storefrontImage" = ${storefrontImage}, "updatedAt" = NOW()
-            WHERE "userId" = ${user.userId}
-          `;
-          console.log('✅ Updated both profile and storefront images');
-        } else if (profileImage !== undefined) {
-          // Update only profile image
-          await sql`
-            UPDATE user_profiles 
-            SET "profileImage" = ${profileImage}, "updatedAt" = NOW()
-            WHERE "userId" = ${user.userId}
-          `;
-          console.log('✅ Updated profile image only');
-        } else if (storefrontImage !== undefined) {
-          // Update only storefront image
-          await sql`
-            UPDATE user_profiles 
-            SET "storefrontImage" = ${storefrontImage}, "updatedAt" = NOW()
-            WHERE "userId" = ${user.userId}
-          `;
-          console.log('✅ Updated storefront image only');
-        }
-        
-        console.log('✅ Profile image update completed');
+        await db.update(userProfiles).set(profileUpdates).where(eq(userProfiles.userId, user.userId));
+        console.log('✅ Profile images updated successfully');
       } else {
-        // Insert new record with default location
+        // Insert new record
         console.log('🆕 Creating new profile record for user:', user.userId);
-        
-        if (profileImage !== undefined && storefrontImage !== undefined) {
-          // Insert with both images
-          await sql`
-            INSERT INTO user_profiles ("userId", "profileImage", "storefrontImage", location, "updatedAt")
-            VALUES (${user.userId}, ${profileImage}, ${storefrontImage}, '', NOW())
-          `;
-          console.log('✅ New profile record created with both images');
-        } else if (profileImage !== undefined) {
-          // Insert with profile image only
-          await sql`
-            INSERT INTO user_profiles ("userId", "profileImage", location, "updatedAt")
-            VALUES (${user.userId}, ${profileImage}, '', NOW())
-          `;
-          console.log('✅ New profile record created with profile image');
-        } else if (storefrontImage !== undefined) {
-          // Insert with storefront image only
-          await sql`
-            INSERT INTO user_profiles ("userId", "storefrontImage", location, "updatedAt")
-            VALUES (${user.userId}, ${storefrontImage}, '', NOW())
-          `;
-          console.log('✅ New profile record created with storefront image');
-        } else {
-          // Insert with no images
-          await sql`
-            INSERT INTO user_profiles ("userId", location, "updatedAt")
-            VALUES (${user.userId}, '', NOW())
-          `;
-          console.log('✅ New profile record created without images');
-        }
+        await db.insert(userProfiles).values({
+          userId: user.userId,
+          ...profileUpdates
+        });
+        console.log('✅ New profile record created');
       }
     }
 
+    // Update location
     if (location !== undefined) {
-      await sql`
-        INSERT INTO user_profiles ("userId", location, "updatedAt")
-        VALUES (${user.userId}, ${location}, NOW())
-        ON CONFLICT ("userId") 
-        DO UPDATE SET 
-          location = ${location},
-          "updatedAt" = NOW()
-      `;
+      // Find locationId from locations table
+      const locationResult = await db
+        .select({ id: locations.id })
+        .from(locations)
+        .where(eq(locations.city, location))
+        .limit(1);
+
+      let locationId = null;
+      if (locationResult.length > 0) {
+        locationId = locationResult[0].id;
+      }
+
+      // Check if user_profiles record exists
+      const existingProfile = await db
+        .select({ userId: userProfiles.userId })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, user.userId))
+        .limit(1);
+
+      if (existingProfile.length > 0) {
+        // Update existing record
+        await db.update(userProfiles).set({ locationId }).where(eq(userProfiles.userId, user.userId));
+      } else {
+        // Insert new record
+        await db.insert(userProfiles).values({
+          userId: user.userId,
+          locationId
+        });
+      }
     }
 
+    // Update phone
     if (phone !== undefined) {
       // Check if user_profiles record exists
-      const [existingProfile] = await sql`
-        SELECT "userId" FROM user_profiles WHERE "userId" = ${user.userId}
-      `;
+      const existingProfile = await db
+        .select({ userId: userProfiles.userId })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, user.userId))
+        .limit(1);
 
-      if (existingProfile) {
+      if (existingProfile.length > 0) {
         // Update existing record
-        await sql`
-          UPDATE user_profiles 
-          SET phone = ${phone}, "updatedAt" = NOW()
-          WHERE "userId" = ${user.userId}
-        `;
+        await db.update(userProfiles).set({ phone }).where(eq(userProfiles.userId, user.userId));
       } else {
-        // Insert new record with default location
-        await sql`
-          INSERT INTO user_profiles ("userId", phone, location, "updatedAt")
-          VALUES (${user.userId}, ${phone}, '', NOW())
-        `;
+        // Insert new record
+        await db.insert(userProfiles).values({
+          userId: user.userId,
+          phone
+        });
+      }
+    }
+
+    // Update specialties
+    if (specialties !== undefined) {
+      console.log('🔧 Updating user specialties:', {
+        userId: user.userId,
+        specialties: specialties,
+        specialtiesLength: Array.isArray(specialties) ? specialties.length : 'not array',
+        specialtiesType: typeof specialties
+      });
+
+      // Ensure specialties is an array (handle null, undefined, or empty string)
+      const specialtiesArray = Array.isArray(specialties) ? specialties : [];
+      
+      console.log('🔧 Processed specialties array:', {
+        original: specialties,
+        processed: specialtiesArray,
+        length: specialtiesArray.length
+      });
+
+      // Check if business_details record exists
+      const existingBusiness = await db
+        .select({ userId: businessDetails.userId })
+        .from(businessDetails)
+        .where(eq(businessDetails.userId, user.userId))
+        .limit(1);
+
+      if (existingBusiness.length > 0) {
+        // Update existing record
+        console.log('🔄 Updating existing business details with specialties:', specialtiesArray);
+        await db.update(businessDetails).set({ specialties: specialtiesArray }).where(eq(businessDetails.userId, user.userId));
+        console.log('✅ Updated specialties for existing business details');
+      } else {
+        // Insert new record
+        console.log('🆕 Creating new business details with specialties:', specialtiesArray);
+        await db.insert(businessDetails).values({
+          userId: user.userId,
+          specialties: specialtiesArray
+        });
+        console.log('✅ Inserted specialties for new business details');
       }
     }
 
     // Update phone verification status if phone was verified
     if (phone !== undefined || phoneVerified === true) {
-      await sql`
-        INSERT INTO user_verification ("userId", "phoneVerified", "updatedAt")
-        VALUES (${user.userId}, true, NOW())
-        ON CONFLICT ("userId") 
-        DO UPDATE SET 
-          "phoneVerified" = true,
-          "updatedAt" = NOW()
-      `;
+      const existingVerification = await db
+        .select({ userId: userVerification.userId })
+        .from(userVerification)
+        .where(eq(userVerification.userId, user.userId))
+        .limit(1);
+
+      if (existingVerification.length > 0) {
+        await db.update(userVerification).set({ phoneVerified: true }).where(eq(userVerification.userId, user.userId));
+      } else {
+        await db.insert(userVerification).values({
+          userId: user.userId,
+          phoneVerified: true
+        });
+      }
     }
 
     // Update business details if provided
@@ -304,27 +353,27 @@ export async function PUT(request: NextRequest) {
       });
       
       try {
-        // Update users table
-        await sql`
-          UPDATE users 
-          SET 
-            "businessName" = COALESCE(${business_name}, "businessName"),
-            "businessDescription" = COALESCE(${business_description}, "businessDescription"),
-            "businessLicenseNumber" = COALESCE(${business_license_number}, "businessLicenseNumber"),
-            "updatedAt" = NOW()
-          WHERE id = ${user.userId}
-        `;
-        
-        // Also update business_details table if business_name is provided
-        if (business_name !== undefined) {
-          await sql`
-            INSERT INTO business_details ("userId", "businessName", "updatedAt")
-            VALUES (${user.userId}, ${business_name}, NOW())
-            ON CONFLICT ("userId") 
-            DO UPDATE SET 
-              "businessName" = ${business_name},
-              "updatedAt" = NOW()
-          `;
+        const businessUpdates: any = {};
+        if (business_name !== undefined) businessUpdates.businessName = business_name;
+        if (business_description !== undefined) businessUpdates.businessDescription = business_description;
+        if (business_license_number !== undefined) businessUpdates.businessLicenseNumber = business_license_number;
+
+        // Check if business_details record exists
+        const existingBusiness = await db
+          .select({ userId: businessDetails.userId })
+          .from(businessDetails)
+          .where(eq(businessDetails.userId, user.userId))
+          .limit(1);
+
+        if (existingBusiness.length > 0) {
+          // Update existing record
+          await db.update(businessDetails).set(businessUpdates).where(eq(businessDetails.userId, user.userId));
+        } else {
+          // Insert new record
+          await db.insert(businessDetails).values({
+            userId: user.userId,
+            ...businessUpdates
+          });
         }
         
         console.log('✅ Business details updated successfully');
@@ -349,13 +398,20 @@ export async function PUT(request: NextRequest) {
       });
       
       try {
-        await sql`
-          UPDATE users 
-          SET 
-            "verificationDocuments" = ${JSON.stringify(verificationDocuments)},
-            "updatedAt" = NOW()
-          WHERE id = ${user.userId}
-        `;
+        const existingVerification = await db
+          .select({ userId: userVerification.userId })
+          .from(userVerification)
+          .where(eq(userVerification.userId, user.userId))
+          .limit(1);
+
+        if (existingVerification.length > 0) {
+          await db.update(userVerification).set({ verificationDocuments }).where(eq(userVerification.userId, user.userId));
+        } else {
+          await db.insert(userVerification).values({
+            userId: user.userId,
+            verificationDocuments
+          });
+        }
         console.log('✅ Verification documents updated successfully');
       } catch (dbError: any) {
         console.error('❌ Database error updating verification documents:', dbError);
@@ -363,72 +419,67 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update AgriLink verification request fields if provided
-    if (agriLinkVerificationRequested !== undefined || agriLinkVerificationRequestedAt !== undefined) {
-      console.log('🔄 Updating AgriLink verification request fields...');
-      
-      const updateFields = [];
-      const updateValues = [];
-      
-      if (agriLinkVerificationRequested !== undefined) {
-        updateFields.push('"agriLinkVerificationRequested" = $' + (updateValues.length + 1));
-        updateValues.push(agriLinkVerificationRequested);
-      }
-      
-      if (agriLinkVerificationRequestedAt !== undefined) {
-        updateFields.push('"agriLinkVerificationRequestedAt" = $' + (updateValues.length + 1));
-        updateValues.push(agriLinkVerificationRequestedAt);
-      }
-      
-      if (updateFields.length > 0) {
-        // Update each field individually using conditional updates
-        if (agriLinkVerificationRequested !== undefined) {
-          await sql`UPDATE users SET "agriLinkVerificationRequested" = ${agriLinkVerificationRequested}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
-        }
-        if (agriLinkVerificationRequestedAt !== undefined) {
-          await sql`UPDATE users SET "agriLinkVerificationRequestedAt" = ${agriLinkVerificationRequestedAt}, "updatedAt" = NOW() WHERE id = ${user.userId}`;
-        }
-        console.log('✅ AgriLink verification request fields updated');
-      }
-    }
-
-    // Update verification status fields in user_verification table if provided
-    if (verificationStatus !== undefined) {
+    // Update verification status if provided
+    if (verificationStatus !== undefined || agriLinkVerificationRequested !== undefined || business_details_completed !== undefined) {
       console.log('🔄 Updating user verification status...');
       
-      const updateFields = [];
-      const updateValues = [];
-      
-      if (verificationStatus !== undefined) {
-        updateFields.push('"verificationStatus" = $' + (updateValues.length + 1));
-        updateValues.push(verificationStatus);
+      const verificationUpdates: any = {};
+      if (verificationStatus !== undefined) verificationUpdates.verificationStatus = verificationStatus;
+      if (business_details_completed !== undefined) verificationUpdates.businessDetailsCompleted = business_details_completed;
+
+      const existingVerification = await db
+        .select({ userId: userVerification.userId })
+        .from(userVerification)
+        .where(eq(userVerification.userId, user.userId))
+        .limit(1);
+
+      if (existingVerification.length > 0) {
+        await db.update(userVerification).set(verificationUpdates).where(eq(userVerification.userId, user.userId));
+      } else {
+        await db.insert(userVerification).values({
+          userId: user.userId,
+          ...verificationUpdates
+        });
       }
       
-      if (updateFields.length > 0) {
-        // Update each field individually using conditional updates
-        if (verificationStatus !== undefined) {
-          await sql`UPDATE user_verification SET "verificationStatus" = ${verificationStatus}, "updatedAt" = NOW() WHERE "userId" = ${user.userId}`;
-        }
-        console.log('✅ User verification status updated');
-      }
+      console.log('✅ User verification status updated');
     }
 
 
-    // Get updated user profile
-    const [updatedProfile] = await sql`
-      SELECT 
-        u.id, u.email, u.name, u."userType", u."accountType",
-        u."businessName", u."businessDescription", u."businessLicenseNumber",
-        u."verificationDocuments",
-        u."agriLinkVerificationRequested", u."agriLinkVerificationRequestedAt",
-        u."verificationStatus", u."verificationSubmittedAt",
-        up.location, up.phone, up."profileImage", up."storefrontImage",
-        uv.verified, uv."phoneVerified"
-      FROM users u
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      LEFT JOIN user_verification uv ON u.id = uv."userId"
-      WHERE u.id = ${user.userId}
-    `;
+    // Get updated user profile using normalized structure
+    const updatedProfileResult = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        emailVerified: users.emailVerified,
+        userType: users.userType,
+        accountType: users.accountType,
+        phone: userProfiles.phone,
+        profileImage: userProfiles.profileImage,
+        storefrontImage: userProfiles.storefrontImage,
+        location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
+        region: locations.region,
+        city: locations.city,
+        verified: userVerification.verified,
+        phoneVerified: userVerification.phoneVerified,
+        verificationStatus: userVerification.verificationStatus,
+        verificationDocuments: userVerification.verificationDocuments,
+        businessDetailsCompleted: userVerification.businessDetailsCompleted,
+        businessName: businessDetails.businessName,
+        businessDescription: businessDetails.businessDescription,
+        businessLicenseNumber: businessDetails.businessLicenseNumber,
+        specialties: businessDetails.specialties,
+      })
+      .from(users)
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .leftJoin(locations, eq(userProfiles.locationId, locations.id))
+      .leftJoin(userVerification, eq(users.id, userVerification.userId))
+      .leftJoin(businessDetails, eq(users.id, businessDetails.userId))
+      .where(eq(users.id, user.userId))
+      .limit(1);
+
+    const updatedProfile = updatedProfileResult[0];
     
     console.log('🔍 Raw database result:', {
       profileImage: updatedProfile.profileImage ? `${updatedProfile.profileImage.substring(0, 50)}... (${updatedProfile.profileImage.length})` : 'null',
@@ -447,9 +498,12 @@ export async function PUT(request: NextRequest) {
         id: updatedProfile.id,
         email: updatedProfile.email,
         name: updatedProfile.name,
+        emailVerified: updatedProfile.emailVerified,
         userType: updatedProfile.userType,
         accountType: updatedProfile.accountType,
         location: updatedProfile.location,
+        region: updatedProfile.region,
+        city: updatedProfile.city,
         phone: updatedProfile.phone,
         profileImage: updatedProfile.profileImage,
         storefrontImage: updatedProfile.storefrontImage,
@@ -459,10 +513,9 @@ export async function PUT(request: NextRequest) {
         businessDescription: updatedProfile.businessDescription,
         businessLicenseNumber: updatedProfile.businessLicenseNumber,
         verificationDocuments: updatedProfile.verificationDocuments,
-        agriLinkVerificationRequested: updatedProfile.agriLinkVerificationRequested,
-        agriLinkVerificationRequestedAt: updatedProfile.agriLinkVerificationRequestedAt,
         verificationStatus: updatedProfile.verificationStatus,
-        verificationSubmittedAt: updatedProfile.verificationSubmittedAt
+        businessDetailsCompleted: updatedProfile.businessDetailsCompleted,
+        specialties: updatedProfile.specialties
       },
       message: 'Profile updated successfully'
     });

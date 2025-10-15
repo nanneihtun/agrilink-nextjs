@@ -176,6 +176,13 @@ export function ChatInterface({
 
   // Load messages when conversationId changes (from Messages component)
   useEffect(() => {
+    console.log('🔍 ChatInterface useEffect triggered:', {
+      conversationId,
+      userId: effectiveCurrentUser?.id,
+      hasMessages: messages[conversationId || '']?.length || 0,
+      allMessagesKeys: Object.keys(messages)
+    });
+    
     if (conversationId && effectiveCurrentUser?.id) {
       console.log('🔄 Loading messages for conversation:', conversationId);
       console.log('🔄 Current messages state before loading:', messages[conversationId]?.length || 0);
@@ -270,27 +277,37 @@ export function ChatInterface({
         
         setIsLoading(true);
         
-        if (initialConversationId) {
+        if (initialConversationId || conversationId) {
           // Use existing conversation
-          console.log('📱 Using existing conversation:', initialConversationId);
-          setConversationId(initialConversationId);
-          console.log('🔄 Loading messages for conversation:', initialConversationId);
-          await loadMessages(initialConversationId);
-          console.log('✅ Messages loaded for conversation:', initialConversationId);
+          const existingConversationId = initialConversationId || conversationId;
+          console.log('📱 Using existing conversation:', existingConversationId);
+          setConversationId(existingConversationId);
+          console.log('🔄 Loading messages for conversation:', existingConversationId);
+          await loadMessages(existingConversationId);
+          console.log('✅ Messages loaded for conversation:', existingConversationId);
         } else {
-          // Check if conversation already exists in localStorage first
+          // Check if conversation already exists in database
           try {
-            const storedConversations = localStorage.getItem('agriconnect-myanmar-conversations');
-            if (storedConversations) {
-              const conversations = JSON.parse(storedConversations);
+            console.log('🔍 Checking for existing conversation in database...');
+            const response = await fetch('/api/chat/conversations', {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              const conversations = data.conversations || [];
+              
+              // Find existing conversation between current user and other party for this product
               const existingConversation = conversations.find((conv: any) => 
-                ((conv.buyerId === effectiveCurrentUser.id && conv.otherPartyId === otherPartyId) ||
-                 (conv.otherPartyId === effectiveCurrentUser.id && conv.buyerId === otherPartyId)) && 
-                conv.productId === productId
+                conv.productId === productId &&
+                ((conv.otherParty.id === otherPartyId && conv.otherParty.id !== effectiveCurrentUser.id) ||
+                 (conv.otherParty.id === effectiveCurrentUser.id && conv.otherParty.id !== otherPartyId))
               );
               
               if (existingConversation) {
-                console.log('📱 Found existing conversation in localStorage:', existingConversation.id);
+                console.log('📱 Found existing conversation in database:', existingConversation.id);
                 setConversationId(existingConversation.id);
                 await loadMessages(existingConversation.id);
                 return;
@@ -317,13 +334,18 @@ export function ChatInterface({
 
   // Auto-scroll to bottom when new messages or offers arrive
   useEffect(() => {
+    scrollToBottom();
+  }, [currentMessages, offers]);
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
     if (scrollAreaRef.current) {
       const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
       if (scrollContainer) {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [currentMessages]);
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || isLoading || !effectiveCurrentUser) {
@@ -403,12 +425,7 @@ export function ChatInterface({
       
       // Force scroll to bottom after sending
       setTimeout(() => {
-        if (scrollAreaRef.current) {
-          const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-          if (scrollContainer) {
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          }
-        }
+        scrollToBottom();
       }, 100);
     }
   };
@@ -529,8 +546,8 @@ export function ChatInterface({
 
   // Handle offer actions
   const handleViewOffer = (offerId: string) => {
-    // Navigate to offer details page
-    window.open(`/offers/${offerId}`, '_blank');
+    // Navigate to offer details page in the same tab
+    window.location.href = `/offers/${offerId}`;
   };
 
   const handleAcceptOffer = async (offerId: string) => {
@@ -547,6 +564,9 @@ export function ChatInterface({
       
       if (response.ok) {
         await fetchOffers(); // Refresh offers
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
         alert('Offer accepted successfully!');
       } else {
         const responseText = await response.text();
@@ -580,6 +600,9 @@ export function ChatInterface({
       
       if (response.ok) {
         await fetchOffers(); // Refresh offers
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
         alert('Offer declined successfully!');
       } else {
         const responseText = await response.text();
@@ -678,6 +701,11 @@ export function ChatInterface({
       if (targetConversationId) {
         console.log('🔄 Fetching offers for conversationId:', targetConversationId);
         await fetchOffersForConversation(targetConversationId);
+        
+        // Scroll to bottom after fetching new offers
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
       }
       
       // You could add a success message here

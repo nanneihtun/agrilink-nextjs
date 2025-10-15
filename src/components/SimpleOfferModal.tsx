@@ -54,7 +54,6 @@ interface SimpleOfferModalProps {
       city: string;
       state: string;
       postalCode?: string;
-      country: string;
     };
     deliveryOptions: string[];
     paymentTerms: string[];
@@ -119,7 +118,6 @@ export function SimpleOfferModal({
         city: '',
         state: '',
         postalCode: '',
-        country: 'Myanmar'
       });
     }
   }, [isOpen]);
@@ -215,16 +213,32 @@ export function SimpleOfferModal({
     addressLine2: '',
     city: '',
     state: '',
-    postalCode: '',
-    country: 'Myanmar'
+    postalCode: ''
   });
+
+  const [locations, setLocations] = useState<Array<{ id: string; city: string; region: string }>>([]);
+  const [groupedLocations, setGroupedLocations] = useState<Record<string, Array<{ id: string; city: string; region: string }>>>({});
 
   // Fetch user addresses when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchUserAddresses();
+      fetchLocations();
     }
   }, [isOpen]);
+
+  const fetchLocations = async () => {
+    try {
+      const response = await fetch('/api/locations');
+      if (response.ok) {
+        const data = await response.json();
+        setLocations(data.locations);
+        setGroupedLocations(data.groupedLocations);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+    }
+  };
 
   const fetchUserAddresses = async () => {
     try {
@@ -324,15 +338,14 @@ export function SimpleOfferModal({
         if (selectedAddress) {
           deliveryAddress = {
             addressType: selectedAddress.addressType,
-            label: selectedAddress.label,
-            fullName: selectedAddress.fullName,
+            label: selectedAddress.label || `${selectedAddress.addressType} address`,
+            fullName: selectedAddress.fullName || '',
             phone: selectedAddress.phone,
             addressLine1: selectedAddress.addressLine1,
-            addressLine2: selectedAddress.addressLine2,
-            city: selectedAddress.city,
-            state: selectedAddress.state,
-            postalCode: selectedAddress.postalCode,
-            country: selectedAddress.country
+            addressLine2: selectedAddress.addressLine2 || '',
+            city: selectedAddress.city || '',
+            state: selectedAddress.state || '',
+            postalCode: selectedAddress.postalCode || ''
           };
         }
       }
@@ -367,7 +380,6 @@ export function SimpleOfferModal({
         city: '',
         state: '',
         postalCode: '',
-        country: 'Myanmar'
       });
       onClose();
     } catch (error) {
@@ -616,11 +628,17 @@ export function SimpleOfferModal({
                                   )}
                                 </div>
                                 <div className="space-y-1 text-sm text-muted-foreground">
-                                  <p>{selectedAddress?.fullName}</p>
-                                  <p>{selectedAddress?.addressLine1}</p>
-                                  {selectedAddress?.addressLine2 && <p>{selectedAddress.addressLine2}</p>}
-                                  <p>{selectedAddress?.city}, {selectedAddress?.state}</p>
-                                  {selectedAddress?.phone && <p>{selectedAddress.phone}</p>}
+                                  <p className="font-medium">{selectedAddress?.label}</p>
+                                  <p>
+                                    {[
+                                      selectedAddress?.addressLine1,
+                                      selectedAddress?.addressLine2,
+                                      selectedAddress?.city,
+                                      selectedAddress?.state,
+                                      selectedAddress?.postalCode
+                                    ].filter(field => field && field !== '').join(', ')}
+                                  </p>
+                                  {selectedAddress?.phone && <p>📞 {selectedAddress.phone}</p>}
                                 </div>
                               </div>
                             </div>
@@ -744,22 +762,43 @@ export function SimpleOfferModal({
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label htmlFor="city" className="text-xs">City</Label>
-                        <Input
-                          id="city"
-                          value={newAddress.city}
-                          onChange={(e) => setNewAddress({...newAddress, city: e.target.value})}
-                          className="h-8"
-                        />
+                        <Label htmlFor="state" className="text-xs">State/Region</Label>
+                        <Select
+                          value={newAddress.state}
+                          onValueChange={(value) => {
+                            setNewAddress({...newAddress, state: value, city: ''}); // Reset city when region changes
+                          }}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select State/Region" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.keys(groupedLocations).map((region) => (
+                              <SelectItem key={region} value={region}>
+                                {region}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
-                        <Label htmlFor="state" className="text-xs">State/Region</Label>
-                        <Input
-                          id="state"
-                          value={newAddress.state}
-                          onChange={(e) => setNewAddress({...newAddress, state: e.target.value})}
-                          className="h-8"
-                        />
+                        <Label htmlFor="city" className="text-xs">City</Label>
+                        <Select
+                          value={newAddress.city}
+                          onValueChange={(value) => setNewAddress({...newAddress, city: value})}
+                          disabled={!newAddress.state}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Select City" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {newAddress.state && groupedLocations[newAddress.state]?.map((location) => (
+                              <SelectItem key={location.id} value={location.city}>
+                                {location.city}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </CardContent>

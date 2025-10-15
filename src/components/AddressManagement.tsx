@@ -30,7 +30,6 @@ interface Address {
   city: string;
   state: string;
   postalCode?: string;
-  country: string;
   isDefault: boolean;
   isActive: boolean;
 }
@@ -56,13 +55,29 @@ export function AddressManagement({ userId }: AddressManagementProps) {
     city: '',
     state: '',
     postalCode: '',
-    country: 'Myanmar',
     isDefault: false
   });
 
+  const [locations, setLocations] = useState<Array<{ id: string; city: string; region: string }>>([]);
+  const [groupedLocations, setGroupedLocations] = useState<Record<string, Array<{ id: string; city: string; region: string }>>>({});
+
   useEffect(() => {
     fetchAddresses();
+    fetchLocations();
   }, [userId]);
+
+  const fetchLocations = async () => {
+    try {
+      const response = await fetch('/api/locations');
+      if (response.ok) {
+        const data = await response.json();
+        setLocations(data.locations);
+        setGroupedLocations(data.groupedLocations);
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+    }
+  };
 
   const fetchAddresses = async () => {
     try {
@@ -139,7 +154,6 @@ export function AddressManagement({ userId }: AddressManagementProps) {
       city: address.city,
       state: address.state,
       postalCode: address.postalCode || '',
-      country: address.country,
       isDefault: address.isDefault
     });
     setShowAddForm(true);
@@ -178,7 +192,6 @@ export function AddressManagement({ userId }: AddressManagementProps) {
       city: '',
       state: '',
       postalCode: '',
-      country: 'Myanmar',
       isDefault: false
     });
   };
@@ -281,11 +294,14 @@ export function AddressManagement({ userId }: AddressManagementProps) {
                     <div className="text-sm text-gray-600 space-y-1">
                       <p className="font-medium">{address.fullName}</p>
                       <p>{address.addressLine1}</p>
-                      {address.addressLine2 && <p>{address.addressLine2}</p>}
-                      <p>{address.city}, {address.state}</p>
+                      {address.addressLine2 && address.addressLine2.trim() !== '' && <p>{address.addressLine2}</p>}
+                      <p>
+                        {[address.city, address.state]
+                          .filter(field => field && field.trim() !== '')
+                          .join(', ')}
+                      </p>
                       {address.postalCode && <p>{address.postalCode}</p>}
-                      <p>{address.country}</p>
-                      {address.phone && <p className="text-blue-600">{address.phone}</p>}
+                      {address.phone && <p>{address.phone}</p>}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -406,47 +422,56 @@ export function AddressManagement({ userId }: AddressManagementProps) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="city">City *</Label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        placeholder="City"
-                        required
-                      />
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="state">State/Region *</Label>
-                      <Input
-                        id="state"
+                      <Select
                         value={formData.state}
-                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                        placeholder="State or Region"
-                        required
-                      />
+                        onValueChange={(value) => {
+                          setFormData({ ...formData, state: value, city: '' }); // Reset city when region changes
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select State/Region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(groupedLocations).map((region) => (
+                            <SelectItem key={region} value={region}>
+                              {region}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor="postalCode">Postal Code</Label>
-                      <Input
-                        id="postalCode"
-                        value={formData.postalCode}
-                        onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                        placeholder="Postal code"
-                      />
+                      <Label htmlFor="city">City *</Label>
+                      <Select
+                        value={formData.city}
+                        onValueChange={(value) => setFormData({ ...formData, city: value })}
+                        disabled={!formData.state}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select City" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.state && groupedLocations[formData.state]?.map((location) => (
+                            <SelectItem key={location.id} value={location.city}>
+                              {location.city}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="country">Country</Label>
+                    <Label htmlFor="postalCode">Postal Code</Label>
                     <Input
-                      id="country"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      required
+                      id="postalCode"
+                      value={formData.postalCode}
+                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                      placeholder="Postal code (optional)"
                     />
                   </div>
 
