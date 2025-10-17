@@ -22,7 +22,8 @@ export async function GET(
           u.id, u.name, u.email, u."createdAt" as "joinedDate",
           u."userType", u."accountType",
           l.city as location, l.region, up."profileImage", up."storefrontImage", up.phone, up.website,
-          uv.verified, uv."phoneVerified", uv."verificationStatus", bd.specialties
+          uv.verified, uv."phoneVerified", uv."verificationStatus", 
+          bd."businessName", bd."businessDescription", bd."businessLicenseNumber", bd.specialties
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
         LEFT JOIN locations l ON up."locationId" = l.id
@@ -36,7 +37,8 @@ export async function GET(
         SELECT 
           u.id, u.name, u.email, u."userType", u."accountType", u."createdAt" as "joinedDate",
           l.city as location, l.region, up."profileImage", up."storefrontImage", up.phone, up.website,
-          uv.verified, uv."phoneVerified", uv."verificationStatus", bd.specialties
+          uv.verified, uv."phoneVerified", uv."verificationStatus", 
+          bd."businessName", bd."businessDescription", bd."businessLicenseNumber", bd.specialties
         FROM users u
         LEFT JOIN user_profiles up ON u.id = up."userId"
         LEFT JOIN locations l ON up."locationId" = l.id

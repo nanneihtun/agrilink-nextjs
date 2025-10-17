@@ -10,6 +10,7 @@ export interface User {
   region?: string;
   verified: boolean;
   phoneVerified: boolean;
+  emailVerified: boolean;
   businessVerified?: boolean;
   phone?: string;
   businessName?: string;

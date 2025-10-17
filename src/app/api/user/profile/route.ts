@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from '@/lib/db';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+
+const sql = neon(process.env.DATABASE_URL!);
 import { 
   users, 
   userProfiles, 
@@ -9,7 +12,7 @@ import {
   businessDetails,
   locations
 } from '@/lib/db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 // Helper function to verify JWT token
 function verifyToken(request: NextRequest) {
@@ -42,47 +45,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user profile data using normalized structure
+    // Get user profile data using raw SQL (consistent with PUT method)
     console.log('🔍 Querying database for "userId":', user.userId);
     console.log('📍 Profile API - Debugging location data for user:', user.userId);
     
-    const userProfileResult = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        emailVerified: users.emailVerified,
-        createdAt: users.createdAt,
-        userType: users.userType,
-        accountType: users.accountType,
-        phone: userProfiles.phone,
-        profileImage: userProfiles.profileImage,
-        storefrontImage: userProfiles.storefrontImage,
-        location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
-        region: locations.region,
-        city: locations.city,
-        verified: userVerification.verified,
-        phoneVerified: userVerification.phoneVerified,
-        verificationStatus: userVerification.verificationStatus,
-        verificationDocuments: userVerification.verificationDocuments,
-        businessDetailsCompleted: userVerification.businessDetailsCompleted,
-        rating: userRatings.rating,
-        totalReviews: userRatings.totalReviews,
-        businessName: businessDetails.businessName,
-        businessDescription: businessDetails.businessDescription,
-        businessLicenseNumber: businessDetails.businessLicenseNumber,
-        specialties: businessDetails.specialties,
-      })
-      .from(users)
-      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
-      .leftJoin(locations, eq(userProfiles.locationId, locations.id))
-      .leftJoin(userVerification, eq(users.id, userVerification.userId))
-      .leftJoin(userRatings, eq(users.id, userRatings.userId))
-      .leftJoin(businessDetails, eq(users.id, businessDetails.userId))
-      .where(eq(users.id, user.userId))
-      .limit(1);
-
-    const userProfile = userProfileResult[0];
+    const [userProfile] = await sql`
+      SELECT 
+        u.id, u.email, u.name, u."userType", u."accountType", u."emailVerified", u."pendingEmail", u."createdAt",
+        bd."businessName", bd."businessDescription", bd."businessLicenseNumber", bd.specialties,
+        l.city, l.region, up.phone, up."profileImage", up."storefrontImage",
+        uv.verified, uv."phoneVerified", uv."verificationStatus", uv."verificationDocuments", uv."businessDetailsCompleted",
+        ur.rating, ur."totalReviews"
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up."userId"
+      LEFT JOIN locations l ON up."locationId" = l.id
+      LEFT JOIN user_verification uv ON u.id = uv."userId"
+      LEFT JOIN user_ratings ur ON u.id = ur."userId"
+      LEFT JOIN business_details bd ON u.id = bd."userId"
+      WHERE u.id = ${user.userId}
+    `;
     
     console.log('🔍 Database query completed. Result:', !!userProfile);
     if (userProfile) {
@@ -126,7 +107,9 @@ export async function GET(request: NextRequest) {
         emailVerified: userProfile.emailVerified,
         userType: userProfile.userType,
         accountType: userProfile.accountType,
-        location: userProfile.location,
+        location: userProfile.city && userProfile.region 
+          ? `${userProfile.city}, ${userProfile.region}` 
+          : userProfile.city || userProfile.region || '',
         region: userProfile.region,
         city: userProfile.city,
         phone: userProfile.phone,
@@ -143,6 +126,7 @@ export async function GET(request: NextRequest) {
         rating: parseFloat(userProfile.rating?.toString() || '0'),
         totalReviews: userProfile.totalReviews || 0,
         joinedDate: userProfile.createdAt,
+        pendingEmail: userProfile.pendingEmail,
         specialties: userProfile.specialties
       }
     });
@@ -171,6 +155,7 @@ export async function PUT(request: NextRequest) {
     console.log('✅ Authentication successful for user:', user.userId);
 
     const body = await request.json();
+    
     const { 
       profileImage, 
       storefrontImage,
@@ -188,6 +173,13 @@ export async function PUT(request: NextRequest) {
       verificationSubmittedAt,
       specialties
     } = body;
+    
+    console.log('📥 Request body received:', {
+      business_name,
+      business_description,
+      business_license_number,
+      allKeys: Object.keys(body)
+    });
 
     // Update user profile images
     if (profileImage !== undefined || storefrontImage !== undefined) {
@@ -204,7 +196,7 @@ export async function PUT(request: NextRequest) {
       if (profileImage !== undefined) profileUpdates.profileImage = profileImage;
       if (storefrontImage !== undefined) profileUpdates.storefrontImage = storefrontImage;
 
-      // Check if user_profiles record exists
+      // Check if user_profiles record exists using Drizzle ORM
       const existingProfile = await db
         .select({ userId: userProfiles.userId })
         .from(userProfiles)
@@ -214,24 +206,33 @@ export async function PUT(request: NextRequest) {
       console.log('🔍 Existing profile check:', existingProfile.length > 0 ? 'found' : 'not found');
 
       if (existingProfile.length > 0) {
-        // Update existing record
+        // Update existing record using Drizzle ORM
         console.log('🔄 Updating existing profile record...');
-        await db.update(userProfiles).set(profileUpdates).where(eq(userProfiles.userId, user.userId));
+        await db
+          .update(userProfiles)
+          .set({
+            profileImage: profileUpdates.profileImage || null,
+            storefrontImage: profileUpdates.storefrontImage || null,
+          })
+          .where(eq(userProfiles.userId, user.userId));
         console.log('✅ Profile images updated successfully');
       } else {
-        // Insert new record
+        // Insert new record using Drizzle ORM
         console.log('🆕 Creating new profile record for user:', user.userId);
-        await db.insert(userProfiles).values({
-          userId: user.userId,
-          ...profileUpdates
-        });
+        await db
+          .insert(userProfiles)
+          .values({
+            userId: user.userId,
+            profileImage: profileUpdates.profileImage || null,
+            storefrontImage: profileUpdates.storefrontImage || null,
+          });
         console.log('✅ New profile record created');
       }
     }
 
     // Update location
     if (location !== undefined) {
-      // Find locationId from locations table
+      // Find locationId from locations table using Drizzle ORM
       const locationResult = await db
         .select({ id: locations.id })
         .from(locations)
@@ -243,7 +244,7 @@ export async function PUT(request: NextRequest) {
         locationId = locationResult[0].id;
       }
 
-      // Check if user_profiles record exists
+      // Check if user_profiles record exists using Drizzle ORM
       const existingProfile = await db
         .select({ userId: userProfiles.userId })
         .from(userProfiles)
@@ -251,14 +252,19 @@ export async function PUT(request: NextRequest) {
         .limit(1);
 
       if (existingProfile.length > 0) {
-        // Update existing record
-        await db.update(userProfiles).set({ locationId }).where(eq(userProfiles.userId, user.userId));
+        // Update existing record using Drizzle ORM
+        await db
+          .update(userProfiles)
+          .set({ locationId: locationId })
+          .where(eq(userProfiles.userId, user.userId));
       } else {
-        // Insert new record
-        await db.insert(userProfiles).values({
-          userId: user.userId,
-          locationId
-        });
+        // Insert new record using Drizzle ORM
+        await db
+          .insert(userProfiles)
+          .values({
+            userId: user.userId,
+            locationId: locationId,
+          });
       }
     }
 
@@ -353,30 +359,31 @@ export async function PUT(request: NextRequest) {
       });
       
       try {
-        const businessUpdates: any = {};
-        if (business_name !== undefined) businessUpdates.businessName = business_name;
-        if (business_description !== undefined) businessUpdates.businessDescription = business_description;
-        if (business_license_number !== undefined) businessUpdates.businessLicenseNumber = business_license_number;
-
         // Check if business_details record exists
-        const existingBusiness = await db
-          .select({ userId: businessDetails.userId })
-          .from(businessDetails)
-          .where(eq(businessDetails.userId, user.userId))
-          .limit(1);
-
-        if (existingBusiness.length > 0) {
+        const existingRecord = await sql`
+          SELECT "userId" FROM business_details WHERE "userId" = ${user.userId} LIMIT 1
+        `;
+        
+        if (existingRecord.length > 0) {
           // Update existing record
-          await db.update(businessDetails).set(businessUpdates).where(eq(businessDetails.userId, user.userId));
+          await sql`
+            UPDATE business_details 
+            SET 
+              "businessName" = COALESCE(${business_name}, "businessName"),
+              "businessDescription" = COALESCE(${business_description}, "businessDescription"),
+              "businessLicenseNumber" = COALESCE(${business_license_number}, "businessLicenseNumber"),
+              "updatedAt" = NOW()
+            WHERE "userId" = ${user.userId}
+          `;
+          console.log('✅ Business details updated successfully');
         } else {
           // Insert new record
-          await db.insert(businessDetails).values({
-            userId: user.userId,
-            ...businessUpdates
-          });
+          await sql`
+            INSERT INTO business_details ("userId", "businessName", "businessDescription", "businessLicenseNumber", "updatedAt")
+            VALUES (${user.userId}, ${business_name}, ${business_description}, ${business_license_number}, NOW())
+          `;
+          console.log('✅ Business details inserted successfully');
         }
-        
-        console.log('✅ Business details updated successfully');
       } catch (dbError: any) {
         console.error('❌ Database error updating business details:', dbError);
         throw dbError;
@@ -447,50 +454,75 @@ export async function PUT(request: NextRequest) {
 
 
     // Get updated user profile using normalized structure
-    const updatedProfileResult = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        emailVerified: users.emailVerified,
-        userType: users.userType,
-        accountType: users.accountType,
-        phone: userProfiles.phone,
-        profileImage: userProfiles.profileImage,
-        storefrontImage: userProfiles.storefrontImage,
-        location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
-        region: locations.region,
-        city: locations.city,
-        verified: userVerification.verified,
-        phoneVerified: userVerification.phoneVerified,
-        verificationStatus: userVerification.verificationStatus,
-        verificationDocuments: userVerification.verificationDocuments,
-        businessDetailsCompleted: userVerification.businessDetailsCompleted,
-        businessName: businessDetails.businessName,
-        businessDescription: businessDetails.businessDescription,
-        businessLicenseNumber: businessDetails.businessLicenseNumber,
-        specialties: businessDetails.specialties,
-      })
-      .from(users)
-      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
-      .leftJoin(locations, eq(userProfiles.locationId, locations.id))
-      .leftJoin(userVerification, eq(users.id, userVerification.userId))
-      .leftJoin(businessDetails, eq(users.id, businessDetails.userId))
-      .where(eq(users.id, user.userId))
-      .limit(1);
+    const [updatedProfile] = await sql`
+      SELECT 
+        u.id, u.email, u.name, u."userType", u."accountType", u."emailVerified", u."pendingEmail", u."createdAt",
+        bd."businessName", bd."businessDescription", bd."businessLicenseNumber", bd.specialties,
+        l.city, l.region, up.phone, up."profileImage", up."storefrontImage",
+        uv.verified, uv."phoneVerified", uv."verificationStatus", uv."verificationDocuments", uv."businessDetailsCompleted",
+        ur.rating, ur."totalReviews"
+      FROM users u
+      LEFT JOIN user_profiles up ON u.id = up."userId"
+      LEFT JOIN locations l ON up."locationId" = l.id
+      LEFT JOIN user_verification uv ON u.id = uv."userId"
+      LEFT JOIN user_ratings ur ON u.id = ur."userId"
+      LEFT JOIN business_details bd ON u.id = bd."userId"
+      WHERE u.id = ${user.userId}
+    `;
 
-    const updatedProfile = updatedProfileResult[0];
+    // updatedProfile is already destructured from the query above
     
     console.log('🔍 Raw database result:', {
       profileImage: updatedProfile.profileImage ? `${updatedProfile.profileImage.substring(0, 50)}... (${updatedProfile.profileImage.length})` : 'null',
       storefrontImage: updatedProfile.storefrontImage ? `${updatedProfile.storefrontImage.substring(0, 50)}... (${updatedProfile.storefrontImage.length})` : 'null',
       allKeys: Object.keys(updatedProfile)
     });
+    
+    // Debug: Log business details specifically
+    console.log('🏪 Business details from database:', {
+      businessName: updatedProfile.businessName,
+      businessDescription: updatedProfile.businessDescription,
+      businessLicenseNumber: updatedProfile.businessLicenseNumber,
+      businessNameType: typeof updatedProfile.businessName,
+      businessNameLength: updatedProfile.businessName?.length
+    });
 
     // Return updated user data
     console.log('📤 Returning updated profile:', {
       profileImage: updatedProfile.profileImage ? `${updatedProfile.profileImage.substring(0, 50)}... (${updatedProfile.profileImage.length})` : 'null',
       storefrontImage: updatedProfile.storefrontImage ? `${updatedProfile.storefrontImage.substring(0, 50)}... (${updatedProfile.storefrontImage.length})` : 'null'
+    });
+    
+    // Debug: Log the exact response being sent
+    const responseData = {
+      user: {
+        id: updatedProfile.id,
+        email: updatedProfile.email,
+        name: updatedProfile.name,
+        userType: updatedProfile.userType,
+        accountType: updatedProfile.accountType,
+        location: updatedProfile.city && updatedProfile.region 
+          ? `${updatedProfile.city}, ${updatedProfile.region}` 
+          : updatedProfile.city || updatedProfile.region || '',
+        phone: updatedProfile.phone,
+        profileImage: updatedProfile.profileImage,
+        storefrontImage: updatedProfile.storefrontImage,
+        verified: updatedProfile.verified,
+        phoneVerified: updatedProfile.phoneVerified,
+        businessName: updatedProfile.businessName,
+        businessDescription: updatedProfile.businessDescription,
+        businessLicenseNumber: updatedProfile.businessLicenseNumber,
+        verificationDocuments: updatedProfile.verificationDocuments,
+        verificationStatus: updatedProfile.verificationStatus
+      },
+      message: 'Profile updated successfully'
+    };
+    
+    console.log('📤 Final response data:', {
+      businessName: responseData.user.businessName,
+      businessDescription: responseData.user.businessDescription,
+      businessLicenseNumber: responseData.user.businessLicenseNumber,
+      allUserKeys: Object.keys(responseData.user)
     });
     
     return NextResponse.json({
@@ -501,7 +533,9 @@ export async function PUT(request: NextRequest) {
         emailVerified: updatedProfile.emailVerified,
         userType: updatedProfile.userType,
         accountType: updatedProfile.accountType,
-        location: updatedProfile.location,
+        location: updatedProfile.city && updatedProfile.region 
+          ? `${updatedProfile.city}, ${updatedProfile.region}` 
+          : updatedProfile.city || updatedProfile.region || '',
         region: updatedProfile.region,
         city: updatedProfile.city,
         phone: updatedProfile.phone,
@@ -515,6 +549,10 @@ export async function PUT(request: NextRequest) {
         verificationDocuments: updatedProfile.verificationDocuments,
         verificationStatus: updatedProfile.verificationStatus,
         businessDetailsCompleted: updatedProfile.businessDetailsCompleted,
+        rating: parseFloat(updatedProfile.rating?.toString() || '0'),
+        totalReviews: updatedProfile.totalReviews || 0,
+        joinedDate: updatedProfile.createdAt,
+        pendingEmail: updatedProfile.pendingEmail,
         specialties: updatedProfile.specialties
       },
       message: 'Profile updated successfully'

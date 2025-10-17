@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+import { awsSnsService } from '@/lib/aws-sns-service';
 import jwt from 'jsonwebtoken';
-
-const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,39 +23,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For demo purposes, accept any 6-digit code
-    const isValidCode = /^\d{6}$/.test(code);
+    // Verify code using AWS SNS service
+    const result = await awsSnsService.verifyCode(userId, phoneNumber, code);
     
-    if (!isValidCode) {
+    if (!result.success) {
+      const errorMessage = result.error || result.message || 'Failed to verify code';
       return NextResponse.json(
-        { error: 'Invalid verification code format. Please enter a 6-digit code.' },
+        { error: errorMessage },
         { status: 400 }
       );
     }
 
-    console.log(`✅ Phone number ${phoneNumber} verified with code: ${code}`);
-
-    // Update user verification status in database
-    await sql`
-      UPDATE user_verification 
-      SET 
-        "phoneVerified" = true,
-        "updatedAt" = NOW()
-      WHERE "userId" = ${userId}
-    `;
-
-    // Also update the phone number in user_profiles if it exists
-    await sql`
-      UPDATE user_profiles 
-      SET 
-        phone = ${phoneNumber},
-        "updatedAt" = NOW()
-      WHERE "userId" = ${userId}
-    `;
-
     return NextResponse.json({
       success: true,
-      message: 'Phone number verified successfully',
+      message: result.message || 'Phone number verified successfully',
       phoneNumber
     });
 

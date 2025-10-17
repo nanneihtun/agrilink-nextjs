@@ -122,9 +122,9 @@ export async function POST(request: NextRequest) {
       console.log('💾 Updating database with email change request...');
       await sql`
         UPDATE users 
-        SET email_verification_token = ${emailChangeToken}, 
-            email_verification_expires = ${expiresAt.toISOString()},
-            pending_email = ${newEmail},
+        SET "emailVerificationToken" = ${emailChangeToken}, 
+            "emailVerificationExpires" = ${expiresAt.toISOString()},
+            "pendingEmail" = ${newEmail},
             "updatedAt" = NOW()
         WHERE id = ${userId}
       `;

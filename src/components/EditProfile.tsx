@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { myanmarRegions } from "../utils/regions";
+import { PhoneVerification } from "./PhoneVerification";
 
 import { 
   ChevronLeft, 
@@ -50,6 +51,7 @@ export function EditProfile({ user, onClose, onSave }: EditProfileProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [loadingImage, setLoadingImage] = useState<string | null>(null);
+  const [showPhoneVerification, setShowPhoneVerification] = useState(false);
   
   // File input refs
   const profileFileRef = useRef<HTMLInputElement>(null);
@@ -337,13 +339,24 @@ export function EditProfile({ user, onClose, onSave }: EditProfileProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+95 9 XXX XXX XXX"
-                    className={errors.phone ? 'border-destructive' : ''}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      placeholder="+95 9 XXX XXX XXX"
+                      className={errors.phone ? 'border-destructive' : ''}
+                      readOnly
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPhoneVerification(true)}
+                    >
+                      <Phone className="w-4 h-4 mr-1" />
+                      Verify
+                    </Button>
+                  </div>
                   {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                 </div>
 
@@ -487,6 +500,23 @@ export function EditProfile({ user, onClose, onSave }: EditProfileProps) {
           </form>
         </CardContent>
       </Card>
+
+      {/* Phone Verification Modal */}
+      {showPhoneVerification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <PhoneVerification
+              currentUser={user}
+              onVerificationComplete={(phoneNumber) => {
+                // Update the form data with the new phone number
+                setFormData(prev => ({ ...prev, phone: phoneNumber }));
+                setShowPhoneVerification(false);
+              }}
+              onBack={() => setShowPhoneVerification(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

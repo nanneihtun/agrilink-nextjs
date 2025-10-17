@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import { checkEmailVerification } from '@/lib/api-middleware';
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -8,31 +9,21 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔄 Verification request API called');
 
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('❌ No authorization header');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check email verification for submitting verification requests
+    const { user, error } = await checkEmailVerification(request, 'submit_verification');
+    if (error) return error;
+    if (!user) {
+      console.log('❌ User not found');
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const token = authHeader.substring(7);
-    
-    // Verify JWT token and extract user information
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-      console.log('✅ Token verified successfully for user:', decoded.userId);
-    } catch (error) {
-      console.log('❌ Token verification failed:', error);
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const userId = user.id;
+    console.log('✅ User authenticated for verification request:', userId);
 
     const body = await request.json();
-
-    // Extract user information from JWT token
-    const userId = decoded.userId;
-    const userEmail = decoded.email;
-    const userType = decoded.userType;
-    const accountType = decoded.accountType;
+    const userEmail = user.email;
+    const userType = user.userType;
+    const accountType = user.accountType;
     
     // Fetch user's name from database
     const userResult = await sql`

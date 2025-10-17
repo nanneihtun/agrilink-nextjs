@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         name: user.name,
-        email: user.pending_email,
+        email: user.pendingEmail,
       },
     });
 

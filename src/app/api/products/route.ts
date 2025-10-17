@@ -17,6 +17,7 @@ import {
   sellerCustomPaymentTerms
 } from '@/lib/db/schema';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
+import { checkEmailVerification } from '@/lib/api-middleware';
 
 export async function GET(request: NextRequest) {
   try {
@@ -223,28 +224,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the authorization header
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Check email verification for creating products
+    const { user, error } = await checkEmailVerification(request, 'create_product');
+    if (error) return error;
+    if (!user) {
       return NextResponse.json(
-        { error: 'Authorization header missing or invalid' },
-        { status: 401 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 
-    // Extract and verify the JWT token
-    const token = authHeader.substring(7);
-    let userId: string;
-    
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
-      userId = decoded.userId;
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid or expired token' },
-        { status: 401 }
-      );
-    }
+    const userId = user.id;
 
     const body = await request.json();
     const {

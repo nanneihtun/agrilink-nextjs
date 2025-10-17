@@ -16,6 +16,7 @@ import {
   conversations
 } from '@/lib/db/schema';
 import { eq, and, or, desc } from 'drizzle-orm';
+import { checkEmailVerification } from '@/lib/api-middleware';
 
 function verifyToken(request: NextRequest) {
   try {
@@ -318,13 +319,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log('🎯 Offers API - POST request received');
-    const user = verifyToken(request);
     
+    // Check email verification for making offers
+    const { user, error } = await checkEmailVerification(request, 'make_offer');
+    if (error) return error;
     if (!user) {
-      console.log('❌ Offers API - Unauthorized request');
+      console.log('❌ Offers API - User not found');
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 

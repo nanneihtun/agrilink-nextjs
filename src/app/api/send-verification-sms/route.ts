@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TwilioService } from '@/lib/twilio';
+import { awsSnsService } from '@/lib/aws-sns-service';
+import jwt from 'jsonwebtoken';
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,6 +8,10 @@ export async function POST(request: NextRequest) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
 
     const body = await request.json();
     const { phoneNumber } = body;
@@ -18,29 +23,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate phone number format
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phoneNumber)) {
-      return NextResponse.json(
-        { error: 'Please enter a valid phone number with country code (e.g., +959123456789)' },
-        { status: 400 }
-      );
-    }
-
-    // Send SMS via Twilio
-    const result = await TwilioService.sendVerificationSMS(phoneNumber);
+    // Send verification code using AWS SNS service
+    const result = await awsSnsService.sendVerificationCode(userId, phoneNumber);
     
     if (!result.success) {
+      const errorMessage = result.error || result.message || 'Failed to send verification code';
       return NextResponse.json(
-        { error: result.message },
-        { status: 400 }
+        { error: errorMessage },
+        { 
+          status: errorMessage.includes('wait a minute') ? 429 : 400 
+        }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: result.message,
-      verificationSid: result.verificationSid
+      message: result.message || 'Verification code sent successfully',
+      verificationId: result.verificationId
     });
 
   } catch (error: any) {

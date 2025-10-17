@@ -21,7 +21,8 @@ import {
   DollarSign,
   TrendingUp,
   Ban,
-  RefreshCw
+  RefreshCw,
+  Smartphone
 } from 'lucide-react';
 
 interface AdminStats {
@@ -315,13 +316,6 @@ export function AdminDashboard({ currentAdmin, onBack, onNavigateToVerification,
                 >
                   <Users className="h-6 w-6" />
                   <span className="text-sm">Manage Users</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="h-20 flex-col gap-2"
-                >
-                  <DollarSign className="h-6 w-6" />
-                  <span className="text-sm">View Transactions</span>
                 </Button>
               </div>
             </CardContent>

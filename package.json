@@ -11,10 +11,13 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:setup": "node setup-nextjs-database.js"
+    "db:setup": "node setup-nextjs-database.js",
+    "db:twilio": "node migrate-to-twilio.js",
+    "db:twilio-override": "psql $DATABASE_URL -f prepare-twilio-override-database.sql"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.907.0",
+    "@aws-sdk/client-sns": "^3.911.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

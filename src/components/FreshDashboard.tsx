@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { UserBadge, getUserVerificationLevel, getUserAccountType } from "./UserBadgeSystem";
 import { Alert, AlertDescription } from "./ui/alert";
+import { EmailVerificationPrompt } from "./EmailVerificationPrompt";
 import { 
   Plus, 
   Eye, 
@@ -141,6 +142,61 @@ export function FreshDashboard({
           </div>
         </div>
       </div>
+
+      {/* Email Verification Prompt */}
+              <EmailVerificationPrompt 
+                user={user}
+                onResendVerification={async () => {
+                  const token = localStorage.getItem('token');
+                  if (!token) {
+                    console.error('No token found for resend verification');
+                    throw new Error('No authentication token found');
+                  }
+                  
+                  try {
+                    console.log('🔄 Attempting to resend verification email...');
+                    const response = await fetch('/api/auth/resend-verification', {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    
+                    console.log('📧 Resend verification response status:', response.status);
+                    console.log('📧 Resend verification response headers:', Object.fromEntries(response.headers.entries()));
+                    
+                    if (!response.ok) {
+                      let errorData;
+                      try {
+                        const responseText = await response.text();
+                        console.log('📧 Resend verification response body:', responseText);
+                        errorData = responseText ? JSON.parse(responseText) : { error: 'Empty response' };
+                      } catch (parseError) {
+                        console.error('❌ Failed to parse error response:', parseError);
+                        errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+                      }
+                      
+                      // Handle rate limiting gracefully
+                      if (response.status === 429 && errorData.recentlySent) {
+                        console.log('⏰ Rate limited - email was recently sent');
+                        throw new Error('Please wait a minute before requesting another verification email.');
+                      }
+                      
+                      console.error('❌ Resend verification failed:', errorData);
+                      throw new Error(errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('✅ Resend verification successful:', result);
+                  } catch (error) {
+                    console.error('❌ Error resending verification email:', error);
+                    throw error;
+                  }
+                }}
+                variant="banner"
+                className="mb-6"
+              />
 
       {/* Verification Status Alerts */}
       {(() => {
@@ -413,13 +469,21 @@ export function FreshDashboard({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            if (!user.emailVerified) {
+              alert('Please verify your email to create product listings');
+              return;
+            }
             console.log('✨ Quick Add Product clicked');
             onAddListing?.();
           }}
-          className="h-12 justify-start gap-3 bg-primary hover:bg-primary/90"
+          disabled={!user.emailVerified}
+          className={`h-12 justify-start gap-3 ${!user.emailVerified ? 'opacity-50 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
         >
           <Plus className="w-5 h-5" />
           Add New Product
+          {!user.emailVerified && (
+            <span className="text-xs text-muted-foreground ml-1">(Verify email required)</span>
+          )}
         </Button>
         
         <Button 

@@ -7,6 +7,7 @@ import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { UserBadge, getUserVerificationLevel, getUserAccountType } from "./UserBadgeSystem";
+import { EmailVerificationStatus } from "./EmailVerificationPrompt";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -149,6 +150,11 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
                 verificationLevel={getUserVerificationLevel(user)}
                 size="sm"
               />
+              {/* Email Verification Status */}
+              <div className="mt-2">
+                <EmailVerificationStatus user={user} size="sm" />
+              </div>
+              
               {/* Verification Status - Only show for non-admin users */}
               {user.userType !== 'admin' && (
                 <div className="mt-2">

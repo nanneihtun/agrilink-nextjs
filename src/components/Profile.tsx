@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { formatMemberSinceDate } from "../utils/dates";
 import { AddressManagement } from "./AddressManagement";
+import { PhoneVerification } from "./PhoneVerification";
 
 interface ProfileProps {
   user: any;
@@ -71,6 +72,35 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [emailSuccess, setEmailSuccess] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [showPhoneVerification, setShowPhoneVerification] = useState(false);
+
+  // Check for pending email changes on component mount
+  useEffect(() => {
+    const checkPendingEmail = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/user/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          if (userData.pendingEmail) {
+            setPendingEmail(userData.pendingEmail);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking pending email:', error);
+      }
+    };
+
+    checkPendingEmail();
+  }, []);
 
   if (!user) {
     return (
@@ -112,6 +142,7 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
       const data = await response.json();
 
       if (response.ok) {
+        setPendingEmail(newEmail);
         setEmailSuccess(`We've sent a verification email to ${newEmail}. Please check your inbox and click the verification link.`);
         setNewEmail('');
         setEmailPassword('');
@@ -142,41 +173,71 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
     city: ''
   });
 
-  // Update formData when user prop changes
+  // Update formData when user prop changes, but only if we're not currently editing
   useEffect(() => {
     console.log('🔄 Profile component - user prop changed:', {
       phone: user.phone,
       location: user.location,
-      name: user.name
+      name: user.name,
+      businessName: user.businessName,
+      isEditing: !!editing
     });
     
-    setFormData({
-      name: user.name || '',
-      phone: user.phone || '',
-      location: user.location || '',
-      profileImage: user.profileImage || '',
-      region: user.region || '',
-      businessName: user.businessName || '',
-    });
+    // Only update formData if we're not currently editing a field
+    // This prevents race conditions where user updates are overridden
+    if (!editing) {
+      setFormData({
+        name: user.name || '',
+        phone: user.phone || '',
+        location: user.location || '',
+        profileImage: user.profileImage || '',
+        region: user.region || '',
+        businessName: user.businessName || '',
+      });
+      
+      console.log('✅ Profile component - formData updated with:', {
+        phone: user.phone || '',
+        location: user.location || '',
+        name: user.name || '',
+        businessName: user.businessName || ''
+      });
+    } else {
+      console.log('⏸️ Profile component - Skipping formData update because editing:', editing.field);
+    }
     
-    console.log('✅ Profile component - formData updated with:', {
-      phone: user.phone || '',
-      location: user.location || '',
-      name: user.name || ''
+    // Debug: Log business details specifically
+    console.log('🏪 Profile component - Business details from user:', {
+      businessName: user.businessName,
+      businessDescription: user.businessDescription,
+      businessLicenseNumber: user.businessLicenseNumber,
+      businessNameType: typeof user.businessName,
+      allUserKeys: Object.keys(user)
     });
-  }, [user]);
+  }, [user, editing]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = async (field: string, value: string) => {
     try {
+      // Update local state immediately for responsive UI
       setFormData(prev => ({ ...prev, [field]: value }));
       setEditing(null);
       
       if (onUpdate) {
-        await onUpdate({ [field]: value });
+        // Map field names to API expected format
+        const apiField = field === 'businessName' ? 'business_name' : field;
+        await onUpdate({ [apiField]: value });
+        
+        // After successful update, ensure formData reflects the latest user data
+        // This handles cases where the API response might have different formatting
+        console.log('✅ Save completed, ensuring formData is in sync');
+        setFormData(prev => ({
+          ...prev,
+          [field]: user[field] || value // Use user data if available, fallback to saved value
+        }));
       }
     } catch (error) {
       console.error('Failed to save:', error);
+      // Revert to original value on error
       setFormData(prev => ({ ...prev, [field]: formData[field] }));
     }
   };
@@ -548,11 +609,36 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                           <Edit className="w-4 h-4" />
                         </Button>
                       </div>
-                      {user.emailVerified && (
+                      {user.emailVerified ? (
                         <Badge variant="outline" className="text-xs text-green-600 border-green-200">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Verified
                         </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-200">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Unverified
+                        </Badge>
+                      )}
+                      
+                      {/* Pending Email Change Status */}
+                      {pendingEmail && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Mail className="w-3 h-3 text-blue-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-blue-900">
+                                Email Change Pending
+                              </p>
+                              <p className="text-sm text-blue-700 mt-1">
+                                We've sent a verification email to <span className="font-medium">{pendingEmail}</span>. 
+                                Please check your inbox and click the verification link to complete the change.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </>
                   ) : (
@@ -631,29 +717,6 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     <Phone className="w-4 h-4" />
                     Phone Number
                   </div>
-                  {editing?.field === 'phone' ? (
-                    <div className="space-y-2">
-                      <Input
-                        value={editing.value}
-                        onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                        placeholder="Enter phone number"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSave('phone', editing.value);
-                          if (e.key === 'Escape') cancelEditing();
-                        }}
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button size="sm" onClick={() => handleSave('phone', editing.value)}>
-                          <Save className="w-4 h-4 mr-1" />
-                          Save
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEditing}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
                   <div className="flex items-center gap-2">
                     <p className="font-medium flex-1">
                       {formData.phone || 'Add phone number'}
@@ -661,17 +724,21 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                     <Button
                       size="sm"
                       variant="ghost"
-                        onClick={() => setEditing({ field: 'phone', value: formData.phone })}
+                      onClick={() => setShowPhoneVerification(true)}
                       className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
                   </div>
-                  )}
-                  {user.phoneVerified && (
+                  {user.phoneVerified ? (
                     <Badge variant="outline" className="text-xs text-green-600 border-green-200">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Verified
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-200">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      Unverified
                     </Badge>
                   )}
                 </div>
@@ -710,14 +777,22 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
                         <p className="font-medium flex-1">
                           {formData.businessName || `Add your ${user.userType === 'farmer' ? 'farm' : 'store'} name`}
                         </p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setEditing({ field: 'businessName', value: formData.businessName })}
-                          className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                        {!user.verified && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditing({ field: 'businessName', value: formData.businessName })}
+                            className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    {user.verified && formData.businessName && (
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Shield className="w-3 h-3" />
+                        Locked after verification
                       </div>
                     )}
                   </div>
@@ -1070,6 +1145,30 @@ export function Profile({ user, onBack, onEditProfile, onShowVerification, onUpd
           )}
         </div>
       </div>
+
+      {/* Phone Verification Modal */}
+      {showPhoneVerification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <PhoneVerification
+              currentUser={user}
+              onVerificationComplete={async (phoneNumber) => {
+                // Update the user's phone number after successful verification
+                setShowPhoneVerification(false);
+                
+                // Update the form data
+                setFormData(prev => ({ ...prev, phone: phoneNumber }));
+                
+                // Use onUpdate callback if available
+                if (onUpdate) {
+                  await onUpdate({ phone: phoneNumber, phoneVerified: true });
+                }
+              }}
+              onBack={() => setShowPhoneVerification(false)}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -23,6 +23,17 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
       setPhoneNumber(currentUser.phone);
     }
   }, [currentUser.phone]);
+
+  // Reset phone number to current user's phone when component opens
+  useEffect(() => {
+    console.log('🔄 PhoneVerification component opened');
+    console.log('🔄 Current user phone:', currentUser.phone);
+    console.log('🔄 Current phoneNumber state:', phoneNumber);
+    if (currentUser.phone) {
+      setPhoneNumber(currentUser.phone);
+      console.log('🔄 Set phoneNumber to:', currentUser.phone);
+    }
+  }, []);
   const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -72,6 +83,8 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
 
     try {
       console.log('📱 Sending verification SMS via API...');
+      console.log('📱 Phone number being sent:', phoneNumber);
+      console.log('📱 Current user phone:', currentUser.phone);
       
       // Send OTP via Next.js API
       const token = localStorage.getItem('token');
@@ -95,7 +108,17 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.message || result.error || 'Failed to send verification code');
+        // Handle rate limiting with a more user-friendly message
+        const errorMessage = result.message || result.error || 'Failed to send verification code';
+        if (errorMessage.includes('wait a minute') || 
+            errorMessage.includes('Max send attempts reached') ||
+            errorMessage.includes('rate limit') ||
+            errorMessage.includes('too many requests') ||
+            errorMessage.includes('429')) {
+          setCountdown(60); // Start countdown for rate limiting
+          throw new Error('Please wait 60 seconds before requesting another verification code. This helps prevent spam.');
+        }
+        throw new Error(errorMessage);
       }
 
       setVerificationSid(result.verificationSid || null);
@@ -255,7 +278,13 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsEditingPhone(true)}
+                  onClick={() => {
+                    // Reset to current user's phone when starting to edit
+                    console.log('🔄 User clicked Edit button');
+                    console.log('🔄 Resetting phoneNumber to:', currentUser.phone);
+                    setPhoneNumber(currentUser.phone || '');
+                    setIsEditingPhone(true);
+                  }}
                   disabled={isLoading}
                   className="h-8 px-3"
                 >
@@ -313,10 +342,12 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
             )}
             <Button 
               onClick={handleSendOTP} 
-              disabled={isLoading || !phoneNumber.trim()}
+              disabled={isLoading || !phoneNumber.trim() || countdown > 0}
               className="flex-1"
             >
-              {isLoading ? 'Sending...' : (isEditingPhone ? 'Save & Send Code' : 'Send Code')}
+              {isLoading ? 'Sending...' : 
+               countdown > 0 ? `Wait ${countdown}s` : 
+               (isEditingPhone ? 'Save & Send Code' : 'Send Code')}
             </Button>
           </div>
         </CardContent>
@@ -346,7 +377,7 @@ export function PhoneVerification({ currentUser, onVerificationComplete, onBack 
           <Input
             id="otp"
             type="text"
-            placeholder="123456"
+            placeholder="Enter 6-digit code"
             value={otpCode}
             onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             className="text-center text-lg tracking-widest"

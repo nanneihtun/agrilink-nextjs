@@ -78,6 +78,8 @@ export const users = pgTable('users', {
   userType: text('userType').notNull(), // farmer, trader, buyer, admin
   accountType: text('accountType').notNull(), // individual, business
   emailVerified: boolean('emailVerified').default(false),
+  emailVerificationToken: text('emailVerificationToken'),
+  emailVerificationExpires: timestamp('emailVerificationExpires', { withTimezone: true }),
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 });
@@ -203,7 +205,7 @@ export const verificationRequests = pgTable('verification_requests', {
   status: text('status').default('pending'),
   submittedAt: timestamp('submittedAt', { withTimezone: true }).defaultNow(),
   reviewedAt: timestamp('reviewedAt', { withTimezone: true }),
-  reviewedBy: uuid('reviewedBy').references(() => users.id),
+  reviewedBy: uuid('reviewedBy').references(() => users.id, { onDelete: 'set null' }),
   reviewNotes: text('reviewNotes'),
   requestType: text('requestType').default('standard'),
   businessInfo: jsonb('businessInfo'),
@@ -312,7 +314,7 @@ export const offers = pgTable('offers', {
   paymentTerms: text('paymentTerms').array(), // Production compatibility (text array)
   paymentTermIds: uuid('paymentTermIds').array(), // Normalized references
   conversationId: uuid('conversationId').references(() => conversations.id),
-  cancelledBy: uuid('cancelledBy').references(() => users.id),
+  cancelledBy: uuid('cancelledBy').references(() => users.id, { onDelete: 'set null' }),
   cancellationReason: text('cancellationReason'),
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
@@ -325,7 +327,7 @@ export const offerTimeline = pgTable('offer_timeline', {
   eventType: text('eventType').notNull(), // Status changes, cancellations, deliveries, completions
   eventDescription: text('eventDescription').notNull(), // Human readable description
   eventData: jsonb('eventData'), // Flexible event-specific information
-  userId: uuid('userId').references(() => users.id), // User who performed the action
+  userId: uuid('userId').references(() => users.id, { onDelete: 'cascade' }), // User who performed the action
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
 });
 

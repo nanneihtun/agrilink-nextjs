@@ -119,7 +119,7 @@ export default function ProfilePage() {
       console.log('🔄 Updating user profile:', updates);
       
       // Make API call to save to database
-      const response = await fetch('/api/auth/profile', {
+      const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -136,8 +136,23 @@ export default function ProfilePage() {
       const result = await response.json();
       console.log('✅ Profile updated successfully:', result);
 
-      // Update user data in localStorage
-      const updatedUser = { ...user, ...updates };
+      // Map API field names back to frontend field names for state update
+      const frontendUpdates: any = {};
+      Object.keys(updates).forEach(key => {
+        if (key === 'business_name') {
+          frontendUpdates.businessName = updates[key];
+        } else if (key === 'business_description') {
+          frontendUpdates.businessDescription = updates[key];
+        } else if (key === 'business_license_number') {
+          frontendUpdates.businessLicenseNumber = updates[key];
+        } else {
+          frontendUpdates[key] = updates[key];
+        }
+      });
+
+      // Update user data in localStorage with frontend field names
+      const updatedUser = { ...user, ...frontendUpdates };
+      console.log('🔄 Updating user state with:', frontendUpdates);
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
       

@@ -511,23 +511,9 @@ export function SellerStorefront({
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-semibold">
-                          {seller.businessName || seller.name}
-                        </h2>
-                        {/* Show edit button for farm name if user owns this storefront */}
-                        {isOwnStorefront && !previewMode && (seller.userType === 'farmer' || seller.userType === 'trader') && (
-                          <button
-                            onClick={() => setEditingFarmName(true)}
-                            className="opacity-100 p-1 hover:bg-muted rounded"
-                            title={`Edit ${seller.userType === 'farmer' ? 'farm' : 'store'} name`}
-                          >
-                            <Edit className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                        )}
-                      </div>
+                      {/* Profile section - no title needed since business name is at the top */}
                       
-                      {/* Show real name for transparency - always show for farmers and traders */}
+                      {/* Show owner name for transparency - always show for farmers and traders */}
                       {(seller.userType === 'farmer' || seller.userType === 'trader') && (
                         <div className="flex items-center gap-2 mt-2">
                           <User className="w-3 h-3 text-muted-foreground" />

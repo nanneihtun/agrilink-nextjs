@@ -135,13 +135,15 @@ export function AppHeader({ currentUser, onLogout }: AppHeaderProps) {
                     </Button>
                   )}
                   {currentUser.userType === "admin" && (
-                    <Button
-                      variant={isActive("/admin") ? "default" : "ghost"}
-                      className="h-9 px-4 text-sm"
-                      onClick={() => router.push("/admin")}
-                    >
-                      Admin Panel
-                    </Button>
+                    <>
+                      <Button
+                        variant={isActive("/admin") ? "default" : "ghost"}
+                        className="h-9 px-4 text-sm"
+                        onClick={() => router.push("/admin")}
+                      >
+                        Admin Panel
+                      </Button>
+                    </>
                   )}
                 </>
               )}
