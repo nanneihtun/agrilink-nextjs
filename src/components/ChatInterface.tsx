@@ -564,6 +564,19 @@ export function ChatInterface({
       
       if (response.ok) {
         await fetchOffers(); // Refresh offers
+        
+        // Trigger dashboard refresh for available quantity updates
+        console.log('🔄 ChatInterface: Dispatching offerStatusChanged event', {
+          productId: productId,
+          status: 'accepted'
+        });
+        window.dispatchEvent(new CustomEvent('offerStatusChanged', { 
+          detail: { 
+            productId: productId, 
+            status: 'accepted' 
+          } 
+        }));
+        
         setTimeout(() => {
           scrollToBottom();
         }, 100);
@@ -600,6 +613,19 @@ export function ChatInterface({
       
       if (response.ok) {
         await fetchOffers(); // Refresh offers
+        
+        // Trigger dashboard refresh for available quantity updates
+        console.log('🔄 ChatInterface: Dispatching offerStatusChanged event', {
+          productId: productId,
+          status: 'rejected'
+        });
+        window.dispatchEvent(new CustomEvent('offerStatusChanged', { 
+          detail: { 
+            productId: productId, 
+            status: 'rejected' 
+          } 
+        }));
+        
         setTimeout(() => {
           scrollToBottom();
         }, 100);
@@ -752,11 +778,18 @@ export function ChatInterface({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 px-3 text-xs"
-                onClick={() => setShowOfferModal(true)}
+                className={`h-8 px-3 text-xs ${product && parseInt(product.availableQuantity || '0') === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={product && parseInt(product.availableQuantity || '0') === 0}
+                onClick={() => {
+                  if (product && parseInt(product.availableQuantity || '0') === 0) {
+                    alert('This product is currently out of stock');
+                    return;
+                  }
+                  setShowOfferModal(true);
+                }}
               >
                 <Handshake className="w-3 h-3 mr-1" />
-                Make Offer
+                {product && parseInt(product.availableQuantity || '0') === 0 ? 'Out of Stock' : 'Make Offer'}
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={onClose}>

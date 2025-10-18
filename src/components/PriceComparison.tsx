@@ -195,7 +195,7 @@ export function PriceComparison({ productName, priceData, unit, onBack, isOwnPro
                         seller.minimumOrder ? 
                           `Min order: ${seller.minimumOrder}` : 
                           'Inquire for quantity'
-                      } • {seller.unit || unit}
+                      } {seller.displayUnit ? `• ${seller.displayUnit}` : ''}
                     </p>
                   </div>
                   
@@ -218,7 +218,7 @@ export function PriceComparison({ productName, priceData, unit, onBack, isOwnPro
                     
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span className="text-xs">Updated {getRelativeTime(seller.lastUpdated)}</span>
+                      <span className="text-xs">Updated {getRelativeTime(seller.lastUpdated || seller.createdAt)}</span>
                     </div>
 
                     {/* View Detail Button - Horizontally aligned */}

@@ -133,7 +133,7 @@ export function BuyerDashboard({
             return 'rejected';
           }
           
-          if ((user as any).verificationStatus === 'under_review' || (user as any).verificationSubmitted) {
+          if ((user as any).verificationStatus === 'under-review' || (user as any).verificationSubmitted) {
             return 'under-review';
           }
           

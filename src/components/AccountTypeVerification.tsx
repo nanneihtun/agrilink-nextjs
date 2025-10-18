@@ -212,7 +212,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
     // Check if AgriLink verification was already requested or completed
     const userRequested = (currentUser as any).agriLinkVerificationRequested;
     const isVerified = currentUser.verified;
-    const isUnderReview = currentUser.verificationStatus === 'under_review';
+    const isUnderReview = currentUser.verificationStatus === 'under-review';
     
     console.log('✅ AgriLink verification state:', (userRequested || isVerified || isUnderReview) ? 'true' : 'false');
     // Treat under_review as requested so the button shows blue and stays disabled after refresh
@@ -239,7 +239,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
 
   // Keep button dimmed/disabled on refresh while under review
   useEffect(() => {
-    if (currentUser.verificationStatus === 'under_review' && !currentUser.verified) {
+    if (currentUser.verificationStatus === 'under-review' && !currentUser.verified) {
       setIsSubmittingVerification(true);
       setVerificationSubmitted(true);
     } else {
@@ -1013,7 +1013,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
               </div>
             </CardContent>
           </Card>
-        ) : currentUser.verificationStatus === 'under_review' && !agriLinkVerificationRequested ? (
+        ) : currentUser.verificationStatus === 'under-review' && !agriLinkVerificationRequested ? (
           /* Under Review - Show Status */
           <Card className="bg-orange-50 border-orange-200">
             <CardContent className="p-6">
@@ -1157,7 +1157,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                             </div>
                             <div className="flex items-center gap-2">
                               {/* Only show remove button if not submitted for review and AgriLink verification not requested */}
-                              {currentUser.verificationStatus !== 'under_review' && !currentUser.verified && !agriLinkVerificationRequested && (
+                              {currentUser.verificationStatus !== 'under-review' && !currentUser.verified && !agriLinkVerificationRequested && (
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
@@ -1305,7 +1305,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                     <>
                       <Button 
                         onClick={handleSaveBusinessInfo}
-                        disabled={isSavingBusiness || (currentUser as any).verificationStatus === 'under_review'}
+                        disabled={isSavingBusiness || (currentUser as any).verificationStatus === 'under-review'}
                         className="flex-1"
                       >
                         {isSavingBusiness ? 'Saving...' : 'Save Business Info'}
@@ -1391,7 +1391,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
                       </div>
                       <div className="flex items-center gap-2">
                         {/* Only show remove button if not submitted for review and AgriLink verification not requested */}
-                        {currentUser.verificationStatus !== 'under_review' && !currentUser.verified && !agriLinkVerificationRequested && (
+                        {currentUser.verificationStatus !== 'under-review' && !currentUser.verified && !agriLinkVerificationRequested && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -2046,7 +2046,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
         })()}
 
         {/* Spacing and Separator for History Card */}
-        {(currentUser as any).rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && ((currentUser.verificationStatus as any) === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
+        {(currentUser as any).rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && ((currentUser.verificationStatus as any) === 'phone-verified' || currentUser.verificationStatus === 'under-review') && (
           <>
             {/* Moderate spacing */}
             <div className="mt-8 mb-6">
@@ -2064,7 +2064,7 @@ export function AccountTypeVerification({ currentUser, onBack, onVerificationCom
         )}
 
         {/* Rejection History Card - shown for users who have rejection history but are not currently rejected */}
-        {(currentUser as any).rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && ((currentUser.verificationStatus as any) === 'phone-verified' || currentUser.verificationStatus === 'under_review') && (
+        {(currentUser as any).rejectedDocuments && !currentUser.verified && currentUser.verificationStatus !== 'rejected' && ((currentUser.verificationStatus as any) === 'phone-verified' || currentUser.verificationStatus === 'under-review') && (
           <Card className="bg-orange-50 border-orange-200">
             <CardContent className="p-4">
               <div className="space-y-4">

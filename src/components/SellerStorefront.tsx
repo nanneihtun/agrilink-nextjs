@@ -24,8 +24,6 @@ import {
   X,
   Edit,
   Loader2,
-  TrendingUp,
-  TrendingDown,
   Store,
   Award,
   User,
@@ -62,7 +60,6 @@ interface Product {
   image?: string;
   imageUrl?: string;
   quantity: number;
-  priceChange: number;
   lastUpdated: string;
 }
 
@@ -1545,16 +1542,8 @@ export function SellerStorefront({
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {product.priceChange > 0 ? (
-                                <TrendingUp className="w-3 h-3 text-green-600" />
-                              ) : (
-                                <TrendingDown className="w-3 h-3 text-red-600" />
-                              )}
-                              <span className={`text-xs ${product.priceChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {product.priceChange > 0 ? '+' : ''}{product.priceChange}%
-                              </span>
                               <span className="text-xs text-muted-foreground">
-                                • {getRelativeTime(product.lastUpdated)}
+                                {getRelativeTime(product.updatedAt || product.createdAt)}
                               </span>
                             </div>
 

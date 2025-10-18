@@ -226,7 +226,9 @@ export const products = pgTable('products', {
   locationId: uuid('locationId').references(() => locations.id),
   name: text('name').notNull(),
   description: text('description'),
-  packageSize: text('packageSize'), // Combined quantity and unit (e.g., "50 kg", "25 bags") - UPDATED
+  quantity: integer('quantity'), // Numeric quantity (e.g., 20, 50, 100)
+  quantityUnit: text('quantityUnit'), // Measurement unit (e.g., "kg", "g", "lb", "tons")
+  packaging: text('packaging'), // Container type (e.g., "bag", "sack", "dozen", "piece") - Optional
   price: decimal('price', { precision: 12, scale: 2 }).notNull(),
   availableStock: text('availableStock'), // Text format for flexible stock description
   minimumOrder: text('minimumOrder'), // Minimum order requirement

@@ -166,14 +166,14 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
                     </div>
                   )}
                   
-                  {user.verificationStatus === 'under_review' && (
+                  {user.verificationStatus === 'under-review' && (
                     <div className="flex items-center justify-center gap-1 text-sm text-primary">
                       <AlertCircle className="w-4 h-4" />
                       Verification Under Review
                     </div>
                   )}
                   
-                  {!user.verified && user.verificationStatus !== 'under_review' && (
+                  {!user.verified && user.verificationStatus !== 'under-review' && (
                     <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
                       <Shield className="w-4 h-4" />
                       Verification Available
@@ -340,12 +340,12 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
                 >
                   <Shield className={`w-4 h-4 ${getVerificationStatus(user).color}`} />
                   {user.verified ? 'Verification Status' : 
-                   user.verificationStatus === 'under_review' ? 'Verification' :
+                   user.verificationStatus === 'under-review' ? 'Verification' :
                    user.verificationSubmitted ? 'Verification Status' : 'Get Verified'}
                   
                   {getVerificationStatus(user).status === 'under-review' && (
                     <Badge variant="secondary" className={`ml-auto text-xs ${getVerificationStatus(user).bgColor} ${getVerificationStatus(user).color} ${getVerificationStatus(user).borderColor}`}>
-                      {user.verificationStatus === 'under_review' || user.verificationSubmitted ? 'Under Review' : 'Reviewing'}
+                      {user.verificationStatus === 'under-review' || user.verificationSubmitted ? 'Under Review' : 'Reviewing'}
                     </Badge>
                   )}
                   {getVerificationStatus(user).status === 'verified' && (
@@ -510,7 +510,7 @@ export function UserMenuWithSupport({ user, onLogout, onViewStorefront, onUpdate
               <Shield className={`mr-2 h-4 w-4 ${getVerificationStatus(user).color}`} />
               <span>
                 {user.verified ? 'Verification Status' : 
-                 user.verificationStatus === 'under_review' ? 'Verification' :
+                 user.verificationStatus === 'under-review' ? 'Verification' :
                  user.verificationSubmitted ? 'Verification Status' : 'Get Verified'}
               </span>
               {getVerificationStatus(user).status === 'under-review' && (

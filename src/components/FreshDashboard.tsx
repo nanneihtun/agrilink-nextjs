@@ -34,6 +34,7 @@ interface Product {
   description: string;
   price: number;
   unit: string;
+  availableQuantity?: string;
   imageUrl?: string;
   seller: {
     id: string;
@@ -218,7 +219,7 @@ export function FreshDashboard({
             return 'rejected';
           }
           
-          if (user.verificationStatus === 'under_review' || user.verificationSubmitted) {
+          if (user.verificationStatus === 'under-review' || user.verificationSubmitted) {
             return 'under-review';
           }
           
@@ -644,13 +645,19 @@ export function FreshDashboard({
                     <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Package className="w-3 h-3" />
-                        Available
+                        {parseInt(product.availableQuantity || '0') === 0 ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Out of Stock
+                          </span>
+                        ) : (
+                          `Available: ${product.availableQuantity || 'N/A'}`
+                        )}
                       </span>
                       <span className="flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
                         {product.seller.location}
                       </span>
-                      <span>Updated {getRelativeTime(product.createdAt)}</span>
+                      <span>Updated {getRelativeTime(product.updatedAt || product.createdAt)}</span>
                     </div>
                   </div>
                 </div>

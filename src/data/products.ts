@@ -6,8 +6,14 @@ export interface Product {
   category: string;
   description: string;
   price: number;
+  // New structured fields
+  quantity: number;
+  quantityUnit: string;
+  packaging: string;
+  // Legacy field for backward compatibility
   unit: string;
-  quantity?: number;
+  // Available quantity for stock management
+  availableQuantity?: number;
   location: string;
   image?: string;
   images?: string[];

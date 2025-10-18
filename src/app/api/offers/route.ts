@@ -331,15 +331,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ Offers API - User authenticated:', user.userId);
+    console.log('✅ Offers API - User authenticated:', user.id);
     const body = await request.json();
-    console.log('📦 Offers API - Request body:', {
-      productId: body.productId,
-      offerPrice: body.offerPrice,
-      quantity: body.quantity,
-      hasMessage: !!body.message,
-      hasDeliveryAddress: !!body.deliveryAddress
-    });
     const {
       productId,
       offerPrice,
@@ -382,7 +375,7 @@ export async function POST(request: NextRequest) {
     const productData = product[0];
 
     // Prevent users from making offers on their own products
-    if (productData.sellerId === user.userId) {
+    if (productData.sellerId === user.id) {
       return NextResponse.json(
         { message: 'Cannot make offer on your own product' },
         { status: 400 }
@@ -395,7 +388,7 @@ export async function POST(request: NextRequest) {
         userType: usersTable.userType,
       })
       .from(usersTable)
-      .where(eq(usersTable.id, user.userId))
+      .where(eq(usersTable.id, user.id))
       .limit(1);
 
     // Only buyers and traders can make offers (farmers sell products)
@@ -413,8 +406,8 @@ export async function POST(request: NextRequest) {
       .from(conversations)
       .where(
         or(
-          and(eq(conversations.buyerId, user.userId), eq(conversations.sellerId, productData.sellerId)),
-          and(eq(conversations.buyerId, productData.sellerId), eq(conversations.sellerId, user.userId))
+          and(eq(conversations.buyerId, user.id), eq(conversations.sellerId, productData.sellerId)),
+          and(eq(conversations.buyerId, productData.sellerId), eq(conversations.sellerId, user.id))
         )
       )
       .limit(1);
@@ -426,7 +419,7 @@ export async function POST(request: NextRequest) {
       const newConversation = await db
         .insert(conversations)
         .values({
-          buyerId: user.userId,
+          buyerId: user.id,
           sellerId: productData.sellerId,
           productId: productId,
         })
@@ -442,7 +435,7 @@ export async function POST(request: NextRequest) {
       .insert(offersTable)
       .values({
         productId: productId,
-        buyerId: user.userId,
+        buyerId: user.id,
         sellerId: productData.sellerId,
         conversationId: conversationId,
         offerPrice: offerPrice.toString(),

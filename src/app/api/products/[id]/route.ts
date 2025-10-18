@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from '@/lib/db';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 import { 
   products as productsTable, 
@@ -13,9 +14,12 @@ import {
   deliveryOptions as deliveryOptionsTable,
   paymentTerms as paymentTermsTable,
   sellerCustomDeliveryOptions,
-  sellerCustomPaymentTerms
+  sellerCustomPaymentTerms,
+  offers as offersTable
 } from '@/lib/db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
+
+const sqlQuery = neon(process.env.DATABASE_URL!);
 
 export async function GET(
   request: NextRequest,
@@ -33,7 +37,9 @@ export async function GET(
         isActive: productsTable.isActive,
         createdAt: productsTable.createdAt,
         price: productsTable.price,
-        packageSize: productsTable.packageSize,
+        quantity: productsTable.quantity,
+        quantityUnit: productsTable.quantityUnit,
+        packaging: productsTable.packaging,
         availableStock: productsTable.availableStock,
         minimumOrder: productsTable.minimumOrder,
         deliveryOptions: productsTable.deliveryOptions,
@@ -46,9 +52,14 @@ export async function GET(
         userType: users.userType,
         accountType: users.accountType,
         category: categories.name,
-        location: locations.city,
-        region: locations.region,
-        city: locations.city,
+        categoryId: productsTable.categoryId,
+        sellerLocation: sql<string>`CASE 
+          WHEN seller_locations.city IS NOT NULL AND seller_locations.region IS NOT NULL THEN seller_locations.city || ', ' || seller_locations.region
+          WHEN seller_locations.city IS NOT NULL THEN seller_locations.city
+          ELSE 'Myanmar'
+        END`,
+        sellerRegion: sql<string>`COALESCE(seller_locations.region, '')`,
+        sellerCity: sql<string>`COALESCE(seller_locations.city, '')`,
         profileImage: userProfiles.profileImage,
         verified: userVerification.verified,
         phoneVerified: userVerification.phoneVerified,
@@ -57,10 +68,10 @@ export async function GET(
         totalReviews: userRatings.totalReviews,
       })
       .from(productsTable)
-      .leftJoin(categories, eq(productsTable.categoryId, categories.id))
-      .leftJoin(locations, eq(productsTable.locationId, locations.id))
+      .innerJoin(categories, eq(productsTable.categoryId, categories.id))
       .leftJoin(users, eq(productsTable.sellerId, users.id))
       .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .leftJoin(sql`locations seller_locations`, eq(userProfiles.locationId, sql`seller_locations.id`))
       .leftJoin(userVerification, eq(users.id, userVerification.userId))
       .leftJoin(userRatings, eq(users.id, userRatings.userId))
       .where(and(eq(productsTable.id, productId), eq(productsTable.isActive, true)))
@@ -74,6 +85,39 @@ export async function GET(
     }
 
     const product = productResult[0];
+
+    // Calculate actual available quantity by subtracting pending/accepted offers
+    let actualAvailableQuantity = product.availableStock;
+    
+    if (product.availableStock && !isNaN(parseInt(product.availableStock))) {
+      // Get pending and accepted offers for this product
+      const pendingOffersResult = await sqlQuery`
+        SELECT COALESCE(SUM(quantity), 0) as total_offered
+        FROM offers 
+        WHERE "productId" = ${productId} 
+        AND status IN ('pending', 'accepted')
+      `;
+      
+      const totalOffered = pendingOffersResult[0]?.total_offered || 0;
+      
+      // Calculate actual available quantity
+      const availableStock = parseInt(product.availableStock);
+      const actualAvailable = Math.max(0, availableStock - totalOffered);
+      
+      actualAvailableQuantity = actualAvailable.toString();
+    }
+
+    // Fetch product images
+    const productImagesResult = await db
+      .select({
+        id: productImages.id,
+        imageData: productImages.imageData,
+        isPrimary: productImages.isPrimary,
+        createdAt: productImages.createdAt
+      })
+      .from(productImages)
+      .where(eq(productImages.productId, productId))
+      .orderBy(sql`${productImages.isPrimary} DESC, ${productImages.createdAt} ASC`);
 
     // Resolve delivery options and payment terms UUIDs to names
     let deliveryOptionNames: string[] = [];
@@ -114,17 +158,6 @@ export async function GET(
       paymentTermNames = [...standardPaymentResults.map(r => r.name), ...customPaymentResults.map(r => r.name)];
     }
 
-    // Get all images for this product
-    const productImagesResult = await db
-      .select({
-        imageData: productImages.imageData,
-        isPrimary: productImages.isPrimary,
-        createdAt: productImages.createdAt,
-      })
-      .from(productImages)
-      .where(eq(productImages.productId, productId))
-      .orderBy(productImages.createdAt);
-
     console.log('🖼️ Found images for product:', productImagesResult.length);
 
     // Transform the data to match the expected format
@@ -134,25 +167,34 @@ export async function GET(
     const transformedProduct = {
       id: product.id,
       name: product.name,
-      category: product.category || 'Uncategorized',
+      category: product.category, // No fallback - show actual value
+      categoryId: product.categoryId, // Include categoryId
       description: product.description,
       price: parseFloat(product.price?.toString() || '0') || 0,
-      unit: product.packageSize || 'kg',
+      quantity: product.quantity, // No fallback - show actual value (null if not set)
+      quantityUnit: product.quantityUnit, // No fallback - show actual value (null if not set)
+      packaging: product.packaging, // No fallback - show actual value (null if not set)
+      // Legacy field for backward compatibility - format without / separator
+      unit: product.quantity && product.quantityUnit 
+        ? product.packaging 
+          ? `${product.quantity}${product.quantityUnit} ${product.packaging}` 
+          : `${product.quantity}${product.quantityUnit}`
+        : null,
       imageUrl: primaryImage?.imageData || allImageUrls[0] || null,
       image: primaryImage?.imageData || allImageUrls[0] || null, // Add legacy image field for compatibility
       images: allImageUrls,
       sellerId: product.sellerId,
-      sellerName: product.sellerNameFromUser || product.sellerName || 'Unknown Seller',
-      sellerType: product.userType || 'farmer',
-      location: product.city || 'Unknown Location', // Show only city, not city/region
-      region: product.region || '',
-      city: product.city || '',
+      sellerName: product.sellerNameFromUser || product.sellerName, // No fallback - show actual value
+      sellerType: product.userType, // No fallback - show actual value
+      location: product.sellerLocation, // Use seller location
+      region: product.sellerRegion, // Use seller region
+      city: product.sellerCity, // Use seller city
       lastUpdated: product.createdAt,
-      availableQuantity: product.availableStock || '',
-      minimumOrder: product.minimumOrder || '',
+      availableQuantity: actualAvailableQuantity.toString(), // Use calculated available quantity as string
+      minimumOrder: product.minimumOrder, // No fallback - show actual value (null if not set)
       deliveryOptions: deliveryOptionNames,
       paymentTerms: paymentTermNames,
-      additionalNotes: product.additionalNotes || '',
+      additionalNotes: product.additionalNotes, // No fallback - show actual value (null if not set)
       sellerVerificationStatus: {
         accountType: product.accountType || 'individual',
         trustLevel: product.verified ? (product.accountType === 'business' ? 'business-verified' : 'id-verified') : 'unverified',
@@ -205,6 +247,28 @@ export async function PUT(
       );
     }
 
+    // Validate required fields
+    if (!body.name || !body.name.trim()) {
+      return NextResponse.json(
+        { message: "Product name is required" },
+        { status: 400 }
+      );
+    }
+    
+    if (!body.category || !body.category.trim()) {
+      return NextResponse.json(
+        { message: "Product category is required" },
+        { status: 400 }
+      );
+    }
+    
+    if (body.price === undefined || body.price === null || body.price < 0) {
+      return NextResponse.json(
+        { message: "Valid price is required" },
+        { status: 400 }
+      );
+    }
+
     console.log('🔄 PUT /api/products/[id] - Received data:', {
       productId,
       body: {
@@ -213,7 +277,9 @@ export async function PUT(
         category: body.category,
         description: body.description,
         price: body.price,
-        unit: body.unit,
+        quantity: body.quantity,
+        quantityUnit: body.quantityUnit,
+        packaging: body.packaging || null,
         location: body.location,
         region: body.region,
         availableQuantity: body.availableQuantity,
@@ -241,14 +307,21 @@ export async function PUT(
     const token = authHeader.replace('Bearer ', '');
     console.log('🔐 Token extracted:', token ? 'yes' : 'no');
     
+    // Verify JWT token (production practice)
+    let decoded: any;
     try {
-      // For development, allow any non-empty token
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ Development mode - token accepted:', token ? 'yes' : 'no');
-      } else {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-        console.log('✅ Token verified for user:', decoded.userId);
+      decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      
+      // Validate that userId exists in the token
+      if (!decoded.userId) {
+        console.log('❌ Token missing userId');
+        return NextResponse.json(
+          { message: "Invalid token: missing user ID" },
+          { status: 401 }
+        );
       }
+      
+      console.log('✅ Token verified for user:', decoded.userId);
     } catch (error) {
       console.log('❌ Invalid token:', error);
       return NextResponse.json(
@@ -257,26 +330,172 @@ export async function PUT(
       );
     }
 
+    // Verify user owns this product (authorization check)
+    try {
+      const productOwnershipCheck = await db
+        .select({ sellerId: productsTable.sellerId })
+        .from(productsTable)
+        .where(eq(productsTable.id, productId))
+        .limit(1);
+      
+      if (productOwnershipCheck.length === 0) {
+        console.log('❌ Product not found:', productId);
+        return NextResponse.json(
+          { message: "Product not found" },
+          { status: 404 }
+        );
+      }
+      
+      if (productOwnershipCheck[0].sellerId !== decoded.userId) {
+        console.log('❌ User does not own this product:', {
+          userId: decoded.userId,
+          productSellerId: productOwnershipCheck[0].sellerId
+        });
+        return NextResponse.json(
+          { message: "Unauthorized: You can only update your own products" },
+          { status: 403 }
+        );
+      }
+      
+      console.log('✅ User authorized to update product');
+    } catch (error) {
+      console.error('❌ Error checking product ownership:', error);
+      return NextResponse.json(
+        { message: "Internal server error" },
+        { status: 500 }
+      );
+    }
+
     // Start a transaction to update all related tables
     console.log('🔄 Starting database updates...');
 
-    // Update main product table
-    const updatedProduct = await sql`
-      UPDATE products 
-      SET 
-        name = ${body.name || ''},
-        category = ${body.category || ''},
-        description = ${body.description || ''},
-        "updatedAt" = NOW()
-      WHERE id = ${productId}
-      RETURNING *
-    `;
+    // Helper function to convert empty strings to null for database storage
+    const toDbValue = (value: any) => {
+      if (value === '' || value === null || value === undefined) {
+        return null;
+      }
+      // Convert string numbers to actual numbers for numeric fields
+      if (typeof value === 'string' && !isNaN(Number(value))) {
+        return Number(value);
+      }
+      return value;
+    };
+    
 
-    if (updatedProduct.length === 0) {
-      console.log('❌ Product not found:', productId);
+    // Convert delivery option names to UUIDs for main products table
+    let deliveryOptionUuids: string[] = [];
+    if (body.deliveryOptions && body.deliveryOptions.length > 0) {
+      try {
+        console.log('🔄 Converting delivery options to UUIDs:', body.deliveryOptions);
+        
+        // Get standard delivery option UUIDs
+        const standardDeliveryResults = await db
+          .select({ id: deliveryOptionsTable.id, name: deliveryOptionsTable.name })
+          .from(deliveryOptionsTable)
+          .where(inArray(deliveryOptionsTable.name, body.deliveryOptions));
+        
+        console.log('📦 Standard delivery options found:', standardDeliveryResults);
+        
+        // Get custom delivery option UUIDs for this seller
+        const customDeliveryResults = await db
+          .select({ id: sellerCustomDeliveryOptions.id, name: sellerCustomDeliveryOptions.name })
+          .from(sellerCustomDeliveryOptions)
+          .where(and(
+            eq(sellerCustomDeliveryOptions.sellerId, decoded.userId),
+            inArray(sellerCustomDeliveryOptions.name, body.deliveryOptions)
+          ));
+        
+        console.log('🔧 Custom delivery options found:', customDeliveryResults);
+        
+        // Combine both results
+        deliveryOptionUuids = [
+          ...standardDeliveryResults.map(r => r.id),
+          ...customDeliveryResults.map(r => r.id)
+        ];
+        
+        console.log('✅ Final delivery option UUIDs:', deliveryOptionUuids);
+      } catch (error) {
+        console.error('❌ Error converting delivery options to UUIDs:', error);
+        // Continue with empty array rather than failing
+        deliveryOptionUuids = [];
+      }
+    }
+    
+    // Convert payment term names to UUIDs for main products table
+    let paymentTermUuids: string[] = [];
+    if (body.paymentTerms && body.paymentTerms.length > 0) {
+      try {
+        console.log('🔄 Converting payment terms to UUIDs:', body.paymentTerms);
+        
+        // Get standard payment term UUIDs
+        const standardPaymentResults = await db
+          .select({ id: paymentTermsTable.id, name: paymentTermsTable.name })
+          .from(paymentTermsTable)
+          .where(inArray(paymentTermsTable.name, body.paymentTerms));
+        
+        console.log('💳 Standard payment terms found:', standardPaymentResults);
+        
+        // Get custom payment term UUIDs for this seller
+        const customPaymentResults = await db
+          .select({ id: sellerCustomPaymentTerms.id, name: sellerCustomPaymentTerms.name })
+          .from(sellerCustomPaymentTerms)
+          .where(and(
+            eq(sellerCustomPaymentTerms.sellerId, decoded.userId),
+            inArray(sellerCustomPaymentTerms.name, body.paymentTerms)
+          ));
+        
+        console.log('🔧 Custom payment terms found:', customPaymentResults);
+        
+        // Combine both results
+        paymentTermUuids = [
+          ...standardPaymentResults.map(r => r.id),
+          ...customPaymentResults.map(r => r.id)
+        ];
+        
+        console.log('✅ Final payment term UUIDs:', paymentTermUuids);
+      } catch (error) {
+        console.error('❌ Error converting payment terms to UUIDs:', error);
+        // Continue with empty array rather than failing
+        paymentTermUuids = [];
+      }
+    }
+
+    // Update main product table
+    let updatedProduct;
+    try {
+      updatedProduct = await sqlQuery`
+        UPDATE products 
+        SET 
+          name = ${body.name || ''},
+          description = ${body.description || ''},
+          price = ${body.price || 0},
+          quantity = ${toDbValue(body.quantity)},
+          "quantityUnit" = ${toDbValue(body.quantityUnit)},
+          packaging = ${toDbValue(body.packaging)},
+          "availableStock" = ${toDbValue(body.availableQuantity)},
+          "minimumOrder" = ${toDbValue(body.minimumOrder)},
+          "deliveryOptions" = ${deliveryOptionUuids},
+          "paymentTerms" = ${paymentTermUuids},
+          "additionalNotes" = ${toDbValue(body.additionalNotes)},
+          "updatedAt" = NOW()
+        WHERE id = ${productId}
+        RETURNING *
+      `;
+      
+      if (updatedProduct.length === 0) {
+        console.log('❌ Product update failed - no rows affected');
+        return NextResponse.json(
+          { message: "Product update failed" },
+          { status: 500 }
+        );
+      }
+      
+      console.log('✅ Main product table updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating main product table:', error);
       return NextResponse.json(
-        { message: "Product not found" },
-        { status: 404 }
+        { message: "Failed to update product" },
+        { status: 500 }
       );
     }
 
@@ -478,32 +697,23 @@ export async function PUT(
       }
     }
 
-    // Update product delivery information if provided (UPSERT - Insert or Update)
-    if (body.deliveryOptions || body.paymentTerms || body.additionalNotes !== undefined || body.location) {
-      // First get the seller info from the product
-      const productWithSeller = await sql`
-        SELECT p."sellerId", u.name as seller_name, u."userType" as seller_type
-        FROM products p
-        JOIN users u ON p."sellerId" = u.id
-        WHERE p.id = ${productId}
-      `;
-
-      if (productWithSeller.length > 0) {
-        const seller = productWithSeller[0];
-        const deliveryResult = await sql`
-          INSERT INTO product_delivery ("productId", location, "sellerType", "sellerName", "deliveryOptions", "paymentTerms", "additionalNotes", "createdAt", "updatedAt")
-          VALUES (${productId}, ${body.location || ''}, ${seller.seller_type}, ${seller.seller_name}, ${body.deliveryOptions || []}, ${body.paymentTerms || []}, ${body.additionalNotes || ''}, NOW(), NOW())
-          ON CONFLICT ("productId") 
-          DO UPDATE SET
-            location = ${body.location || ''},
-            "deliveryOptions" = ${body.deliveryOptions || []},
-            "paymentTerms" = ${body.paymentTerms || []},
-            "additionalNotes" = ${body.additionalNotes || ''},
-            "updatedAt" = NOW()
-          RETURNING *
-        `;
-        console.log('✅ Updated product delivery:', deliveryResult[0]);
-      }
+    // Update product delivery information if provided - save directly to products table
+    if (body.deliveryOptions || body.paymentTerms || body.additionalNotes !== undefined) {
+      console.log('🔄 Updating product delivery options and payment terms in products table');
+      
+      // Update the products table directly with the UUIDs
+      const updateResult = await db
+        .update(productsTable)
+        .set({
+          deliveryOptions: deliveryOptionUuids,
+          paymentTerms: paymentTermUuids,
+          additionalNotes: toDbValue(body.additionalNotes),
+          updatedAt: new Date()
+        })
+        .where(eq(productsTable.id, productId))
+        .returning();
+      
+      console.log('✅ Updated product delivery options and payment terms:', updateResult[0]);
     }
 
     console.log('✅ Product update completed successfully');

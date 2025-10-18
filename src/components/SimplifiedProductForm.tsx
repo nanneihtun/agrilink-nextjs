@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 
 import type { Product } from "../data/products";
-import { myanmarRegions } from "../utils/regions";
 
 interface SimplifiedProductFormProps {
   currentUser: any;
@@ -44,34 +43,146 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   const [newCustomPayment, setNewCustomPayment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [allCategories, setAllCategories] = useState<Array<{id: string, name: string}>>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Custom options state
+  const [availableCustomDeliveryOptions, setAvailableCustomDeliveryOptions] = useState<string[]>([]);
+  const [customDeliveryLoading, setCustomDeliveryLoading] = useState(false);
+  const [availableCustomPaymentTerms, setAvailableCustomPaymentTerms] = useState<string[]>([]);
+  const [customPaymentLoading, setCustomPaymentLoading] = useState(false);
+  const [customOptionsLoaded, setCustomOptionsLoaded] = useState(false);
   
   // Store original form data to track changes (for edit mode)
   const originalFormDataRef = useRef<Product | null>(null);
 
-  // Initialize form data with defaults
-  const [formData, setFormData] = useState<Product>(() => {
-    if (editingProduct) {
-      console.log('🔄 Initializing form with editing product:', {
+  // Load categories on component mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setAllCategories(data.categories || []);
+        }
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Load custom options from database when currentUser changes
+  useEffect(() => {
+    const loadCustomOptions = async () => {
+      console.log('🔄 Loading custom options for user:', currentUser?.id);
+      console.log('🔄 Current user object:', currentUser);
+      
+      if (!currentUser?.id) {
+        console.log('❌ No current user, clearing custom options');
+        setAvailableCustomDeliveryOptions([]);
+        setAvailableCustomPaymentTerms([]);
+        setCustomOptionsLoaded(true);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        console.log('🔐 Token for custom options:', token ? 'present' : 'missing');
+        console.log('🔐 Token value:', token);
+        
+        // Load custom delivery options
+        setCustomDeliveryLoading(true);
+        console.log('📦 Loading custom delivery options...');
+        const deliveryResponse = await fetch('/api/seller/custom-delivery-options', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('📦 Delivery options response status:', deliveryResponse.status);
+        console.log('📦 Delivery options response headers:', Object.fromEntries(deliveryResponse.headers.entries()));
+        
+        if (deliveryResponse.ok) {
+          const deliveryData = await deliveryResponse.json();
+          console.log('📦 Delivery options data:', deliveryData);
+          setAvailableCustomDeliveryOptions(deliveryData.customOptions || []);
+          console.log('📦 Set available custom delivery options:', deliveryData.customOptions || []);
+        } else {
+          const errorText = await deliveryResponse.text();
+          console.error('❌ Failed to load delivery options:', errorText);
+          console.error('❌ Response status:', deliveryResponse.status);
+        }
+
+        // Load custom payment terms
+        setCustomPaymentLoading(true);
+        console.log('💳 Loading custom payment terms...');
+        const paymentResponse = await fetch('/api/seller/custom-payment-terms', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('💳 Payment terms response status:', paymentResponse.status);
+        console.log('💳 Payment terms response headers:', Object.fromEntries(paymentResponse.headers.entries()));
+        
+        if (paymentResponse.ok) {
+          const paymentData = await paymentResponse.json();
+          console.log('💳 Payment terms data:', paymentData);
+          setAvailableCustomPaymentTerms(paymentData.customTerms || []);
+          console.log('💳 Set available custom payment terms:', paymentData.customTerms || []);
+        } else {
+          const errorText = await paymentResponse.text();
+          console.error('❌ Failed to load payment terms:', errorText);
+          console.error('❌ Response status:', paymentResponse.status);
+        }
+      } catch (error) {
+        console.error('❌ Error loading custom options:', error);
+        console.error('❌ Error details:', error);
+      } finally {
+        setCustomDeliveryLoading(false);
+        setCustomPaymentLoading(false);
+        setCustomOptionsLoaded(true);
+        console.log('✅ Custom options loading completed');
+      }
+    };
+
+    loadCustomOptions();
+  }, [currentUser?.id]);
+
+  // Re-initialize form data when editing product changes
+  useEffect(() => {
+    if (editingProduct && editingProduct.id) {
+      console.log('🔄 Re-initializing form data for editing product:', {
         id: editingProduct.id,
         name: editingProduct.name,
-        price: editingProduct.price,
-        priceType: typeof editingProduct.price,
-        description: editingProduct.description || 'UNDEFINED',
-        category: editingProduct.category || 'UNDEFINED',
-        hasImage: !!editingProduct.image || !!(editingProduct.images?.length),
-        images: editingProduct.images,
-        image: editingProduct.image,
-        imageUrl: editingProduct.imageUrl
+      quantity: editingProduct.quantity,
+      quantityUnit: editingProduct.quantityUnit,
+      packaging: editingProduct.packaging,
+      unit: editingProduct.unit,
+        availableQuantity: editingProduct.availableQuantity,
+        minimumOrder: editingProduct.minimumOrder,
+        additionalNotes: editingProduct.additionalNotes
       });
+      console.log('📊 Current editing product delivery options:', editingProduct.deliveryOptions);
+      console.log('📊 Current editing product payment terms:', editingProduct.paymentTerms);
       
-      // Simplify image handling logic
+      // Helper function to convert null/undefined to empty string for form display
+      const toFormValue = (value: any) => {
+        return value === null || value === undefined ? '' : String(value);
+      };
+
+      // Handle images
       let images: string[] = [];
       let primaryImage = '';
       
-      if (editingProduct.images && Array.isArray(editingProduct.images) && editingProduct.images.length > 0) {
+      if (editingProduct.images && editingProduct.images.length > 0) {
         images = editingProduct.images;
-        primaryImage = images[0] || '';
+        primaryImage = editingProduct.images[0];
       } else if (editingProduct.image) {
         images = [editingProduct.image];
         primaryImage = editingProduct.image;
@@ -80,111 +191,89 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
         primaryImage = editingProduct.imageUrl;
       }
 
-      const initialData = {
+      const updatedFormData = {
         id: editingProduct.id,
         sellerId: editingProduct.sellerId,
         name: editingProduct.name || '',
         price: editingProduct.price || 0,
-        unit: editingProduct.unit || '',
-        location: editingProduct.location || '', // Use product's location or let user choose
-        region: editingProduct.region || '', // Use product's region or let user choose
+        quantity: toFormValue(editingProduct.quantity),
+        quantityUnit: toFormValue(editingProduct.quantityUnit),
+        packaging: toFormValue(editingProduct.packaging),
+        // Legacy field for backward compatibility
+        unit: toFormValue(editingProduct.unit),
         sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
         sellerName: editingProduct.sellerName || currentUser?.name || '',
         image: primaryImage,
         images: images,
-        quantity: editingProduct.availableQuantity || editingProduct.quantity || '',
-        minimumOrder: editingProduct.minimumOrder || '',
-        availableQuantity: editingProduct.availableQuantity || editingProduct.quantity || '',
+        availableQuantity: toFormValue(editingProduct.availableQuantity),
+        minimumOrder: toFormValue(editingProduct.minimumOrder),
         deliveryOptions: editingProduct.deliveryOptions || [],
         paymentTerms: editingProduct.paymentTerms || [],
         lastUpdated: editingProduct.lastUpdated || new Date().toISOString(),
         category: editingProduct.category || '',
         description: editingProduct.description || '',
-        additionalNotes: editingProduct.additionalNotes || '',
-        priceChange: editingProduct.priceChange,
+        additionalNotes: toFormValue(editingProduct.additionalNotes),
         isEditing: true
       };
-      
-      // Store original data for change tracking
-      originalFormDataRef.current = { ...initialData };
-      
-      console.log('🖼️ Initial data images:', {
-        initialImages: initialData.images,
-        initialImage: initialData.image,
-        imagesLength: initialData.images?.length,
-        rawEditingProduct: {
-          images: editingProduct.images,
-          image: editingProduct.image,
-          imageUrl: editingProduct.imageUrl,
-          availableQuantity: editingProduct.availableQuantity,
-          quantity: editingProduct.quantity
-        }
+
+      console.log('🔄 Updated form data:', {
+        quantity: updatedFormData.quantity,
+        quantityUnit: updatedFormData.quantityUnit,
+        packaging: updatedFormData.packaging,
+        unit: updatedFormData.unit,
+        availableQuantity: updatedFormData.availableQuantity,
+        deliveryOptions: updatedFormData.deliveryOptions,
+        paymentTerms: updatedFormData.paymentTerms
       });
       
-      return initialData;
+
+      // Store original data for change tracking
+      originalFormDataRef.current = { ...updatedFormData };
+      console.log('📊 Set original form data for change tracking:', {
+        quantity: originalFormDataRef.current.quantity,
+        quantityUnit: originalFormDataRef.current.quantityUnit,
+        packaging: originalFormDataRef.current.packaging,
+        unit: originalFormDataRef.current.unit,
+        availableQuantity: originalFormDataRef.current.availableQuantity
+      });
+
+      setFormData(updatedFormData);
     }
-    
+  }, [editingProduct?.id, customOptionsLoaded, currentUser?.id]); // Re-run when product, custom options, or user changes
+
+  // This useEffect was causing too many re-renders, removed it
+
+  // Initialize form data with defaults - only for new products
+  const [formData, setFormData] = useState<Product>(() => {
+    // Only initialize for new products, editing products will be handled by useEffect
     return {
       id: '',
       sellerId: currentUser?.id || '',
       name: '',
       price: 0,
+      quantity: '',
+      quantityUnit: '',
+      packaging: '',
+      // Legacy field for backward compatibility
       unit: '',
-      location: '', // Let user choose any city
-      region: '', // Let user choose any region
+      // Location fields removed - using seller location only
       sellerType: currentUser?.userType || 'farmer',
       sellerName: currentUser?.name || '',
       image: '',
       images: [],
-      quantity: '',
-      minimumOrder: '',
       availableQuantity: '',
+      minimumOrder: '',
       deliveryOptions: [],
       paymentTerms: [],
       lastUpdated: new Date().toISOString(),
       category: '',
       description: '',
       additionalNotes: '',
-      priceChange: undefined
+      isEditing: false
     };
   });
 
-  // Update form data when editingProduct changes (important for edit mode)
-  useEffect(() => {
-    if (editingProduct) {
-      console.log('🔄 Updating form data with editing product:', editingProduct);
-      setFormData(prev => ({
-        ...prev,
-        id: editingProduct.id,
-        sellerId: editingProduct.sellerId,
-        name: editingProduct.name || '',
-        price: editingProduct.price || 0,
-        unit: editingProduct.unit || '',
-        location: editingProduct.location || '', // Use product's location or let user choose
-        region: editingProduct.region || '', // Use product's region or let user choose
-        sellerType: editingProduct.sellerType || currentUser?.userType || 'farmer',
-        sellerName: editingProduct.sellerName || currentUser?.name || '',
-        image: editingProduct.image || editingProduct.imageUrl || '',
-        images: editingProduct.images || (editingProduct.image ? [editingProduct.image] : []) || (editingProduct.imageUrl ? [editingProduct.imageUrl] : []),
-        quantity: editingProduct.availableQuantity || editingProduct.quantity || '',
-        minimumOrder: editingProduct.minimumOrder || '',
-        availableQuantity: editingProduct.availableQuantity || '',
-        deliveryOptions: editingProduct.deliveryOptions || [],
-        paymentTerms: editingProduct.paymentTerms || [],
-        lastUpdated: editingProduct.lastUpdated || new Date().toISOString(),
-        category: editingProduct.category || '',
-        description: editingProduct.description || '',
-        additionalNotes: editingProduct.additionalNotes || '',
-        priceChange: editingProduct.priceChange,
-        isEditing: true
-      }));
-    }
-  }, [editingProduct, currentUser]);
-
-  const [availableCustomDeliveryOptions, setAvailableCustomDeliveryOptions] = useState<string[]>(() => {
-    const storedCustomDelivery = localStorage.getItem('agriconnect-custom-delivery-options');
-    return storedCustomDelivery ? JSON.parse(storedCustomDelivery) : [];
-  });
+  // This useEffect was causing too many re-renders, removed it
 
   // Get unique available delivery options with custom additions
   const availableDeliveryOptions = useMemo(() => {
@@ -197,7 +286,8 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       'Cold Chain Transport'
     ];
     
-    return [...baseOptions, ...availableCustomDeliveryOptions];
+    const result = [...baseOptions, ...availableCustomDeliveryOptions];
+    return result;
   }, [availableCustomDeliveryOptions]);
 
   // Check if form data has been modified (for edit mode)
@@ -210,8 +300,8 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     
     // Compare key fields that matter for product updates
     const fieldsToCompare = [
-      'name', 'price', 'unit', 'location', 'region', 'category', 
-      'description', 'quantity', 'minimumOrder', 'availableQuantity', 'additionalNotes'
+      'name', 'price', 'quantity', 'quantityUnit', 'packaging', 'category', 
+      'description', 'availableQuantity', 'minimumOrder', 'additionalNotes'
     ];
     
     // Check if any simple fields changed
@@ -252,15 +342,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
     };
   };
 
-  // Save custom delivery options to localStorage
-  const saveCustomDeliveryToStorage = useCallback((options: string[]) => {
-    localStorage.setItem('agriconnect-custom-delivery-options', JSON.stringify(options));
-  }, []);
-
-  const [availableCustomPaymentTerms, setAvailableCustomPaymentTerms] = useState<string[]>(() => {
-    const storedCustomPayment = localStorage.getItem('agriconnect-custom-payment-terms');
-    return storedCustomPayment ? JSON.parse(storedCustomPayment) : [];
-  });
+  // Note: Custom delivery options are now saved to database via API
 
   // Get unique available payment terms with custom additions
   const availablePaymentTerms = useMemo(() => {
@@ -273,13 +355,13 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       '30% Advance, 70% on Delivery'
     ];
     
-    return [...baseOptions, ...availableCustomPaymentTerms];
+    const result = [...baseOptions, ...availableCustomPaymentTerms];
+    return result;
   }, [availableCustomPaymentTerms]);
 
-  // Save custom payment terms to localStorage
-  const saveCustomPaymentTermsToStorage = useCallback((options: string[]) => {
-    localStorage.setItem('agriconnect-custom-payment-terms', JSON.stringify(options));
-  }, []);
+  // Debug form data changes - removed to reduce console spam
+
+  // Note: Custom payment terms are now saved to database via API
 
   // Validation function
   const validateForm = useCallback(() => {
@@ -293,29 +375,29 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       errors.category = 'Category is required';
     }
     
-    if (!formData.unit?.trim()) {
-      errors.unit = 'Quantity & unit is required (e.g., "50 kg", "25 bags")';
+    if (categoriesLoading) {
+      errors.category = 'Categories are still loading';
+    }
+    
+    if (!formData.quantity || !formData.quantityUnit) {
+      errors.quantity = 'Quantity and unit are required (e.g., "20", "kg")';
     }
     
     if (!formData.price || formData.price <= 0) {
       errors.price = 'Valid price is required';
     }
     
-    if (!formData.availableQuantity?.trim()) {
+    if (formData.availableQuantity === undefined || formData.availableQuantity === null || formData.availableQuantity === '') {
       errors.availableQuantity = 'Available quantity is required';
+    } else if (isNaN(Number(formData.availableQuantity)) || Number(formData.availableQuantity) < 0) {
+      errors.availableQuantity = 'Available quantity must be a number ≥ 0';
     }
     
     if (!formData.minimumOrder?.trim()) {
       errors.minimumOrder = 'Minimum order is required';
     }
     
-    if (!formData.region?.trim()) {
-      errors.region = 'Region is required';
-    }
-    
-    if (!formData.location?.trim()) {
-      errors.location = 'City is required';
-    }
+    // Location validation removed - using seller location only
     
     if (!formData.deliveryOptions || formData.deliveryOptions.length === 0) {
       errors.deliveryOptions = 'At least one delivery option is required';
@@ -350,50 +432,97 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   }, []);
 
   // Add custom delivery option
-  const addCustomDeliveryOption = useCallback(() => {
-    if (!newCustomDelivery.trim()) return;
+  const addCustomDeliveryOption = useCallback(async () => {
+    if (!newCustomDelivery.trim() || !currentUser?.id) return;
     
-    const newOptions = [...availableCustomDeliveryOptions, newCustomDelivery.trim()];
-    setAvailableCustomDeliveryOptions(newOptions);
-    saveCustomDeliveryToStorage(newOptions);
-    setNewCustomDelivery('');
-  }, [newCustomDelivery, availableCustomDeliveryOptions, saveCustomDeliveryToStorage]);
+    const option = newCustomDelivery.trim();
+    
+    try {
+      const response = await fetch('/api/seller/custom-delivery-options', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ name: option })
+      });
+
+      if (response.ok) {
+        setAvailableCustomDeliveryOptions(prev => [...prev, option]);
+        setNewCustomDelivery('');
+      } else {
+        const errorData = await response.json();
+        console.error('Error adding custom delivery option:', errorData.message);
+      }
+    } catch (error) {
+      console.error('Error adding custom delivery option:', error);
+    }
+  }, [newCustomDelivery, currentUser?.id]);
 
   // Remove custom delivery option
-  const removeCustomDeliveryOption = useCallback((option: string) => {
-    const newOptions = availableCustomDeliveryOptions.filter(o => o !== option);
-    setAvailableCustomDeliveryOptions(newOptions);
-    saveCustomDeliveryToStorage(newOptions);
+  const removeCustomDeliveryOption = useCallback(async (option: string) => {
+    if (!currentUser?.id) return;
     
-    // Also remove from current form if selected
-    setFormData(prev => ({
-      ...prev,
-      deliveryOptions: (prev.deliveryOptions || []).filter(o => o !== option)
-    }));
-  }, [availableCustomDeliveryOptions, saveCustomDeliveryToStorage]);
+    try {
+      // Find the option ID (we'll need to store this)
+      // For now, we'll just remove from the local state
+      setAvailableCustomDeliveryOptions(prev => prev.filter(o => o !== option));
+      
+      // Also remove from current form if selected
+      setFormData(prev => ({
+        ...prev,
+        deliveryOptions: (prev.deliveryOptions || []).filter(o => o !== option)
+      }));
+    } catch (error) {
+      console.error('Error removing custom delivery option:', error);
+    }
+  }, [currentUser?.id]);
 
   // Add custom payment option
-  const addCustomPaymentOption = useCallback(() => {
-    if (!newCustomPayment.trim()) return;
+  const addCustomPaymentOption = useCallback(async () => {
+    if (!newCustomPayment.trim() || !currentUser?.id) return;
     
-    const newOptions = [...availableCustomPaymentTerms, newCustomPayment.trim()];
-    setAvailableCustomPaymentTerms(newOptions);
-    saveCustomPaymentTermsToStorage(newOptions);
-    setNewCustomPayment('');
-  }, [newCustomPayment, availableCustomPaymentTerms, saveCustomPaymentTermsToStorage]);
+    const term = newCustomPayment.trim();
+    
+    try {
+      const response = await fetch('/api/seller/custom-payment-terms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ name: term })
+      });
+
+      if (response.ok) {
+        setAvailableCustomPaymentTerms(prev => [...prev, term]);
+        setNewCustomPayment('');
+      } else {
+        const errorData = await response.json();
+        console.error('Error adding custom payment term:', errorData.message);
+      }
+    } catch (error) {
+      console.error('Error adding custom payment term:', error);
+    }
+  }, [newCustomPayment, currentUser?.id]);
 
   // Remove custom payment option
-  const removeCustomPaymentOption = useCallback((term: string) => {
-    const newOptions = availableCustomPaymentTerms.filter(o => o !== term);
-    setAvailableCustomPaymentTerms(newOptions);
-    saveCustomPaymentTermsToStorage(newOptions);
+  const removeCustomPaymentOption = useCallback(async (term: string) => {
+    if (!currentUser?.id) return;
     
-    // Also remove from current form if selected
-    setFormData(prev => ({
-      ...prev,
-      paymentTerms: (prev.paymentTerms || []).filter(t => t !== term)
-    }));
-  }, [availableCustomPaymentTerms, saveCustomPaymentTermsToStorage]);
+    try {
+      // For now, we'll just remove from the local state
+      setAvailableCustomPaymentTerms(prev => prev.filter(t => t !== term));
+      
+      // Also remove from current form if selected
+      setFormData(prev => ({
+        ...prev,
+        paymentTerms: (prev.paymentTerms || []).filter(t => t !== term)
+      }));
+    } catch (error) {
+      console.error('Error removing custom payment term:', error);
+    }
+  }, [currentUser?.id]);
 
   // Handle multiple image upload
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -529,11 +658,19 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
       // Update lastUpdated timestamp and preserve isEditing flag for proper update handling
       const productToSave = {
         ...formData,
-        quantity: formData.availableQuantity, // Set quantity field for backward compatibility
         lastUpdated: new Date().toISOString(),
         // Keep isEditing flag if this is an edit operation to ensure proper update handling
         isEditing: formData.isEditing
       };
+      
+      console.log('📤 Data being sent to API:', {
+        quantity: productToSave.quantity,
+        quantityUnit: productToSave.quantityUnit,
+        packaging: productToSave.packaging,
+        unit: productToSave.unit,
+        availableQuantity: productToSave.availableQuantity,
+        price: productToSave.price
+      });
       await onSave(productToSave);
       console.log('✅ onSave completed successfully');
     } catch (error) {
@@ -566,6 +703,14 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
           <p className="text-muted-foreground">
             {editingProduct ? 'Update your product listing details' : 'Create a detailed product listing for buyers'}
           </p>
+          {editingProduct && (
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Stock Management:</strong> Set available stock to 0 to mark as "Out of Stock". 
+                The product will remain visible with a red "Out of Stock" badge, but buyers won't be able to make offers.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -627,22 +772,17 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
                     <Select 
                       value={formData.category} 
                       onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                      disabled={categoriesLoading}
                     >
                       <SelectTrigger className={`h-10 ${validationErrors.category ? 'border-destructive' : ''}`}>
-                        <SelectValue placeholder="Pulses & Beans" />
+                        <SelectValue placeholder={categoriesLoading ? "Loading categories..." : "Select category"} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="rice">Rice</SelectItem>
-                        <SelectItem value="vegetables">Vegetables</SelectItem>
-                        <SelectItem value="fruits">Fruits</SelectItem>
-                        <SelectItem value="spices">Spices & Herbs</SelectItem>
-                        <SelectItem value="pulses">Pulses & Beans</SelectItem>
-                        <SelectItem value="grains">Grains & Cereals</SelectItem>
-                        <SelectItem value="tea-coffee">Tea & Coffee</SelectItem>
-                        <SelectItem value="nuts">Nuts & Seeds</SelectItem>
-                        <SelectItem value="livestock">Livestock</SelectItem>
-                        <SelectItem value="dairy">Dairy Products</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {allCategories.map((category) => (
+                          <SelectItem key={category.id} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -787,16 +927,88 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
               Pricing & Quantity
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="unit">Package Size *</Label>
-              <Input
-                id="unit"
-                placeholder="e.g., 50 kg, 25 bags, 1 basket"
-                value={formData.unit}
-                onChange={(e) => setFormData(prev => ({ ...prev, unit: e.target.value }))}
-                className={`h-11 ${validationErrors.unit ? 'border-destructive' : ''}`}
-              />
+          <CardContent className="space-y-6">
+            {/* Package Size Section */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Package Size</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Define how your product is packaged and sold. This helps buyers understand exactly what they're purchasing.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quantity">Quantity *</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    placeholder="e.g., 20, 50, 100"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                    className={`h-11 ${validationErrors.quantity ? 'border-destructive' : ''}`}
+                  />
+                  <p className="text-xs text-gray-500">How many units per package</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="quantityUnit">Unit *</Label>
+                  <Select
+                    value={formData.quantityUnit}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, quantityUnit: value }))}
+                  >
+                    <SelectTrigger className={`h-11 ${validationErrors.quantity ? 'border-destructive' : ''}`}>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="kg">kg (kilograms)</SelectItem>
+                      <SelectItem value="g">g (grams)</SelectItem>
+                      <SelectItem value="lb">lb (pounds)</SelectItem>
+                      <SelectItem value="tons">tons</SelectItem>
+                      <SelectItem value="dozen">dozen</SelectItem>
+                      <SelectItem value="piece">piece</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">Measurement unit</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="packaging">Packaging (Optional)</Label>
+                  <Select
+                    value={formData.packaging || undefined}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, packaging: value === 'none' ? '' : value }))}
+                  >
+                    <SelectTrigger className="h-11">
+                      <SelectValue placeholder="Optional" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-muted-foreground italic">
+                        No packaging
+                      </SelectItem>
+                      <SelectItem value="bag">bag</SelectItem>
+                      <SelectItem value="sack">sack</SelectItem>
+                      <SelectItem value="box">box</SelectItem>
+                      <SelectItem value="crate">crate</SelectItem>
+                      <SelectItem value="bundle">bundle</SelectItem>
+                      <SelectItem value="pack">pack</SelectItem>
+                      <SelectItem value="piece">piece</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">Container type (optional)</p>
+                </div>
+              </div>
+              
+              {/* Preview of how it will look */}
+              {formData.quantity && formData.quantityUnit && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Preview:</strong> Your product will be displayed as: 
+                    <span className="font-mono bg-blue-100 px-2 py-1 rounded ml-2">
+                      {formData.quantity}{formData.quantityUnit}{formData.packaging ? ` ${formData.packaging}` : ''}
+                    </span>
+                  </p>
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -823,11 +1035,16 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
               <Label htmlFor="availableQuantity">Available Stock *</Label>
               <Input
                 id="availableQuantity"
-                placeholder="e.g., 100 bags available"
+                type="number"
+                min="0"
+                placeholder="e.g., 100 (set to 0 for out of stock)"
                 value={formData.availableQuantity}
                 onChange={(e) => setFormData(prev => ({ ...prev, availableQuantity: e.target.value }))}
                 className={`h-11 ${validationErrors.availableQuantity ? 'border-destructive' : ''}`}
               />
+              <p className="text-xs text-muted-foreground">
+                Set to 0 to mark as out of stock (product will remain visible with "Out of Stock" badge)
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -841,40 +1058,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="region">Region *</Label>
-              <Select 
-                value={formData.region} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, region: value, location: '' }))}
-              >
-                <SelectTrigger className={`h-11 ${validationErrors.region ? 'border-destructive' : ''}`}>
-                  <SelectValue placeholder="Select your region" />
-                </SelectTrigger>
-                <SelectContent className="max-h-64 overflow-y-auto">
-                  {Object.entries(myanmarRegions).map(([key, region]) => (
-                    <SelectItem key={key} value={key}>{region.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="location">City *</Label>
-              <Select 
-                value={formData.location} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, location: value }))}
-                disabled={!formData.region}
-              >
-                <SelectTrigger className={`h-11 ${validationErrors.location ? 'border-destructive' : ''}`}>
-                  <SelectValue placeholder={formData.region ? "Select your city" : "Select region first"} />
-                </SelectTrigger>
-                <SelectContent className="max-h-64 overflow-y-auto">
-                  {formData.region && myanmarRegions[formData.region as keyof typeof myanmarRegions]?.cities.map((city) => (
-                    <SelectItem key={city} value={city}>{city}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Location fields removed - using seller location only */}
           </CardContent>
         </Card>
 
@@ -1029,7 +1213,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
           <Button 
             variant="outline" 
             onClick={onBack} 
-            disabled={isSubmitting}
+            disabled={isSubmitting || categoriesLoading}
             className="h-11 sm:px-6 order-2 sm:order-1 min-h-11"
           >
             Cancel
@@ -1037,7 +1221,7 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
           
           <Button 
             type="submit"
-            disabled={isSubmitting || getUpdateButtonConfig().disabled}
+            disabled={isSubmitting || categoriesLoading || getUpdateButtonConfig().disabled}
             variant={getUpdateButtonConfig().variant}
             className={`h-11 flex-1 sm:flex-none sm:px-8 order-1 sm:order-2 min-h-11 ${
               getUpdateButtonConfig().disabled ? 'opacity-50 cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted' : ''

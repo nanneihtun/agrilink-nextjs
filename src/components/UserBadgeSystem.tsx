@@ -190,6 +190,19 @@ export const VERIFICATION_LEVELS: Record<string, VerificationLevel> = {
     level: 2,
     requirements: ['Valid Myanmar ID/NRC', 'Business registration', 'Business license'],
     accountTypes: ['business']
+  },
+  'verified': {
+    key: 'verified',
+    label: 'Verified',
+    shortLabel: 'Verified',
+    icon: CheckCircle,
+    description: 'Account verified - trusted member',
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    borderColor: 'border-green-200 dark:border-green-800',
+    level: 1,
+    requirements: ['Account verification complete'],
+    accountTypes: ['individual', 'business']
   }
 };
 
@@ -247,8 +260,19 @@ export function PublicVerificationStatus({
   size = 'xs',
   className 
 }: PublicVerificationStatusProps) {
-  // Show verification badge for all users - but with different styling
-  const verificationConfig = VERIFICATION_LEVELS[verificationLevel] || VERIFICATION_LEVELS.unverified;
+  // For public view, show specific verification types
+  // Business-verified gets special "Business ✓" badge
+  let publicLevel = verificationLevel;
+  
+  if (verificationLevel === 'business-verified') {
+    publicLevel = 'business-verified'; // Keep the specific business-verified level
+  } else if (verificationLevel === 'id-verified') {
+    publicLevel = 'verified'; // Map individual verification to generic "verified"
+  } else {
+    publicLevel = 'unverified'; // Everything else is unverified
+  }
+  
+  const verificationConfig = VERIFICATION_LEVELS[publicLevel] || VERIFICATION_LEVELS.unverified;
   
   const sizeClasses = {
     xs: 'text-xs px-1.5 py-0.5',
@@ -672,7 +696,7 @@ export function getUserVerificationLevel(user: any): string {
   
   // Check for under review - but only if not already verified
   // Priority: Approved status overrides under-review status
-  if (user.verificationStatus === 'under_review' || 
+  if (user.verificationStatus === 'under-review' || 
       (user.verificationSubmitted && user.verificationStatus !== 'verified')) {
     return 'under-review';
   }

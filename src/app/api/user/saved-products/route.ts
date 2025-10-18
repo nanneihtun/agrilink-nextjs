@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
         productName: productsTable.name,
         description: productsTable.description,
         currentPrice: productsTable.price,
-        packageSize: productsTable.packageSize,
+        quantity: productsTable.quantity,
+        quantityUnit: productsTable.quantityUnit,
+        packaging: productsTable.packaging,
         imageUrl: productImages.imageData,
         sellerId: users.id,
         sellerName: users.name,
@@ -82,7 +84,9 @@ export async function GET(request: NextRequest) {
           name: sp.productName,
           description: sp.description,
           price: parseFloat(sp.currentPrice?.toString() || '0') || 0,
-          unit: sp.packageSize || 'kg',
+          unit: sp.quantity && sp.quantityUnit ? 
+            `${sp.quantity}${sp.quantityUnit}${sp.packaging ? ` ${sp.packaging}` : ''}` : 
+            'kg',
           imageUrl: sp.imageUrl,
           seller: {
             id: sp.sellerId,

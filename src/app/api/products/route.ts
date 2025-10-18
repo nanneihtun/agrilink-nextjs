@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 import { 
   products as productsTable, 
@@ -14,10 +15,13 @@ import {
   deliveryOptions as deliveryOptionsTable,
   paymentTerms as paymentTermsTable,
   sellerCustomDeliveryOptions,
-  sellerCustomPaymentTerms
+  sellerCustomPaymentTerms,
+  offers as offersTable
 } from '@/lib/db/schema';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import { checkEmailVerification } from '@/lib/api-middleware';
+
+const sqlQuery = neon(process.env.DATABASE_URL!);
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,7 +41,9 @@ export async function GET(request: NextRequest) {
           description: productsTable.description,
           createdAt: productsTable.createdAt,
           price: productsTable.price,
-          packageSize: productsTable.packageSize,
+          quantity: productsTable.quantity,
+        quantityUnit: productsTable.quantityUnit,
+        packaging: productsTable.packaging,
           availableStock: productsTable.availableStock,
           minimumOrder: productsTable.minimumOrder,
           deliveryOptions: productsTable.deliveryOptions,
@@ -51,9 +57,14 @@ export async function GET(request: NextRequest) {
           userType: users.userType,
           accountType: users.accountType,
           category: categories.name,
-          location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
-          region: locations.region,
-          city: locations.city,
+          categoryId: productsTable.categoryId,
+          location: sql<string>`CASE 
+            WHEN seller_locations.city IS NOT NULL AND seller_locations.region IS NOT NULL THEN seller_locations.city || ', ' || seller_locations.region
+            WHEN seller_locations.city IS NOT NULL THEN seller_locations.city
+            ELSE 'Myanmar'
+          END`,
+          region: sql<string>`COALESCE(seller_locations.region, '')`,
+          city: sql<string>`COALESCE(seller_locations.city, '')`,
           profileImage: userProfiles.profileImage,
           verified: userVerification.verified,
           phoneVerified: userVerification.phoneVerified,
@@ -62,10 +73,10 @@ export async function GET(request: NextRequest) {
           totalReviews: userRatings.totalReviews,
         })
         .from(productsTable)
-        .leftJoin(categories, eq(productsTable.categoryId, categories.id))
-        .leftJoin(locations, eq(productsTable.locationId, locations.id))
+        .innerJoin(categories, eq(productsTable.categoryId, categories.id))
         .leftJoin(users, eq(productsTable.sellerId, users.id))
         .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+        .leftJoin(sql`locations seller_locations`, eq(userProfiles.locationId, sql`seller_locations.id`))
         .leftJoin(userVerification, eq(users.id, userVerification.userId))
         .leftJoin(userRatings, eq(users.id, userRatings.userId))
         .leftJoin(productImages, and(eq(productImages.productId, productsTable.id), eq(productImages.isPrimary, true)))
@@ -81,7 +92,9 @@ export async function GET(request: NextRequest) {
           description: productsTable.description,
           createdAt: productsTable.createdAt,
           price: productsTable.price,
-          packageSize: productsTable.packageSize,
+          quantity: productsTable.quantity,
+        quantityUnit: productsTable.quantityUnit,
+        packaging: productsTable.packaging,
           availableStock: productsTable.availableStock,
           minimumOrder: productsTable.minimumOrder,
           deliveryOptions: productsTable.deliveryOptions,
@@ -95,9 +108,14 @@ export async function GET(request: NextRequest) {
           userType: users.userType,
           accountType: users.accountType,
           category: categories.name,
-          location: sql<string>`CASE WHEN ${locations.city} IS NOT NULL AND ${locations.region} IS NOT NULL THEN ${locations.city} || ', ' || ${locations.region} ELSE ${locations.city} END`,
-          region: locations.region,
-          city: locations.city,
+          categoryId: productsTable.categoryId,
+          location: sql<string>`CASE 
+            WHEN seller_locations.city IS NOT NULL AND seller_locations.region IS NOT NULL THEN seller_locations.city || ', ' || seller_locations.region
+            WHEN seller_locations.city IS NOT NULL THEN seller_locations.city
+            ELSE 'Myanmar'
+          END`,
+          region: sql<string>`COALESCE(seller_locations.region, '')`,
+          city: sql<string>`COALESCE(seller_locations.city, '')`,
           profileImage: userProfiles.profileImage,
           verified: userVerification.verified,
           phoneVerified: userVerification.phoneVerified,
@@ -106,10 +124,10 @@ export async function GET(request: NextRequest) {
           totalReviews: userRatings.totalReviews,
         })
         .from(productsTable)
-        .leftJoin(categories, eq(productsTable.categoryId, categories.id))
-        .leftJoin(locations, eq(productsTable.locationId, locations.id))
+        .innerJoin(categories, eq(productsTable.categoryId, categories.id))
         .leftJoin(users, eq(productsTable.sellerId, users.id))
         .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+        .leftJoin(sql`locations seller_locations`, eq(userProfiles.locationId, sql`seller_locations.id`))
         .leftJoin(userVerification, eq(users.id, userVerification.userId))
         .leftJoin(userRatings, eq(users.id, userRatings.userId))
         .leftJoin(productImages, and(eq(productImages.productId, productsTable.id), eq(productImages.isPrimary, true)))
@@ -121,8 +139,31 @@ export async function GET(request: NextRequest) {
 
     const products = await productsQuery;
 
+    // Calculate actual available quantity by subtracting pending/accepted offers
+    const productsWithCalculatedStock = await Promise.all(products.map(async (product) => {
+      // Get pending and accepted offers for this product
+      const pendingOffersResult = await sqlQuery`
+        SELECT COALESCE(SUM(quantity), 0) as total_offered
+        FROM offers 
+        WHERE "productId" = ${product.id} 
+        AND status IN ('pending', 'accepted')
+      `;
+      
+      const totalOffered = pendingOffersResult[0]?.total_offered || 0;
+      
+      // Calculate actual available quantity
+      const availableStock = product.availableStock ? parseInt(product.availableStock) : 0;
+      const actualAvailable = Math.max(0, availableStock - totalOffered);
+      
+      return {
+        ...product,
+        actualAvailableQuantity: actualAvailable,
+        totalOffered: totalOffered
+      };
+    }));
+
     // Resolve delivery options and payment terms UUIDs to names for all products
-    const transformedProducts = await Promise.all(products.map(async (product) => {
+    const transformedProducts = await Promise.all(productsWithCalculatedStock.map(async (product) => {
       // Resolve delivery options
       let deliveryOptionNames: string[] = [];
       if (product.deliveryOptions && product.deliveryOptions.length > 0) {
@@ -164,31 +205,45 @@ export async function GET(request: NextRequest) {
       return {
       id: product.id,
       name: product.name,
-      category: product.category || 'Uncategorized',
+      category: product.category, // No fallback - show actual value
+      categoryId: product.categoryId, // Include categoryId
       description: product.description,
-      quantity: product.availableStock || 'Contact seller',
+      availableQuantity: product.actualAvailableQuantity?.toString() || product.availableStock, // Use calculated available quantity
       createdAt: product.createdAt,
       price: parseFloat(product.price?.toString() || '0') || 0,
-      unit: product.packageSize || 'kg',
+      quantity: product.quantity, // No fallback - show actual value (null if not set)
+      quantityUnit: product.quantityUnit, // No fallback - show actual value (null if not set)
+      packaging: product.packaging, // No fallback - show actual value (null if not set)
+      // Legacy field for backward compatibility - format without / separator
+      unit: product.quantity && product.quantityUnit 
+        ? product.packaging 
+          ? `${product.quantity}${product.quantityUnit} ${product.packaging}` 
+          : `${product.quantity}${product.quantityUnit}`
+        : null,
+      location: product.location, // Use seller location
+      region: product.region, // Use seller region
+      city: product.city, // Use seller city
       imageUrl: product.imageData,
+      image: product.imageData, // Add legacy image field for compatibility
+      images: product.imageData ? [product.imageData] : [],
       seller: {
         id: product.sellerId,
-        name: product.sellerNameFromUser || product.sellerName || 'Unknown Seller',
-        userType: product.userType || 'farmer',
-        accountType: product.accountType || 'individual',
-        location: product.city || 'Myanmar', // Show only city, not city/region
-        region: product.region || '',
-        city: product.city || '',
-        profileImage: product.profileImage || '',
+        name: product.sellerNameFromUser || product.sellerName, // No fallback - show actual value
+        userType: product.userType, // No fallback - show actual value
+        accountType: product.accountType, // No fallback - show actual value
+          location: product.location, // Use seller location
+          region: product.region, // Use seller region
+          city: product.city, // Use seller city
+        profileImage: product.profileImage, // No fallback - show actual value
         verified: product.verified || false,
         phoneVerified: product.phoneVerified || false,
-        verificationStatus: product.verificationStatus || 'unverified',
+        verificationStatus: product.verificationStatus, // No fallback - show actual value
         rating: parseFloat(product.rating?.toString() || '0') || 0,
         totalReviews: product.totalReviews || 0,
       },
       deliveryOptions: deliveryOptionNames,
       paymentTerms: paymentTermNames,
-      additionalNotes: product.additionalNotes || '',
+      additionalNotes: product.additionalNotes, // No fallback - show actual value (null if not set)
       };
     }));
 
@@ -242,7 +297,10 @@ export async function POST(request: NextRequest) {
       category,
       description,
       price,
-      unit,
+      quantity,
+      quantityUnit,
+      packaging,
+      unit, // Legacy field for backward compatibility
       imageUrl,
       availableQuantity,
       minimumOrder,
@@ -253,11 +311,23 @@ export async function POST(request: NextRequest) {
       paymentTerms = []
     } = body;
 
+    // Validate required fields
+    if (!name || !category || !price) {
+      console.log('❌ Missing required fields:', { name: !!name, category: !!category, price: !!price });
+      return NextResponse.json(
+        { error: 'Name, category, and price are required' },
+        { status: 400 }
+      );
+    }
+
     console.log('🔄 Creating product with data:', {
       name,
       category,
       price,
-      unit,
+      quantity,
+      quantityUnit,
+      packaging,
+      unit, // Legacy field
       availableQuantity,
       minimumOrder,
       location,
@@ -278,7 +348,20 @@ export async function POST(request: NextRequest) {
 
       if (categoryResult.length > 0) {
         categoryId = categoryResult[0].id;
+        console.log('✅ Found category:', category, 'ID:', categoryId);
+      } else {
+        console.log('❌ Category not found:', category);
+        return NextResponse.json(
+          { error: `Category "${category}" not found` },
+          { status: 400 }
+        );
       }
+    } else {
+      console.log('❌ No category provided');
+      return NextResponse.json(
+        { error: 'Category is required' },
+        { status: 400 }
+      );
     }
 
     // Find or create locationId from locations table
@@ -320,10 +403,21 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Delivery options received:', deliveryOptions, 'Type:', typeof deliveryOptions);
     console.log('🔍 Payment terms received:', paymentTerms, 'Type:', typeof paymentTerms);
     
+    // Convert empty arrays to null for database storage
+    let processedDeliveryOptions = deliveryOptions;
+    let processedPaymentTerms = paymentTerms;
+    
+    if (deliveryOptions && deliveryOptions.length === 0) {
+      processedDeliveryOptions = null;
+    }
+    if (paymentTerms && paymentTerms.length === 0) {
+      processedPaymentTerms = null;
+    }
+    
     // Look up delivery option IDs (both standard and custom)
-    if (deliveryOptions && deliveryOptions.length > 0) {
+    if (processedDeliveryOptions && Array.isArray(processedDeliveryOptions) && processedDeliveryOptions.length > 0) {
       // Convert single value to array if needed
-      const deliveryArray = Array.isArray(deliveryOptions) ? deliveryOptions : [deliveryOptions];
+      const deliveryArray = Array.isArray(processedDeliveryOptions) ? processedDeliveryOptions : [processedDeliveryOptions];
       
       console.log('🔍 Looking up delivery options:', deliveryArray);
       
@@ -354,9 +448,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Look up payment term IDs (both standard and custom)
-    if (paymentTerms && paymentTerms.length > 0) {
+    if (processedPaymentTerms && Array.isArray(processedPaymentTerms) && processedPaymentTerms.length > 0) {
       // Convert single value to array if needed
-      const paymentArray = Array.isArray(paymentTerms) ? paymentTerms : [paymentTerms];
+      const paymentArray = Array.isArray(processedPaymentTerms) ? processedPaymentTerms : [processedPaymentTerms];
       
       console.log('🔍 Looking up payment terms:', paymentArray);
       
@@ -387,27 +481,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Create product with normalized structure
-    const newProduct = await db.insert(productsTable).values({
-      name,
-      description,
-      price: price.toString(),
-      packageSize: unit || 'kg',
-      availableStock: availableQuantity || 'Contact seller',
-      minimumOrder: minimumOrder || '',
-      deliveryOptions: deliveryOptionIds,
-      paymentTerms: paymentTermIds,
-      additionalNotes: additionalNotes || '',
-      categoryId,
-      locationId,
-      sellerId: userId,
-      isActive: true,
-    }).returning({
-      id: productsTable.id,
-      name: productsTable.name,
-      createdAt: productsTable.createdAt,
-    });
+    let newProduct;
+    try {
+      const productData = {
+        name,
+        description,
+        price: price.toString(),
+        quantity: quantity || null,
+        quantityUnit: quantityUnit || null,
+        packaging: packaging || null,
+        availableStock: availableQuantity || null,
+        minimumOrder: minimumOrder || null,
+        deliveryOptions: deliveryOptionIds || [],
+        paymentTerms: paymentTermIds || [],
+        additionalNotes: additionalNotes || '',
+        categoryId: categoryId || null,
+        locationId: locationId || null,
+        sellerId: userId,
+        isActive: true,
+      };
+      
+      console.log('🔍 Product data being inserted:', JSON.stringify(productData, null, 2));
+      
+      newProduct = await db.insert(productsTable).values(productData).returning({
+        id: productsTable.id,
+        name: productsTable.name,
+        createdAt: productsTable.createdAt,
+      });
 
-    console.log('✅ Product created with ID:', newProduct[0].id);
+      console.log('✅ Product created with ID:', newProduct[0].id);
+    } catch (dbError) {
+      console.error('❌ Database error creating product:', dbError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to create product in database', 
+          details: dbError.message
+        },
+        { status: 500 }
+      );
+    }
 
     // Insert primary image if provided
     if (imageUrl) {

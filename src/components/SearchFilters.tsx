@@ -23,9 +23,10 @@ interface FilterState {
 interface SearchFiltersProps {
   products: any[];
   onFilterChange: (filteredProducts: any[]) => void;
+  currentUser?: any; // Add currentUser to filter out own products
 }
 
-export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) {
+export function SearchFilters({ products, onFilterChange, currentUser }: SearchFiltersProps) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -76,19 +77,27 @@ export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) 
     return myanmarRegions[filters.region as keyof typeof myanmarRegions]?.cities || [];
   };
 
+  // Get unique categories from products
+  const availableCategories = [...new Set(products.map(p => p.category).filter(Boolean))];
+
   // Apply filters whenever filters change
   useEffect(() => {
     let filtered = [...products];
+
+    // Filter out current user's own products from marketplace
+    if (currentUser?.id) {
+      filtered = filtered.filter(product => product.sellerId !== currentUser.id);
+    }
 
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(product => 
         product.name.toLowerCase().includes(searchLower) ||
-        product.description.toLowerCase().includes(searchLower) ||
+        (product.description && product.description.toLowerCase().includes(searchLower)) ||
         product.category.toLowerCase().includes(searchLower) ||
         product.seller.name.toLowerCase().includes(searchLower) ||
-        product.seller.location.toLowerCase().includes(searchLower)
+        (product.seller.location && product.seller.location.toLowerCase().includes(searchLower))
       );
     }
 
@@ -100,18 +109,12 @@ export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) 
     // Region filter
     if (filters.region) {
       const regionData = myanmarRegions[filters.region as keyof typeof myanmarRegions];
-      const regionCities = regionData?.cities || [];
       const regionName = regionData?.name || '';
       
       filtered = filtered.filter(product => {
         const location = product.seller.location || '';
-        // Check if location matches any city in the region OR contains the region name
-        return regionCities.some(city => 
-          location === city || 
-          location.includes(city) ||
-          location === `${regionName}, ${city}` ||
-          location.includes(regionName)
-        );
+        // Check if location contains the region name
+        return location.includes(regionName);
       });
     }
 
@@ -119,11 +122,10 @@ export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) 
     if (filters.city) {
       filtered = filtered.filter(product => {
         const location = product.seller.location || '';
-        // Check if location matches the city name (with or without region prefix)
-        return location === filters.city || 
-               location.includes(filters.city) ||
-               location.endsWith(`, ${filters.city}`) ||
-               location.endsWith(` ${filters.city}`);
+        // Check if location starts with the city name (since format is "City, Region")
+        return location.startsWith(filters.city) || 
+               location.includes(`, ${filters.city},`) ||
+               location.endsWith(`, ${filters.city}`);
       });
     }
 
@@ -147,16 +149,13 @@ export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) 
 
     // Price range filter
     if (filters.priceRange) {
-      const [min, max] = filters.priceRange.split('-').map(p => 
-        p.includes('+') ? parseInt(p.replace('+', '')) : parseInt(p)
-      );
-      filtered = filtered.filter(product => {
-        const price = product.price;
-        if (filters.priceRange.includes('+')) {
-          return price >= min;
-        }
-        return price >= min && price <= max;
-      });
+      if (filters.priceRange.includes('+')) {
+        const min = parseInt(filters.priceRange.replace('+', ''));
+        filtered = filtered.filter(product => product.price >= min);
+      } else {
+        const [min, max] = filters.priceRange.split('-').map(p => parseInt(p));
+        filtered = filtered.filter(product => product.price >= min && product.price <= max);
+      }
     }
 
     // Sort
@@ -205,13 +204,9 @@ export function SearchFilters({ products, onFilterChange }: SearchFiltersProps) 
             </SelectTrigger>
             <SelectContent position="popper" side="bottom" align="start" sideOffset={4}>
               <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="rice">Rice & Grains</SelectItem>
-              <SelectItem value="pulses">Pulses & Beans</SelectItem>
-              <SelectItem value="oilseeds">Oilseeds</SelectItem>
-              <SelectItem value="vegetables">Vegetables</SelectItem>
-              <SelectItem value="fruits">Fruits</SelectItem>
-              <SelectItem value="spices">Spices & Herbs</SelectItem>
-              <SelectItem value="traditional">Traditional Crops</SelectItem>
+              {availableCategories.map((category) => (
+                <SelectItem key={category} value={category}>{category}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           

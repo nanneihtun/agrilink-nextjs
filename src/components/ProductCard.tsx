@@ -135,9 +135,15 @@ export function ProductCard({
         </div>
         
         {/* Available Stock */}
-        {product.quantity && product.quantity !== 'Contact seller' && (
+        {product.availableQuantity && product.availableQuantity !== 'Contact seller' && (
           <div className="text-xs text-muted-foreground mb-1">
-            Available: {product.quantity}
+            {parseInt(product.availableQuantity) === 0 ? (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                Out of Stock
+              </span>
+            ) : (
+              `Available: ${product.availableQuantity}`
+            )}
           </div>
         )}
         
@@ -165,7 +171,7 @@ export function ProductCard({
               size="xs"
             />
           </div>
-          <p className="truncate">Updated: {getRelativeTime(product.createdAt)}</p>
+          <p className="truncate">Updated: {getRelativeTime(product.updatedAt || product.createdAt)}</p>
         </div>
       </CardContent>
       

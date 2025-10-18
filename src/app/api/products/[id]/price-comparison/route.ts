@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from '@neondatabase/serverless';
-
-const sql = neon(process.env.DATABASE_URL!);
+import { db } from '@/lib/db';
+import { 
+  products as productsTable, 
+  users,
+  userProfiles,
+  userVerification,
+  userRatings,
+  categories
+} from '@/lib/db/schema';
+import { eq, and, sql, ne } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -13,58 +20,70 @@ export async function GET(
     console.log('🔍 Price Comparison API - Fetching price data for product:', productId);
 
     // Get the current product details first
-    const currentProduct = await sql`
-      SELECT 
-        p.id, p.name, p.category, p."createdAt",
-        pp.price, pp.unit
-      FROM products p
-      LEFT JOIN product_pricing pp ON p.id = pp."productId"
-      WHERE p.id = ${productId} AND p."isActive" = true
-      LIMIT 1
-    `;
+    const currentProductResult = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        category: categories.name,
+        createdAt: productsTable.createdAt,
+        price: productsTable.price,
+        quantity: productsTable.quantity,
+        quantityUnit: productsTable.quantityUnit,
+        packaging: productsTable.packaging,
+      })
+      .from(productsTable)
+      .leftJoin(categories, eq(productsTable.categoryId, categories.id))
+      .where(and(eq(productsTable.id, productId), eq(productsTable.isActive, true)))
+      .limit(1);
 
-    if (currentProduct.length === 0) {
+    if (currentProductResult.length === 0) {
       return NextResponse.json(
         { message: "Product not found" },
         { status: 404 }
       );
     }
 
-    const product = currentProduct[0];
+    const product = currentProductResult[0];
 
-    // First, get all products with pricing data
-    const allProductsWithPricing = await sql`
-      SELECT 
-        p.id,
-        p.name,
-        p."createdAt",
-        pp.price,
-        pp.unit,
-        pinv."availableQuantity",
-        pinv."minimumOrder",
-        u.id as "seller_id",
-        u.name as "seller_name",
-        u."userType" as "seller_type",
-        up.location,
-        up."profileImage",
-        uv.verified,
-        uv."phoneVerified",
-        uv."verificationStatus",
-        ur.rating,
-        ur."totalReviews"
-      FROM products p
-      LEFT JOIN product_pricing pp ON p.id = pp."productId"
-      LEFT JOIN product_inventory pinv ON p.id = pinv."productId"
-      LEFT JOIN users u ON p."sellerId" = u.id
-      LEFT JOIN user_profiles up ON u.id = up."userId"
-      LEFT JOIN user_verification uv ON u.id = uv."userId"
-      LEFT JOIN user_ratings ur ON u.id = ur."userId"
-      WHERE 
-        p."isActive" = true 
-        AND pp.price IS NOT NULL
-        AND p.id != ${productId}
-      ORDER BY pp.price ASC
-    `;
+    // Get all products with pricing data using our current schema
+    const allProductsWithPricing = await db
+      .select({
+        id: productsTable.id,
+        name: productsTable.name,
+        createdAt: productsTable.createdAt,
+        price: productsTable.price,
+        quantity: productsTable.quantity,
+        quantityUnit: productsTable.quantityUnit,
+        packaging: productsTable.packaging,
+        availableStock: productsTable.availableStock,
+        minimumOrder: productsTable.minimumOrder,
+        sellerId: users.id,
+        sellerName: users.name,
+        sellerType: users.userType,
+        location: sql<string>`CASE 
+          WHEN seller_locations.city IS NOT NULL AND seller_locations.region IS NOT NULL THEN seller_locations.city || ', ' || seller_locations.region
+          WHEN seller_locations.city IS NOT NULL THEN seller_locations.city
+          ELSE 'Myanmar'
+        END`,
+        profileImage: userProfiles.profileImage,
+        verified: userVerification.verified,
+        phoneVerified: userVerification.phoneVerified,
+        verificationStatus: userVerification.verificationStatus,
+        rating: userRatings.rating,
+        totalReviews: userRatings.totalReviews,
+      })
+      .from(productsTable)
+      .leftJoin(users, eq(productsTable.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .leftJoin(sql`locations seller_locations`, eq(userProfiles.locationId, sql`seller_locations.id`))
+      .leftJoin(userVerification, eq(users.id, userVerification.userId))
+      .leftJoin(userRatings, eq(users.id, userRatings.userId))
+      .where(and(
+        eq(productsTable.isActive, true),
+        ne(productsTable.id, productId),
+        sql`${productsTable.price} IS NOT NULL`
+      ))
+      .orderBy(productsTable.price);
 
     // Filter products with similar names using JavaScript (more reliable)
     const searchTerm = product.name.toLowerCase();
@@ -99,56 +118,56 @@ export async function GET(
     console.log('🔍 All product names:', allProductsWithPricing.map(p => p.name));
     console.log('🔍 Found products:', priceComparisonData.map(p => ({ id: p.id, name: p.name, seller: p.seller_name, price: p.price })));
 
-    // Helper function to convert price to per kg
-    const convertToPerKg = (price: number, unit: string) => {
-      if (!unit) return { pricePerKg: price, conversionFactor: 1 };
+    // Helper function to convert price to per kg using new field structure
+    const convertToPerKg = (price: number, quantity: number, quantityUnit: string, packaging: string) => {
+      if (!quantity || !quantityUnit) return { pricePerKg: price, conversionFactor: 1 };
       
-      const unitLower = unit.toLowerCase();
+      const unitLower = quantityUnit.toLowerCase();
+      const totalQuantity = quantity; // This is already the total quantity
       
-      // Common conversions to kg
-      if (unitLower.includes('kg') || unitLower.includes('kilogram')) {
-        // Extract number from unit (e.g., "20kg sack" -> 20)
-        const match = unitLower.match(/(\d+(?:\.\d+)?)\s*kg/);
-        if (match) {
-          const kgAmount = parseFloat(match[1]);
-          return { pricePerKg: price / kgAmount, conversionFactor: kgAmount };
-        }
-        // If just "kg" without number, assume 1kg
-        return { pricePerKg: price, conversionFactor: 1 };
+      // Convert to kg based on quantity unit
+      let kgAmount = totalQuantity;
+      
+      if (unitLower === 'g' || unitLower === 'gram') {
+        kgAmount = totalQuantity / 1000; // Convert grams to kg
+      } else if (unitLower === 'lb' || unitLower === 'pound') {
+        kgAmount = totalQuantity * 0.453592; // Convert pounds to kg
+      } else if (unitLower === 'tons' || unitLower === 'ton') {
+        kgAmount = totalQuantity * 1000; // Convert tons to kg
+      } else if (unitLower === 'kg' || unitLower === 'kilogram') {
+        kgAmount = totalQuantity; // Already in kg
+      } else {
+        // For other units, assume 1:1 conversion
+        kgAmount = totalQuantity;
       }
       
-      // Other common conversions
-      if (unitLower.includes('gram') || unitLower.includes('g')) {
-        const match = unitLower.match(/(\d+(?:\.\d+)?)\s*g/);
-        if (match) {
-          const gramAmount = parseFloat(match[1]);
-          return { pricePerKg: (price / gramAmount) * 1000, conversionFactor: gramAmount / 1000 };
-        }
-      }
-      
-      if (unitLower.includes('pound') || unitLower.includes('lb')) {
-        const match = unitLower.match(/(\d+(?:\.\d+)?)\s*(?:lb|pound)/);
-        if (match) {
-          const poundAmount = parseFloat(match[1]);
-          return { pricePerKg: price / (poundAmount * 0.453592), conversionFactor: poundAmount * 0.453592 };
-        }
-      }
-      
-      // If no conversion found, return original price
-      return { pricePerKg: price, conversionFactor: 1 };
+      return { 
+        pricePerKg: kgAmount > 0 ? price / kgAmount : price, 
+        conversionFactor: kgAmount 
+      };
     };
 
     // Convert all prices to per kg for comparison
     const dataWithPerKgPrices = priceComparisonData.map(item => {
       const originalPrice = parseFloat(item.price) || 0;
-      const { pricePerKg, conversionFactor } = convertToPerKg(originalPrice, item.unit);
+      const { pricePerKg, conversionFactor } = convertToPerKg(
+        originalPrice, 
+        item.quantity || 1, 
+        item.quantityUnit || 'kg', 
+        item.packaging || 'bag'
+      );
+      
+      // Create display unit from new fields without / separator
+      const displayUnit = item.packaging 
+        ? `${item.quantity || 1}${item.quantityUnit || 'kg'} ${item.packaging}`
+        : `${item.quantity || 1}${item.quantityUnit || 'kg'}`;
       
       return {
         ...item,
         originalPrice,
         pricePerKg,
         conversionFactor,
-        displayUnit: conversionFactor === 1 ? item.unit : `${conversionFactor}kg`
+        displayUnit
       };
     });
 
@@ -159,23 +178,23 @@ export async function GET(
     const transformedData = sortedByPerKg.map(item => ({
       id: item.id,
       name: item.name, // Full product name
-      sellerName: item.seller_name || 'Unknown Seller',
-      sellerType: item.seller_type || 'farmer',
+      sellerName: item.sellerName || 'Unknown Seller',
+      sellerType: item.sellerType || 'farmer',
       price: item.pricePerKg, // Use converted per kg price for comparison
       originalPrice: item.originalPrice, // Keep original price for display
       unit: 'kg', // Standardized to kg for comparison
-      originalUnit: item.unit, // Keep original unit for display
+      originalUnit: item.displayUnit, // Keep original unit for display
       displayUnit: item.displayUnit, // Calculated display unit
       conversionFactor: item.conversionFactor,
       location: item.location || 'Unknown Location',
-      quantity: item.availableQuantity || item.minimumOrder || 'Inquire for quantity',
-      availableQuantity: item.availableQuantity,
+      quantity: item.availableStock || item.minimumOrder || 'Inquire for quantity',
+      availableQuantity: item.availableStock,
       minimumOrder: item.minimumOrder,
       lastUpdated: item.createdAt,
       seller: {
-        id: item.seller_id,
-        name: item.seller_name,
-        userType: item.seller_type,
+        id: item.sellerId,
+        name: item.sellerName,
+        userType: item.sellerType,
         location: item.location,
         profileImage: item.profileImage,
         verified: item.verified,
@@ -193,12 +212,22 @@ export async function GET(
     
     // Also convert current product to per kg for comparison
     const currentProductOriginalPrice = parseFloat(product.price) || 0;
-    const { pricePerKg: currentProductPerKg } = convertToPerKg(currentProductOriginalPrice, product.unit);
+    const { pricePerKg: currentProductPerKg } = convertToPerKg(
+      currentProductOriginalPrice, 
+      product.quantity || 1, 
+      product.quantityUnit || 'kg', 
+      product.packaging || 'bag'
+    );
+
+    // Create display unit for current product without / separator
+    const currentProductDisplayUnit = product.packaging 
+      ? `${product.quantity || 1}${product.quantityUnit || 'kg'} ${product.packaging}`
+      : `${product.quantity || 1}${product.quantityUnit || 'kg'}`;
 
     return NextResponse.json({
       productName: product.name,
       unit: 'kg', // Standardized unit for comparison
-      originalUnit: product.unit, // Keep original unit
+      originalUnit: currentProductDisplayUnit, // Keep original unit
       priceRange: {
         min: minPrice,
         max: maxPrice,
@@ -209,7 +238,7 @@ export async function GET(
         price: currentProductPerKg, // Converted to per kg
         originalPrice: currentProductOriginalPrice,
         unit: 'kg',
-        originalUnit: product.unit
+        originalUnit: currentProductDisplayUnit
       },
       priceData: transformedData,
       message: 'Price comparison data fetched successfully with per kg conversion'

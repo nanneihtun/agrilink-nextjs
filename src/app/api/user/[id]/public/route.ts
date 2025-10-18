@@ -64,7 +64,8 @@ export async function GET(
       const productData = await sql`
         SELECT 
           p.id, p.name, p.description, p.price,
-          p."packageSize", p."availableStock", p."minimumOrder",
+          p.quantity, p."quantityUnit", p.packaging,
+          p."availableStock", p."minimumOrder",
           p."createdAt", p."updatedAt", p."isActive",
           pimg."imageData"
         FROM products p
@@ -80,7 +81,12 @@ export async function GET(
         name: product.name,
         description: product.description,
         price: product.price,
-        packageSize: product.packageSize,
+        quantity: product.quantity,
+        quantityUnit: product.quantityUnit,
+        packaging: product.packaging,
+        unit: product.quantity && product.quantityUnit ? 
+          `${product.quantity}${product.quantityUnit}${product.packaging ? ` ${product.packaging}` : ''}` : 
+          null,
         imageUrl: product.imageData,
         availableStock: product.availableStock,
         minimumOrder: product.minimumOrder,
@@ -175,9 +181,7 @@ export async function GET(
       ratings: {
         rating: reviews.length > 0 ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0,
         totalReviews: reviews.length,
-        responseTime: null,
-        qualityCertifications: null,
-        farmingMethods: null
+        responseTime: null
       },
       
       // Additional data

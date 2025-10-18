@@ -28,7 +28,6 @@ interface Product {
   paymentTerms?: string[];
   lastUpdated?: string;
   additionalNotes?: string;
-  priceChange?: string;
 }
 
 export default function EditProductPage() {
@@ -55,6 +54,7 @@ export default function EditProductPage() {
 
     const fetchProduct = async () => {
       try {
+        console.log('🔍 Fetching product for edit:', productId);
         const response = await fetch(`/api/products/${productId}`);
 
         if (!response.ok) {
@@ -62,6 +62,15 @@ export default function EditProductPage() {
         }
 
         const data = await response.json();
+        console.log('📥 Product data received:', {
+          id: data.product?.id,
+          name: data.product?.name,
+          unit: data.product?.unit,
+          location: data.product?.location,
+          availableQuantity: data.product?.availableQuantity,
+          minimumOrder: data.product?.minimumOrder,
+          additionalNotes: data.product?.additionalNotes
+        });
         setProduct(data.product);
       } catch (err) {
         console.error('Error fetching product:', err);
@@ -213,6 +222,7 @@ export default function EditProductPage() {
       <AppHeader currentUser={currentUser} onLogout={handleLogout} />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <SimplifiedProductForm
+          key={product?.id} // Force re-render when product changes
           currentUser={currentUser || { id: 'temp', name: 'User', location: 'Myanmar' }}
           onBack={handleBack}
           onSave={handleSave}

@@ -11,8 +11,6 @@ import {
   MapPin, 
   Calendar, 
   Package, 
-  TrendingUp, 
-  TrendingDown,
   MessageCircle,
   BarChart3,
   User,
@@ -392,18 +390,6 @@ export function ProductDetails({
                         }
                       })()}
                     </div>
-                    {product.priceChange !== undefined && (
-                      <div className="flex items-center gap-2">
-                        {product.priceChange > 0 ? (
-                          <TrendingUp className="w-4 h-4 text-green-600" />
-                        ) : (
-                          <TrendingDown className="w-4 h-4 text-red-600" />
-                        )}
-                        <span className={`text-sm ${product.priceChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {product.priceChange > 0 ? '+' : ''}{product.priceChange}% from last week
-                        </span>
-                      </div>
-                    )}
                   </div>
 
                   <Separator />
@@ -411,7 +397,13 @@ export function ProductDetails({
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">Available: {product.quantity}</span>
+                      {parseInt(product.availableQuantity || '0') === 0 ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Out of Stock
+                        </span>
+                      ) : (
+                        <span className="text-sm">Available: {product.availableQuantity}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -419,7 +411,7 @@ export function ProductDetails({
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm">Updated {getRelativeTime(product.lastUpdated)}</span>
+                      <span className="text-sm">Updated {getRelativeTime(product.updatedAt || product.createdAt)}</span>
                     </div>
                   </div>
 

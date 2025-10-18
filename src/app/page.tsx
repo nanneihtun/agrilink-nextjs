@@ -85,6 +85,13 @@ export default function HomePage() {
     // Add event listener
     window.addEventListener('openChat', handleOpenChatEvent as EventListener);
 
+    // Listen for offer status changes to refresh available quantities
+    const handleOfferStatusChange = (event: CustomEvent) => {
+      console.log('🔄 Offer status changed, refreshing marketplace...', event.detail);
+      loadProducts();
+    };
+    window.addEventListener('offerStatusChanged', handleOfferStatusChange as EventListener);
+
     // Check for existing user session (non-blocking)
     const token = localStorage.getItem("token");
     const userData = localStorage.getItem("user");
@@ -100,8 +107,23 @@ export default function HomePage() {
     // Cleanup function
     return () => {
       window.removeEventListener('openChat', handleOpenChatEvent as EventListener);
+      window.removeEventListener('offerStatusChanged', handleOfferStatusChange as EventListener);
     };
   }, []);
+
+  // Filter out current user's products when both products and currentUser are available
+  useEffect(() => {
+    if (products.length > 0) {
+      if (currentUser?.id) {
+        // Filter out current user's own products
+        const filtered = products.filter(product => product.sellerId !== currentUser.id);
+        setFilteredProducts(filtered);
+      } else {
+        // No current user, show all products
+        setFilteredProducts(products);
+      }
+    }
+  }, [products, currentUser]);
 
   const loadProducts = async () => {
     try {
@@ -109,7 +131,7 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         setProducts(data.products || []);
-        setFilteredProducts(data.products || []);
+        // Don't set filteredProducts here - let useEffect handle it
       }
     } catch (error) {
       console.error("Error loading products:", error);
@@ -235,6 +257,7 @@ export default function HomePage() {
           <SearchFilters 
             products={products}
             onFilterChange={handleFilterChange}
+            currentUser={currentUser}
           />
         </div>
         

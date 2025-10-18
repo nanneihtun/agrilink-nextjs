@@ -225,6 +225,21 @@ export default function OfferDetailsPage() {
       if (response.ok) {
         // Refresh offer details
         await fetchOfferDetails(offer!.id);
+        
+        // Trigger dashboard refresh for available quantity updates
+        if (newStatus === 'accepted' || newStatus === 'rejected' || newStatus === 'cancelled') {
+          // Dispatch custom event to notify dashboard to refresh
+          console.log('🔄 Offers: Dispatching offerStatusChanged event', {
+            productId: offer!.productId,
+            status: newStatus
+          });
+          window.dispatchEvent(new CustomEvent('offerStatusChanged', { 
+            detail: { 
+              productId: offer!.productId, 
+              status: newStatus 
+            } 
+          }));
+        }
       } else {
         const errorData = await response.json();
         alert(`Failed to update offer: ${errorData.message || 'Unknown error'}`);
@@ -390,11 +405,16 @@ export default function OfferDetailsPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Product Information */}
-            <Card className="border-primary/30">
+            <Card 
+              className="border-primary/30 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
+              onClick={() => router.push(`/product/${offer.productId}`)}
+              title="View product details"
+            >
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5 text-green-600" />
                   Product Information
+                  <ExternalLink className="w-4 h-4 text-gray-400" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -411,7 +431,9 @@ export default function OfferDetailsPage() {
                     )}
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-2">{offer.productName}</h3>
+                    <h3 className="text-xl font-semibold mb-2">
+                      {offer.productName}
+                    </h3>
                     {offer.productCategory && (
                       <p className="text-gray-600 mb-2">Category: {offer.productCategory}</p>
                     )}

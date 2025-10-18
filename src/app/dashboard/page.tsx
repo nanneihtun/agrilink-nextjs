@@ -158,9 +158,16 @@ export default function DashboardPage() {
       refreshProductsList();
     };
 
+    // Listen for offer status changes to refresh available quantities
+    const handleOfferStatusChange = (event: CustomEvent) => {
+      console.log('🔄 Dashboard: Offer status changed, refreshing products...', event.detail);
+      refreshProductsList();
+    };
+
     // Listen for page focus and visibility changes
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('offerStatusChanged', handleOfferStatusChange as EventListener);
 
     // Also refresh user data on mount to ensure we have the latest data
     refreshUserData();
@@ -168,6 +175,7 @@ export default function DashboardPage() {
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('offerStatusChanged', handleOfferStatusChange as EventListener);
     };
   }, [router]);
 
@@ -195,7 +203,7 @@ export default function DashboardPage() {
   const getVerificationStatus = () => {
     if (user.verified && user.phoneVerified) {
       return { status: "verified", color: "bg-green-100 text-green-800", icon: CheckCircle };
-    } else if (user.verificationStatus === "under_review") {
+    } else if (user.verificationStatus === "under-review") {
       return { status: "under_review", color: "bg-blue-100 text-blue-800", icon: Clock };
     } else {
       return { status: "unverified", color: "bg-red-100 text-red-800", icon: AlertCircle };
