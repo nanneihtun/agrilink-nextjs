@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
 
-const sql = neon(process.env.DATABASE_URL!);
+import jwt from 'jsonwebtoken';
+import { sql } from '@/lib/db';
+
+
 
 // PUT /api/user/addresses/[id] - Update address
 export async function PUT(

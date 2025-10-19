@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+
 import jwt from 'jsonwebtoken';
 import { 
   products as productsTable, 
@@ -18,8 +18,9 @@ import {
   offers as offersTable
 } from '@/lib/db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
+import { sql } from '@/lib/db';
 
-const sqlQuery = neon(process.env.DATABASE_URL!);
+
 
 export async function GET(
   request: NextRequest,
@@ -91,7 +92,7 @@ export async function GET(
     
     if (product.availableStock && !isNaN(parseInt(product.availableStock))) {
       // Get pending and accepted offers for this product
-      const pendingOffersResult = await sqlQuery`
+      const pendingOffersResult = await sql`
         SELECT COALESCE(SUM(quantity), 0) as total_offered
         FROM offers 
         WHERE "productId" = ${productId} 
@@ -463,7 +464,7 @@ export async function PUT(
     // Update main product table
     let updatedProduct;
     try {
-      updatedProduct = await sqlQuery`
+      updatedProduct = await sql`
         UPDATE products 
         SET 
           name = ${body.name || ''},

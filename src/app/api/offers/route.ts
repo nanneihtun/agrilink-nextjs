@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { neon } from '@neondatabase/serverless';
+
 import jwt from 'jsonwebtoken';
 
-const sql = neon(process.env.DATABASE_URL!);
+
 import { 
   offers as offersTable,
   products as productsTable,
@@ -17,6 +17,7 @@ import {
 } from '@/lib/db/schema';
 import { eq, and, or, desc } from 'drizzle-orm';
 import { checkEmailVerification } from '@/lib/api-middleware';
+import { sql } from '@/lib/db';
 
 function verifyToken(request: NextRequest) {
   try {

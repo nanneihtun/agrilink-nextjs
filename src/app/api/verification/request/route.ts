@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
+
 import jwt from 'jsonwebtoken';
 import { checkEmailVerification } from '@/lib/api-middleware';
+import { sql } from '@/lib/db';
 
-const sql = neon(process.env.DATABASE_URL!);
+
 
 export async function POST(request: NextRequest) {
   try {

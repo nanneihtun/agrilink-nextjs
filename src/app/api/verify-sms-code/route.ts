@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { awsSnsService } from '@/lib/aws-sns-service';
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
 
-const sql = neon(process.env.DATABASE_URL!);
+import jwt from 'jsonwebtoken';
+import { sql } from '@/lib/db';
+
+
 
 export async function POST(request: NextRequest) {
   try {
