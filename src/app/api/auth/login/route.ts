@@ -7,8 +7,13 @@ import { eq, sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔐 Login attempt started');
-    const { email, password } = await request.json();
+    console.log('🔐 Login API called - POST request received');
+    console.log('🔐 Request headers:', Object.fromEntries(request.headers.entries()));
+    
+    const body = await request.json();
+    console.log('🔐 Request body received:', { email: body.email, hasPassword: !!body.password });
+    
+    const { email, password } = body;
     console.log('📧 Login email:', email);
 
     if (!email || !password) {

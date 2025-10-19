@@ -4,10 +4,12 @@ import * as schema from './schema';
 
 // Environment-aware database URL selection
 const getDatabaseUrl = () => {
+  console.log('🔍 Database connection initialization:');
   console.log('🔍 Environment variables check:');
   console.log('  DATABASE_URL_DEV:', process.env.DATABASE_URL_DEV ? '✅ SET' : '❌ NOT SET');
   console.log('  DATABASE_URL:', process.env.DATABASE_URL ? '✅ SET' : '❌ NOT SET');
   console.log('  NODE_ENV:', process.env.NODE_ENV || 'undefined');
+  console.log('  JWT_SECRET:', process.env.JWT_SECRET ? '✅ SET' : '❌ NOT SET');
   
   // Priority 1: Use DATABASE_URL_DEV if available (for development)
   if (process.env.DATABASE_URL_DEV) {
