@@ -4,21 +4,22 @@ import * as schema from './schema';
 
 // Environment-aware database URL selection
 const getDatabaseUrl = () => {
-  // Check for environment-specific database URLs
-  if (process.env.DATABASE_URL_DEV && process.env.NODE_ENV === 'development') {
+  // Priority 1: Use DATABASE_URL_DEV if available (for development)
+  if (process.env.DATABASE_URL_DEV) {
     return process.env.DATABASE_URL_DEV;
   }
   
+  // Priority 2: Use DATABASE_URL_STAGING if available and NODE_ENV is staging
   if (process.env.DATABASE_URL_STAGING && process.env.NODE_ENV === 'staging') {
     return process.env.DATABASE_URL_STAGING;
   }
   
-  // Fallback to main DATABASE_URL
+  // Priority 3: Use main DATABASE_URL
   if (process.env.DATABASE_URL) {
     return process.env.DATABASE_URL;
   }
   
-  // Development fallback (for local development)
+  // Fallback: Development database (for local development)
   return 'postgresql://neondb_owner:npg_0Usptraqf7om@ep-divine-haze-ag9kgfk7-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
 };
 
