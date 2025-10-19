@@ -17,7 +17,7 @@ import {
 } from '@/lib/db/schema';
 import { eq, and, or, desc } from 'drizzle-orm';
 import { checkEmailVerification } from '@/lib/api-middleware';
-import { sql } from '@/lib/db';
+import { sql as dbSql } from '@/lib/db';
 
 function verifyToken(request: NextRequest) {
   try {
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     if (conversationId) {
       // Fetch offers for a specific conversation with detailed product and user info
       console.log('🔍 Fetching offers for conversation:', conversationId);
-      const offersResult = await sql`
+      const offersResult = await dbSql`
         SELECT 
           o.id,
           o."conversationId",
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       console.log('✅ Offers query executed, found', offers.length, 'offers');
     } else if (type === 'sent') {
       // Fetch sent offers with detailed product and user info
-      const sentOffersResult = await sql`
+      const sentOffersResult = await dbSql`
         SELECT 
           o.id,
           o."conversationId",
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
       offers = sentOffersResult;
     } else if (type === 'received') {
       // Fetch received offers with detailed product and user info
-      const receivedOffersResult = await sql`
+      const receivedOffersResult = await dbSql`
         SELECT 
           o.id,
           o."conversationId",
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
       offers = receivedOffersResult;
     } else {
       // Default: fetch all offers for the user (both sent and received) with detailed info
-      const allOffersResult = await sql`
+      const allOffersResult = await dbSql`
         SELECT 
           o.id,
           o."conversationId",

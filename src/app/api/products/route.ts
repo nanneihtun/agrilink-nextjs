@@ -20,7 +20,6 @@ import {
 } from '@/lib/db/schema';
 import { eq, desc, and, sql, inArray } from 'drizzle-orm';
 import { checkEmailVerification } from '@/lib/api-middleware';
-import { sql } from '@/lib/db';
 
 
 

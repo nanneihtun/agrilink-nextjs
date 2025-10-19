@@ -18,7 +18,6 @@ import {
   offers as offersTable
 } from '@/lib/db/schema';
 import { eq, and, sql, inArray } from 'drizzle-orm';
-import { sql } from '@/lib/db';
 
 
 

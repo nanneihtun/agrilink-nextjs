@@ -13,7 +13,7 @@ import {
   locations
 } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { sql } from '@/lib/db';
+import { sql as dbSql } from '@/lib/db';
 
 // Helper function to verify JWT token
 function verifyToken(request: NextRequest) {
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Querying database for "userId":', user.userId);
     console.log('📍 Profile API - Debugging location data for user:', user.userId);
     
-    const [userProfile] = await sql`
+    const [userProfile] = await dbSql`
       SELECT 
         u.id, u.email, u.name, u."userType", u."accountType", u."emailVerified", u."pendingEmail", u."createdAt",
         bd."businessName", bd."businessDescription", bd."businessLicenseNumber", bd.specialties,
@@ -361,13 +361,13 @@ export async function PUT(request: NextRequest) {
       
       try {
         // Check if business_details record exists
-        const existingRecord = await sql`
+        const existingRecord = await dbSql`
           SELECT "userId" FROM business_details WHERE "userId" = ${user.userId} LIMIT 1
         `;
         
         if (existingRecord.length > 0) {
           // Update existing record
-          await sql`
+          await dbSql`
             UPDATE business_details 
             SET 
               "businessName" = COALESCE(${business_name}, "businessName"),
@@ -379,7 +379,7 @@ export async function PUT(request: NextRequest) {
           console.log('✅ Business details updated successfully');
         } else {
           // Insert new record
-          await sql`
+          await dbSql`
             INSERT INTO business_details ("userId", "businessName", "businessDescription", "businessLicenseNumber", "updatedAt")
             VALUES (${user.userId}, ${business_name}, ${business_description}, ${business_license_number}, NOW())
           `;
@@ -455,7 +455,7 @@ export async function PUT(request: NextRequest) {
 
 
     // Get updated user profile using normalized structure
-    const [updatedProfile] = await sql`
+    const [updatedProfile] = await dbSql`
       SELECT 
         u.id, u.email, u.name, u."userType", u."accountType", u."emailVerified", u."pendingEmail", u."createdAt",
         bd."businessName", bd."businessDescription", bd."businessLicenseNumber", bd.specialties,
