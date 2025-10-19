@@ -7,7 +7,9 @@ import { eq, sql } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔐 Login attempt started');
     const { email, password } = await request.json();
+    console.log('📧 Login email:', email);
 
     if (!email || !password) {
       return NextResponse.json(
@@ -17,6 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from database with all related data using Drizzle (simplified structure)
+    console.log('🔍 Querying database for user:', email);
     const userResult = await db
       .select({
         id: users.id,
@@ -45,7 +48,10 @@ export async function POST(request: NextRequest) {
       .where(eq(users.email, email))
       .limit(1);
 
+    console.log('👤 User query result:', userResult.length > 0 ? 'User found' : 'No user found');
+    
     if (userResult.length === 0) {
+      console.log('❌ No user found for email:', email);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -113,7 +119,12 @@ export async function POST(request: NextRequest) {
     return response;
 
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
