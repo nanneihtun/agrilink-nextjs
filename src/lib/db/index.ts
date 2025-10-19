@@ -2,10 +2,29 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import * as schema from './schema';
 
-// HARDCODED DEVELOPMENT DATABASE URL - NO PRODUCTION FALLBACK
-const databaseUrl = 'postgresql://neondb_owner:npg_0Usptraqf7om@ep-divine-haze-ag9kgfk7-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+// Environment-aware database URL selection
+const getDatabaseUrl = () => {
+  // Check for environment-specific database URLs
+  if (process.env.DATABASE_URL_DEV && process.env.NODE_ENV === 'development') {
+    return process.env.DATABASE_URL_DEV;
+  }
+  
+  if (process.env.DATABASE_URL_STAGING && process.env.NODE_ENV === 'staging') {
+    return process.env.DATABASE_URL_STAGING;
+  }
+  
+  // Fallback to main DATABASE_URL
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL;
+  }
+  
+  // Development fallback (for local development)
+  return 'postgresql://neondb_owner:npg_0Usptraqf7om@ep-divine-haze-ag9kgfk7-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+};
 
-console.log('🔗 Using DEVELOPMENT database:', databaseUrl.includes('ep-divine-haze') ? '✅ DEVELOPMENT' : '❌ NOT DEVELOPMENT');
+const databaseUrl = getDatabaseUrl();
+
+console.log('🔗 Database URL:', databaseUrl.includes('ep-divine-haze') ? '✅ DEVELOPMENT' : '✅ PRODUCTION/STAGING');
 
 // Initialize Neon connection
 const sql = neon(databaseUrl);
