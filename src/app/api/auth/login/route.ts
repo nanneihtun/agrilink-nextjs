@@ -65,6 +65,12 @@ export async function POST(request: NextRequest) {
 
     const user = userResult[0];
 
+    // Debug JWT_SECRET
+    console.log('🔐 JWT_SECRET check:');
+    console.log('  JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    console.log('  JWT_SECRET length:', process.env.JWT_SECRET?.length || 0);
+    console.log('  JWT_SECRET starts with:', process.env.JWT_SECRET?.substring(0, 10) || 'undefined');
+    
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     
