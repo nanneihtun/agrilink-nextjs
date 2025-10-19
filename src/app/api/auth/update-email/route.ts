@@ -177,8 +177,8 @@ export async function POST(request: NextRequest) {
     console.log('🔗 EMAIL CHANGE VERIFICATION URL FOR TESTING:', verificationLink);
     
     try {
-      const { data, error } =         const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { data, error } = await resend.emails.send({
         from: 'AgriLink <noreply@hthheh.com>',
         to: [newEmail],
         subject: 'Confirm your new email address - AgriLink',
