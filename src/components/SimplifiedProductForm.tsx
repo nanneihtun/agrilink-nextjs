@@ -460,19 +460,69 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   }, [newCustomDelivery, currentUser?.id]);
 
   // Remove custom delivery option
-  const removeCustomDeliveryOption = useCallback(async (option: string) => {
+  const removeCustomDeliveryOption = useCallback(async (option: string, force = false) => {
     if (!currentUser?.id) return;
     
     try {
-      // Find the option ID (we'll need to store this)
-      // For now, we'll just remove from the local state
-      setAvailableCustomDeliveryOptions(prev => prev.filter(o => o !== option));
+      // First, we need to find the option ID from the database
+      // Since we only have the name, we'll need to fetch the full options first
+      const token = localStorage.getItem('token');
+      const fullOptions = await fetch('/api/seller/custom-delivery-options/full', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      // Also remove from current form if selected
-      setFormData(prev => ({
-        ...prev,
-        deliveryOptions: (prev.deliveryOptions || []).filter(o => o !== option)
-      }));
+      if (fullOptions.ok) {
+        const fullData = await fullOptions.json();
+        const optionToDelete = fullData.options.find((opt: any) => opt.name === option);
+        
+        if (optionToDelete) {
+          // Call DELETE API with the option ID
+          const deleteUrl = `/api/seller/custom-delivery-options?id=${optionToDelete.id}${force ? '&force=true' : ''}`;
+          const deleteResponse = await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          const deleteData = await deleteResponse.json();
+          
+          if (deleteResponse.ok) {
+            // Remove from local state only after successful API call
+            setAvailableCustomDeliveryOptions(prev => prev.filter(o => o !== option));
+            
+            // Also remove from current form if selected
+            setFormData(prev => ({
+              ...prev,
+              deliveryOptions: (prev.deliveryOptions || []).filter(o => o !== option)
+            }));
+            
+            console.log('✅ Custom delivery option deleted successfully');
+          } else if (deleteResponse.status === 409 && deleteData.error === 'OPTION_IN_USE') {
+            // Show warning dialog for option in use
+            const shouldForceDelete = window.confirm(
+              `⚠️ Cannot delete "${option}"\n\n` +
+              `This delivery option is currently used by ${deleteData.usageCount} product(s).\n\n` +
+              `If you delete it, those products will have broken references.\n\n` +
+              `Do you want to force delete anyway?`
+            );
+            
+            if (shouldForceDelete) {
+              // Retry with force deletion
+              await removeCustomDeliveryOption(option, true);
+            }
+          } else {
+            console.error('❌ Failed to delete custom delivery option:', deleteData.message);
+            alert(`Failed to delete delivery option: ${deleteData.message}`);
+          }
+        } else {
+          console.error('❌ Option not found for deletion');
+        }
+      } else {
+        console.error('❌ Failed to fetch options for deletion');
+      }
     } catch (error) {
       console.error('Error removing custom delivery option:', error);
     }
@@ -507,20 +557,71 @@ export function SimplifiedProductForm({ currentUser, onBack, onSave, editingProd
   }, [newCustomPayment, currentUser?.id]);
 
   // Remove custom payment option
-  const removeCustomPaymentOption = useCallback(async (term: string) => {
+  const removeCustomPaymentOption = useCallback(async (term: string, force = false) => {
     if (!currentUser?.id) return;
     
     try {
-      // For now, we'll just remove from the local state
-      setAvailableCustomPaymentTerms(prev => prev.filter(t => t !== term));
+      // First, we need to find the option ID from the database
+      // Since we only have the name, we'll need to fetch the full options first
+      const token = localStorage.getItem('token');
+      const fullOptions = await fetch('/api/seller/custom-payment-terms/full', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      // Also remove from current form if selected
-      setFormData(prev => ({
-        ...prev,
-        paymentTerms: (prev.paymentTerms || []).filter(t => t !== term)
-      }));
+      if (fullOptions.ok) {
+        const fullData = await fullOptions.json();
+        const optionToDelete = fullData.options.find((opt: any) => opt.name === term);
+        
+        if (optionToDelete) {
+          // Call DELETE API with the option ID
+          const deleteUrl = `/api/seller/custom-payment-terms?id=${optionToDelete.id}${force ? '&force=true' : ''}`;
+          const deleteResponse = await fetch(deleteUrl, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          const deleteData = await deleteResponse.json();
+          
+          if (deleteResponse.ok) {
+            // Remove from local state only after successful API call
+            setAvailableCustomPaymentTerms(prev => prev.filter(t => t !== term));
+            
+            // Also remove from current form if selected
+            setFormData(prev => ({
+              ...prev,
+              paymentTerms: (prev.paymentTerms || []).filter(t => t !== term)
+            }));
+            
+            console.log('✅ Custom payment term deleted successfully');
+          } else if (deleteResponse.status === 409 && deleteData.error === 'TERM_IN_USE') {
+            // Show warning dialog for term in use
+            const shouldForceDelete = window.confirm(
+              `⚠️ Cannot delete "${term}"\n\n` +
+              `This payment term is currently used by ${deleteData.usageCount} product(s).\n\n` +
+              `If you delete it, those products will have broken references.\n\n` +
+              `Do you want to force delete anyway?`
+            );
+            
+            if (shouldForceDelete) {
+              // Retry with force deletion
+              await removeCustomPaymentOption(term, true);
+            }
+          } else {
+            console.error('❌ Failed to delete custom payment term:', deleteData.message);
+            alert(`Failed to delete payment term: ${deleteData.message}`);
+          }
+        } else {
+          console.error('❌ Option not found for deletion');
+        }
+      } else {
+        console.error('❌ Failed to fetch options for deletion');
+      }
     } catch (error) {
-      console.error('Error removing custom payment term:', error);
+      console.error('Error removing custom payment option:', error);
     }
   }, [currentUser?.id]);
 

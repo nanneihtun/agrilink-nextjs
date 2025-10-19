@@ -120,14 +120,32 @@ export async function POST(request: NextRequest) {
     // Save email change token and new email to database
     try {
       console.log('💾 Updating database with email change request...');
-      await sql`
-        UPDATE users 
-        SET "emailVerificationToken" = ${emailChangeToken}, 
-            "emailVerificationExpires" = ${expiresAt.toISOString()},
-            "pendingEmail" = ${newEmail},
-            "updatedAt" = NOW()
-        WHERE id = ${userId}
+      
+      // Update emailManagement table for email change request
+      // Check if record exists and update only email change fields
+      const existingRecord = await sql`
+        SELECT id FROM email_management WHERE "userId" = ${userId}
       `;
+      
+      if (existingRecord.length > 0) {
+        // Update existing record with email change token
+        await sql`
+          UPDATE email_management 
+          SET 
+            "pendingEmail" = ${newEmail},
+            "emailVerificationToken" = ${emailChangeToken},
+            "emailVerificationExpires" = ${expiresAt.toISOString()},
+            "updatedAt" = NOW()
+          WHERE "userId" = ${userId}
+        `;
+      } else {
+        // Insert new record
+        await sql`
+          INSERT INTO email_management (id, "userId", "pendingEmail", "emailVerificationToken", "emailVerificationExpires", "createdAt", "updatedAt")
+          VALUES (gen_random_uuid(), ${userId}, ${newEmail}, ${emailChangeToken}, ${expiresAt.toISOString()}, NOW(), NOW())
+        `;
+      }
+      
       console.log('✅ Database updated successfully for user:', userId);
     } catch (error: any) {
       console.error('❌ Database update error:', error);

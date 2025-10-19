@@ -1,0 +1,353 @@
+erDiagram
+    %% AgriLink Complete Database ERD - All 25 Tables
+    
+    %% USER MANAGEMENT GROUP
+    users {
+        uuid id PK
+        string email
+        string name
+        string userType
+        string accountType
+        string phone
+        string profileImage
+        string storefrontImage
+        array specialties
+        boolean emailVerified
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    user_profiles {
+        uuid id PK
+        uuid userId FK
+        uuid locationId FK
+        string phone
+        string profileImage
+        string storefrontImage
+        array specialties
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    user_verification {
+        uuid id PK
+        uuid userId FK
+        boolean verified
+        boolean phoneVerified
+        string verificationStatus
+        json verificationDocuments
+        json rejectedDocuments
+        boolean businessDetailsCompleted
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp reviewedAt
+        uuid reviewedBy FK
+    }
+    
+    business_details {
+        uuid id PK
+        uuid userId FK
+        text businessName
+        text businessDescription
+        text businessHours
+        string businessLicenseNumber
+        array specialties
+        json policies
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    user_social {
+        uuid id PK
+        uuid userId FK
+        string facebook
+        string instagram
+        string telegram
+        string whatsapp
+        string website
+        string linkedin
+        string twitter
+        string youtube
+        string tiktok
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    addresses {
+        uuid id PK
+        uuid userId FK
+        uuid locationId FK
+        string addressLine1
+        string addressLine2
+        string postalCode
+        boolean isDefault
+        string addressType
+        timestamp createdAt
+        timestamp updatedAt
+        boolean isActive
+    }
+    
+    email_management {
+        uuid id PK
+        uuid userId FK
+        string emailType
+        string subject
+        text content
+        string status
+        timestamp sentAt
+        timestamp deliveredAt
+        timestamp createdAt
+    }
+    
+    verification_codes {
+        uuid id PK
+        uuid userId FK
+        string code
+        string type
+        timestamp expiresAt
+        boolean isUsed
+        integer attempts
+        timestamp createdAt
+        timestamp usedAt
+        string ipAddress
+        string userAgent
+    }
+    
+    verification_requests {
+        uuid id PK
+        uuid userId FK
+        uuid reviewedBy FK
+        string requestType
+        string status
+        text reviewNotes
+        timestamp submittedAt
+        timestamp reviewedAt
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    %% PRODUCT MANAGEMENT GROUP
+    products {
+        uuid id PK
+        uuid sellerId FK
+        uuid categoryId FK
+        uuid locationId FK
+        string name
+        text description
+        decimal price
+        integer availableStock
+        array deliveryOptions
+        array paymentTerms
+        integer quantity
+        string quantityUnit
+        string packaging
+        boolean isActive
+        boolean isFeatured
+        integer views
+        integer likes
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp expiresAt
+        date harvestDate
+    }
+    
+    categories {
+        uuid id PK
+        string name
+    }
+    
+    product_images {
+        uuid id PK
+        uuid productId FK
+        json imageData
+        boolean isPrimary
+        timestamp createdAt
+    }
+    
+    saved_products {
+        uuid id PK
+        uuid userId FK
+        uuid productId FK
+        timestamp savedDate
+        boolean isActive
+        text notes
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    seller_custom_delivery_options {
+        uuid id PK
+        uuid seller_id FK
+        string name
+        text description
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    seller_custom_payment_terms {
+        uuid id PK
+        uuid seller_id FK
+        string name
+        text description
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    %% TRADING & OFFERS GROUP
+    offers {
+        uuid id PK
+        uuid productId FK
+        uuid buyerId FK
+        uuid sellerId FK
+        uuid conversationId FK
+        uuid cancelledBy FK
+        uuid statusId FK
+        decimal offerPrice
+        integer quantity
+        string status
+        text message
+        date deliveryDate
+        string paymentMethod
+        json deliveryAddress
+        text specialInstructions
+        boolean isCounterOffer
+        uuid parentOfferId
+        timestamp acceptedAt
+        timestamp rejectedAt
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    conversations {
+        uuid id PK
+        uuid productId FK
+        uuid buyerId FK
+        uuid sellerId FK
+        text lastMessage
+        integer unreadCount
+        boolean isActive
+        timestamp lastMessageAt
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp archivedAt
+    }
+    
+    messages {
+        uuid id PK
+        uuid conversationId FK
+        uuid senderId FK
+        text content
+        string messageType
+        boolean isRead
+        timestamp createdAt
+    }
+    
+    offer_reviews {
+        uuid id PK
+        uuid reviewerId FK
+        uuid offerId FK
+        uuid revieweeId FK
+        integer rating
+        text comment
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    offer_timeline {
+        uuid id PK
+        uuid userId FK
+        uuid offerId FK
+        string action
+        text description
+        timestamp createdAt
+        json metadata
+    }
+    
+    user_ratings {
+        uuid id PK
+        uuid userId FK
+        integer rating
+        text comment
+        timestamp createdAt
+        timestamp updatedAt
+        boolean isActive
+    }
+    
+    %% LOCATION & LOOKUP GROUP
+    locations {
+        uuid id PK
+        string country
+        string state
+        string city
+        string district
+        timestamp createdAt
+    }
+    
+    delivery_options {
+        uuid id PK
+        string name
+    }
+    
+    payment_terms {
+        uuid id PK
+        string name
+    }
+    
+    status_types {
+        uuid id PK
+        string name
+    }
+    
+    %% RELATIONSHIPS - USER MANAGEMENT
+    users ||--o| user_profiles : "users.id → user_profiles.userId"
+    users ||--o| user_verification : "users.id → user_verification.userId"
+    users ||--o| business_details : "users.id → business_details.userId"
+    users ||--o| user_social : "users.id → user_social.userId"
+    users ||--o{ addresses : "users.id → addresses.userId"
+    users ||--o| email_management : "users.id → email_management.userId (1:1)"
+    users ||--o{ verification_codes : "users.id → verification_codes.userId"
+    users ||--o{ verification_requests : "users.id → verification_requests.userId (submitter)"
+    users ||--o{ verification_requests : "users.id → verification_requests.reviewedBy (reviewer)"
+    users ||--o{ verification_requests : "users.id → verification_requests.assignedTo (assigned to)"
+    
+    locations ||--o{ user_profiles : "locations.id → user_profiles.locationId"
+    locations ||--o{ addresses : "locations.id → addresses.locationId"
+    
+    %% RELATIONSHIPS - PRODUCT MANAGEMENT
+    users ||--o{ products : "users.id → products.sellerId (seller)"
+    categories ||--o{ products : "categories.id → products.categoryId"
+    locations ||--o{ products : "locations.id → products.locationId"
+    products ||--o{ product_images : "products.id → product_images.productId"
+    users ||--o{ saved_products : "users.id → saved_products.userId (saves)"
+    products ||--o{ saved_products : "products.id → saved_products.productId (saved by users)"
+    users ||--o{ seller_custom_delivery_options : "users.id → seller_custom_delivery_options.seller_id"
+    users ||--o{ seller_custom_payment_terms : "users.id → seller_custom_payment_terms.seller_id"
+    
+    %% RELATIONSHIPS - TRADING & OFFERS
+    products ||--o{ offers : "products.id → offers.productId (product being offered)"
+    users ||--o{ offers : "users.id → offers.buyerId (buyer making offer)"
+    users ||--o{ offers : "users.id → offers.sellerId (seller receiving offer)"
+    users ||--o{ offers : "users.id → offers.cancelledBy (user who cancelled offer)"
+    status_types ||--o{ offers : "status_types.id → offers.statusId (offer status)"
+    offers ||--o| conversations : "offers.id → conversations.conversationId (1:1 relationship)"
+    
+    conversations ||--o{ messages : "conversations.id → messages.conversationId (conversation messages)"
+    users ||--o{ messages : "users.id → messages.senderId (message sender)"
+    products ||--o{ conversations : "products.id → conversations.productId (product conversations)"
+    users ||--o{ conversations : "users.id → conversations.buyerId (conversation buyer)"
+    users ||--o{ conversations : "users.id → conversations.sellerId (conversation seller)"
+    
+    offers ||--o{ offer_reviews : "offers.id → offer_reviews.offerId (offer reviews)"
+    users ||--o{ offer_reviews : "users.id → offer_reviews.reviewerId (reviewer)"
+    users ||--o{ offer_reviews : "users.id → offer_reviews.revieweeId (being reviewed)"
+    
+    offers ||--o{ offer_timeline : "offers.id → offer_timeline.offerId (offer timeline events)"
+    users ||--o{ offer_timeline : "users.id → offer_timeline.userId (timeline actor)"
+    
+    users ||--o{ user_ratings : "users.id → user_ratings.userId (user being rated)"
+    
+    %% ARRAY FIELD RELATIONSHIPS
+    delivery_options ||--o{ products : "delivery_options.id → products.deliveryOptions (array reference)"
+    payment_terms ||--o{ products : "payment_terms.id → products.paymentTerms (array reference)"

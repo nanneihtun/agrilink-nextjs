@@ -1,0 +1,171 @@
+erDiagram
+    %% User Management Group - AgriLink Database
+    
+    users {
+        uuid id PK
+        string email
+        string name
+        string userType
+        string accountType
+        string phone
+        string profileImage
+        string storefrontImage
+        array specialties
+        boolean emailVerified
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    user_profiles {
+        uuid id PK
+        uuid userId FK
+        uuid locationId FK
+        string phone
+        string profileImage
+        string storefrontImage
+        array specialties
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    user_verification {
+        uuid id PK
+        uuid userId FK
+        boolean verified
+        boolean phoneVerified
+        string verificationStatus
+        json verificationDocuments
+        json rejectedDocuments
+        boolean businessDetailsCompleted
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp reviewedAt
+        uuid reviewedBy FK
+    }
+    
+    business_details {
+        uuid id PK
+        uuid userId FK
+        text businessName
+        text businessDescription
+        text businessHours
+        string businessLicenseNumber
+        array specialties
+        json policies
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    user_social {
+        uuid id PK
+        uuid userId FK
+        string facebook
+        string instagram
+        string telegram
+        string whatsapp
+        string website
+        string linkedin
+        string twitter
+        string youtube
+        string tiktok
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    addresses {
+        uuid id PK
+        uuid userId FK
+        uuid locationId FK
+        string addressLine1
+        string addressLine2
+        string postalCode
+        boolean isDefault
+        string addressType
+        timestamp createdAt
+        timestamp updatedAt
+        boolean isActive
+    }
+    
+    user_ratings {
+        uuid id PK
+        uuid userId FK
+        integer rating
+        text comment
+        timestamp createdAt
+        timestamp updatedAt
+        boolean isActive
+    }
+    
+    email_management {
+        uuid id PK
+        uuid userId FK
+        string emailType
+        string subject
+        text content
+        string status
+        timestamp sentAt
+        timestamp deliveredAt
+        timestamp createdAt
+    }
+    
+    verification_codes {
+        uuid id PK
+        uuid userId FK
+        string code
+        string type
+        timestamp expiresAt
+        boolean isUsed
+        integer attempts
+        timestamp createdAt
+        timestamp usedAt
+        string ipAddress
+        string userAgent
+    }
+    
+    verification_requests {
+        uuid id PK
+        uuid userId FK
+        uuid reviewedBy FK
+        string requestType
+        string status
+        json documents
+        text rejectionReason
+        text notes
+        timestamp submittedAt
+        timestamp reviewedAt
+        timestamp expiresAt
+        string priority
+        boolean isUrgent
+        uuid assignedTo FK
+        timestamp createdAt
+        timestamp updatedAt
+        json metadata
+        json attachments
+        json reviewHistory
+        text complianceNotes
+        string riskLevel
+    }
+    
+    locations {
+        uuid id PK
+        string country
+        string state
+        string city
+        string district
+        timestamp createdAt
+    }
+    
+    %% Relationships with detailed column mappings
+    users ||--o| user_profiles : "users.id → user_profiles.userId"
+    users ||--o| user_verification : "users.id → user_verification.userId"
+    users ||--o| business_details : "users.id → business_details.userId"
+    users ||--o| user_social : "users.id → user_social.userId"
+    users ||--o{ addresses : "users.id → addresses.userId"
+    users ||--o{ user_ratings : "users.id → user_ratings.userId"
+    users ||--o{ email_management : "users.id → email_management.userId"
+    users ||--o{ verification_codes : "users.id → verification_codes.userId"
+    users ||--o{ verification_requests : "users.id → verification_requests.userId (submitter)"
+    users ||--o{ verification_requests : "users.id → verification_requests.reviewedBy (reviewer)"
+    
+    locations ||--o{ user_profiles : "locations.id → user_profiles.locationId"
+    locations ||--o{ addresses : "locations.id → addresses.locationId"

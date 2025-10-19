@@ -1,0 +1,111 @@
+erDiagram
+    %% Product Management Group - AgriLink Database
+    
+    products {
+        uuid id PK
+        uuid sellerId FK
+        uuid categoryId FK
+        uuid locationId FK
+        string name
+        text description
+        decimal price
+        integer availableStock
+        array deliveryOptions
+        array paymentTerms
+        integer quantity
+        string quantityUnit
+        string packaging
+        boolean isActive
+        boolean isFeatured
+        integer views
+        integer likes
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp expiresAt
+        date harvestDate
+    }
+    
+    categories {
+        uuid id PK
+        string name
+    }
+    
+    product_images {
+        uuid id PK
+        uuid productId FK
+        json imageData
+        boolean isPrimary
+        timestamp createdAt
+    }
+    
+    saved_products {
+        uuid id PK
+        uuid userId FK
+        uuid productId FK
+        timestamp savedDate
+        boolean isActive
+        text notes
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    seller_custom_delivery_options {
+        uuid id PK
+        uuid seller_id FK
+        string name
+        text description
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    seller_custom_payment_terms {
+        uuid id PK
+        uuid seller_id FK
+        string name
+        text description
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    delivery_options {
+        uuid id PK
+        string name
+    }
+    
+    payment_terms {
+        uuid id PK
+        string name
+    }
+    
+    locations {
+        uuid id PK
+        string country
+        string state
+        string city
+        string district
+        timestamp createdAt
+    }
+    
+    users {
+        uuid id PK
+        string email
+        string name
+        string userType
+        string accountType
+    }
+    
+    %% Relationships with detailed column mappings
+    users ||--o{ products : "users.id → products.sellerId (seller)"
+    categories ||--o{ products : "categories.id → products.categoryId"
+    locations ||--o{ products : "locations.id → products.locationId"
+    products ||--o{ product_images : "products.id → product_images.productId"
+    users ||--o{ saved_products : "users.id → saved_products.userId (saves)"
+    products ||--o{ saved_products : "products.id → saved_products.productId (saved by users)"
+    users ||--o{ seller_custom_delivery_options : "users.id → seller_custom_delivery_options.seller_id"
+    users ||--o{ seller_custom_payment_terms : "users.id → seller_custom_payment_terms.seller_id"
+    
+    %% Lookup table relationships (referenced by array fields)
+    delivery_options ||--o{ products : "delivery_options.id → products.deliveryOptions (array reference)"
+    payment_terms ||--o{ products : "payment_terms.id → products.paymentTerms (array reference)"

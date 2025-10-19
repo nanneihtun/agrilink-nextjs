@@ -160,12 +160,58 @@ export async function DELETE(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const termId = searchParams.get('id');
+    const force = searchParams.get('force') === 'true'; // Allow force deletion
 
     if (!termId) {
       return NextResponse.json(
         { message: 'Term ID is required' },
         { status: 400 }
       );
+    }
+
+    // First, get the term name to check for usage
+    const term = await db
+      .select({ 
+        id: sellerCustomPaymentTerms.id,
+        name: sellerCustomPaymentTerms.name 
+      })
+      .from(sellerCustomPaymentTerms)
+      .where(and(
+        eq(sellerCustomPaymentTerms.id, termId),
+        eq(sellerCustomPaymentTerms.sellerId, sellerId)
+      ))
+      .limit(1);
+
+    if (term.length === 0) {
+      return NextResponse.json(
+        { message: 'Term not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    // Check if this term is being used by any products
+    if (!force) {
+      const { neon } = await import('@neondatabase/serverless');
+      const sqlQuery = neon(process.env.DATABASE_URL!);
+      
+      const usageCheck = await sqlQuery`
+        SELECT COUNT(*) as usage_count
+        FROM products 
+        WHERE payment_terms @> ${JSON.stringify([term[0].name])}
+        AND "sellerId" = ${sellerId}
+      `;
+
+      const usageCount = parseInt(usageCheck[0].usage_count);
+      
+      if (usageCount > 0) {
+        return NextResponse.json({
+          message: 'Cannot delete term that is in use',
+          error: 'TERM_IN_USE',
+          usageCount: usageCount,
+          termName: term[0].name,
+          details: `This payment term is currently used by ${usageCount} product(s). Please update those products first or use force deletion.`
+        }, { status: 409 });
+      }
     }
 
     // Soft delete by setting isActive to false
@@ -178,15 +224,9 @@ export async function DELETE(request: NextRequest) {
       ))
       .returning({ id: sellerCustomPaymentTerms.id });
 
-    if (deletedTerm.length === 0) {
-      return NextResponse.json(
-        { message: 'Term not found or access denied' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json({
-      message: 'Custom payment term deleted successfully'
+      message: 'Custom payment term deleted successfully',
+      forceDeleted: force
     });
 
   } catch (error: any) {

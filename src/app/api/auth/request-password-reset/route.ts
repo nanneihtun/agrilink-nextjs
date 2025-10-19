@@ -51,16 +51,31 @@ export async function POST(request: NextRequest) {
 
     // Generate reset token
     const resetToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Save reset token to database
-    await sql`
-      UPDATE users 
-      SET 
-        "passwordResetToken" = ${resetToken},
-        "passwordResetExpires" = ${expiresAt.toISOString()}
-      WHERE id = ${user.id}
+    // Save reset token to email_management table
+    // Check if record exists and update only password reset fields
+    const existingRecord = await sql`
+      SELECT id FROM email_management WHERE "userId" = ${user.id}
     `;
+    
+    if (existingRecord.length > 0) {
+      // Update existing record with password reset token
+      await sql`
+        UPDATE email_management 
+        SET 
+          "passwordResetToken" = ${resetToken},
+          "passwordResetExpires" = ${expiresAt.toISOString()},
+          "updatedAt" = NOW()
+        WHERE "userId" = ${user.id}
+      `;
+    } else {
+      // Insert new record
+      await sql`
+        INSERT INTO email_management (id, "userId", "passwordResetToken", "passwordResetExpires", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), ${user.id}, ${resetToken}, ${expiresAt.toISOString()}, NOW(), NOW())
+      `;
+    }
 
     console.log('✅ Password reset token generated for user:', user.email);
 

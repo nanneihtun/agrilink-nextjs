@@ -74,21 +74,15 @@ export function BuyerDashboard({
 
 
 
-  // Get saved products with current prices for price alerts
-  const savedProductsWithAlerts = useMemo(() => {
+  // Get saved products with current product data (simplified)
+  const savedProductsWithData = useMemo(() => {
     return savedProducts.map(saved => {
       const product = allProducts.find(p => p.id === saved.productId);
-      const priceChanged = product && product.price !== saved.priceWhenSaved;
-      const priceIncrease = product && product.price > saved.priceWhenSaved;
-      const priceDecrease = product && product.price < saved.priceWhenSaved;
       
       return {
         ...saved,
         product,
-        priceChanged,
-        priceIncrease,
-        priceDecrease,
-        currentPrice: product?.price || saved.priceWhenSaved
+        currentPrice: product?.price || 0
       };
     });
   }, [allProducts, savedProducts]);
@@ -96,15 +90,11 @@ export function BuyerDashboard({
   // Simple dashboard stats focused on saved products
   const dashboardStats = useMemo(() => {
     const savedProductsCount = savedProducts.length;
-    const priceAlertsActive = savedProducts.filter(s => s.alerts.priceAlert).length;
-    const priceDropsDetected = savedProductsWithAlerts.filter(s => s.priceDecrease && s.alerts.priceAlert).length;
     
     return {
-      savedProductsCount,
-      priceAlertsActive,
-      priceDropsDetected
+      savedProductsCount
     };
-  }, [savedProducts, savedProductsWithAlerts]);
+  }, [savedProducts]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US').format(price) + ' MMK';
@@ -389,7 +379,7 @@ export function BuyerDashboard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Heart className="w-5 h-5" />
-            Your Saved Products ({savedProductsWithAlerts.length})
+            Your Saved Products ({savedProductsWithData.length})
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Track prices and get alerts on products you're interested in
@@ -397,30 +387,16 @@ export function BuyerDashboard({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {savedProductsWithAlerts.map((saved) => (
+            {savedProductsWithData.map((saved) => (
               <div key={saved.productId} className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-4 p-4 border rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="font-medium">{saved.product?.name || "Product Not Found"}</h3>
-                    {saved.priceDecrease && saved.alerts.priceAlert && (
-                      <Badge variant="secondary" className="text-green-600">
-                        <TrendingDown className="w-3 h-3 mr-1" />
-                        Price Drop!
-                      </Badge>
-                    )}
                   </div>
                   <div className="flex flex-col md:flex-row md:items-center gap-2 text-sm text-muted-foreground">
-                    <span>Saved at: {formatPrice(saved.priceWhenSaved)}</span>
+                    <span>Current Price: {formatPrice(saved.currentPrice)}</span>
                     <span className="hidden md:inline">•</span>
-                    <span>Current: {formatPrice(saved.currentPrice)}</span>
-                    {saved.priceChanged && (
-                      <>
-                        <span className="hidden md:inline">•</span>
-                        <span className={saved.priceDecrease ? "text-green-600" : "text-red-600"}>
-                          {saved.priceDecrease ? "↓" : "↑"} {formatPrice(Math.abs(saved.currentPrice - saved.priceWhenSaved))} change
-                        </span>
-                      </>
-                    )}
+                    <span>Saved: {new Date(saved.createdAt).toLocaleDateString()}</span>
                   </div>
                   {saved.product && (
                     <p className="text-sm text-muted-foreground mt-1">
@@ -452,7 +428,7 @@ export function BuyerDashboard({
               </div>
             ))}
             
-            {savedProductsWithAlerts.length === 0 && (
+            {savedProductsWithData.length === 0 && (
               <div className="text-center py-12">
                 <Heart className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium mb-2">No saved products yet</h3>

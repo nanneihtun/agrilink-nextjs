@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { awsSnsService } from '@/lib/aws-sns-service';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+
+const sql = neon(process.env.DATABASE_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,9 +37,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update user's phone number in the user_profiles table
+    await sql`
+      UPDATE user_profiles 
+      SET 
+        phone = ${phoneNumber},
+        "updatedAt" = NOW()
+      WHERE "userId" = ${userId}
+    `;
+
+    // Update user verification status
+    await sql`
+      UPDATE user_verification 
+      SET 
+        "phoneVerified" = true,
+        "updatedAt" = NOW()
+      WHERE "userId" = ${userId}
+    `;
+
+    console.log(`✅ Phone number updated in database: ${phoneNumber} for user ${userId}`);
+
     return NextResponse.json({
       success: true,
-      message: result.message || 'Phone number verified successfully',
+      message: result.message || 'Phone number verified and updated successfully',
       phoneNumber
     });
 

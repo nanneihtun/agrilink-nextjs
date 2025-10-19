@@ -77,11 +77,12 @@ export const users = pgTable('users', {
   passwordHash: text('passwordHash').notNull(),
   userType: text('userType').notNull(), // farmer, trader, buyer, admin
   accountType: text('accountType').notNull(), // individual, business
-  emailVerified: boolean('emailVerified').default(false),
+  emailVerified: boolean('emailVerified'),
   emailVerificationToken: text('emailVerificationToken'),
   emailVerificationExpires: timestamp('emailVerificationExpires', { withTimezone: true }),
-  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
+  pendingEmail: text('pendingEmail'), // Email change requests
+  createdAt: timestamp('createdAt', { withTimezone: true }),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
 });
 
 // User profiles table - Extended profile information with location reference
@@ -93,8 +94,9 @@ export const userProfiles = pgTable('user_profiles', {
   profileImage: text('profileImage'),
   storefrontImage: text('storefrontImage'),
   website: text('website'),
-  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
+  specialties: text('specialties').array(), // Array of specialties
+  createdAt: timestamp('createdAt', { withTimezone: true }),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
 }, (table) => ({
   uniqueUserId: unique().on(table.userId),
 }));
@@ -133,14 +135,15 @@ export const userSocial = pgTable('user_social', {
 export const userVerification = pgTable('user_verification', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  verified: boolean('verified').default(false),
-  phoneVerified: boolean('phoneVerified').default(false),
-  verificationStatus: text('verificationStatus').default('not_started'),
-  verificationSubmitted: boolean('verificationSubmitted').default(false),
+  verified: boolean('verified'),
+  phoneVerified: boolean('phoneVerified'),
+  verificationStatus: text('verificationStatus'),
+  verificationSubmitted: boolean('verificationSubmitted'),
   verificationDocuments: jsonb('verificationDocuments'),
-  businessDetailsCompleted: boolean('businessDetailsCompleted').default(false),
-  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
+  rejectedDocuments: jsonb('rejectedDocuments'), // Documents that were rejected by admin
+  businessDetailsCompleted: boolean('businessDetailsCompleted'),
+  createdAt: timestamp('createdAt', { withTimezone: true }),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
 }, (table) => ({
   uniqueUserId: unique().on(table.userId),
 }));
@@ -155,19 +158,17 @@ export const businessDetails = pgTable('business_details', {
   businessLicenseNumber: text('businessLicenseNumber'),
   specialties: text('specialties').array(),
   policies: jsonb('policies'),
-  createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('createdAt', { withTimezone: true }),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
 }, (table) => ({
   uniqueUserId: unique().on(table.userId),
 }));
 
-// Email management table - Email verification tokens and password resets
-export const emailManagementNew = pgTable('email_management_new', {
+// Email management table - Email change requests and password resets
+export const emailManagement = pgTable('email_management', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   pendingEmail: text('pendingEmail'),
-  emailVerificationToken: text('emailVerificationToken'),
-  emailVerificationExpires: timestamp('emailVerificationExpires', { withTimezone: true }),
   passwordResetToken: text('passwordResetToken'),
   passwordResetExpires: timestamp('passwordResetExpires', { withTimezone: true }),
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
@@ -251,16 +252,12 @@ export const productImages = pgTable('product_images', {
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
 });
 
-// Saved products table - User favorites and saved items
+// Saved products table - User favorites and saved items (simplified)
 export const savedProducts = pgTable('saved_products', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
   productId: uuid('productId').notNull().references(() => products.id, { onDelete: 'cascade' }),
-  savedDate: timestamp('savedDate', { withTimezone: true }).defaultNow(),
-  priceWhenSaved: decimal('priceWhenSaved', { precision: 12, scale: 2 }), // Price when product was saved
-  alerts: jsonb('alerts').default({ priceAlert: false, stockAlert: false }), // Alert settings
   createdAt: timestamp('createdAt', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updatedAt', { withTimezone: true }).defaultNow(),
 }, (table) => ({
   uniqueUserProduct: unique().on(table.userId, table.productId),
 }));
@@ -395,7 +392,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   businessDetails: one(businessDetails, { fields: [users.id], references: [businessDetails.userId] }),
   social: one(userSocial, { fields: [users.id], references: [userSocial.userId] }),
   verification: one(userVerification, { fields: [users.id], references: [userVerification.userId] }),
-  emailManagement: one(emailManagementNew, { fields: [users.id], references: [emailManagementNew.userId] }),
+  emailManagement: one(emailManagement, { fields: [users.id], references: [emailManagement.userId] }),
   ratings: one(userRatings, { fields: [users.id], references: [userRatings.userId] }),
   addresses: many(addresses),
   verificationRequests: many(verificationRequests),
@@ -437,8 +434,8 @@ export const businessDetailsRelations = relations(businessDetails, ({ one, many 
   user: one(users, { fields: [businessDetails.userId], references: [users.id] }),
 }));
 
-export const emailManagementNewRelations = relations(emailManagementNew, ({ one }) => ({
-  user: one(users, { fields: [emailManagementNew.userId], references: [users.id] }),
+export const emailManagementRelations = relations(emailManagement, ({ one }) => ({
+  user: one(users, { fields: [emailManagement.userId], references: [users.id] }),
 }));
 
 export const userRatingsRelations = relations(userRatings, ({ one }) => ({
@@ -531,8 +528,8 @@ export type NewUserVerification = typeof userVerification.$inferInsert;
 export type BusinessDetails = typeof businessDetails.$inferSelect;
 export type NewBusinessDetails = typeof businessDetails.$inferInsert;
 
-export type EmailManagementNew = typeof emailManagementNew.$inferSelect;
-export type NewEmailManagementNew = typeof emailManagementNew.$inferInsert;
+export type EmailManagement = typeof emailManagement.$inferSelect;
+export type NewEmailManagement = typeof emailManagement.$inferInsert;
 
 export type UserRating = typeof userRatings.$inferSelect;
 export type NewUserRating = typeof userRatings.$inferInsert;

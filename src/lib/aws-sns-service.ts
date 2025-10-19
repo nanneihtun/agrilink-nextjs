@@ -165,7 +165,7 @@ class AWSSNSService {
     try {
       const sql = getSql();
       
-      // Get the verification record
+      // Get the verification record (allow already verified codes for re-verification)
       const verificationRecord = await sql`
         SELECT * FROM verification_codes 
         WHERE "userId" = ${userId} 

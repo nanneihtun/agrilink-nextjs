@@ -135,6 +135,8 @@ export async function POST(request: NextRequest) {
       userType,
       accountType,
       emailVerified: false,
+      emailVerificationToken,
+      emailVerificationExpires: verificationExpires,
     }).returning({
       id: users.id,
       email: users.email,

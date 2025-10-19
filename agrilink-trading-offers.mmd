@@ -1,0 +1,113 @@
+erDiagram
+    %% Trading & Offers Group - AgriLink Database
+    
+    offers {
+        uuid id PK
+        uuid productId FK
+        uuid buyerId FK
+        uuid sellerId FK
+        uuid conversationId FK
+        uuid cancelledBy FK
+        uuid statusId FK
+        decimal offerPrice
+        integer quantity
+        string status
+        text message
+        date deliveryDate
+        string paymentMethod
+        json deliveryAddress
+        text specialInstructions
+        boolean isCounterOffer
+        uuid parentOfferId
+        timestamp acceptedAt
+        timestamp rejectedAt
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    conversations {
+        uuid id PK
+        uuid productId FK
+        uuid buyerId FK
+        uuid sellerId FK
+        text lastMessage
+        integer unreadCount
+        boolean isActive
+        timestamp lastMessageAt
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp archivedAt
+    }
+    
+    messages {
+        uuid id PK
+        uuid conversationId FK
+        uuid senderId FK
+        text content
+        string messageType
+        boolean isRead
+        timestamp createdAt
+    }
+    
+    offer_reviews {
+        uuid id PK
+        uuid reviewerId FK
+        uuid offerId FK
+        uuid revieweeId FK
+        integer rating
+        text comment
+        timestamp createdAt
+        timestamp updatedAt
+    }
+    
+    offer_timeline {
+        uuid id PK
+        uuid userId FK
+        uuid offerId FK
+        string action
+        text description
+        timestamp createdAt
+        json metadata
+    }
+    
+    products {
+        uuid id PK
+        string name
+        decimal price
+        integer availableStock
+    }
+    
+    users {
+        uuid id PK
+        string name
+        string email
+        string userType
+    }
+    
+    status_types {
+        uuid id PK
+        string name
+    }
+    
+    %% Relationships with detailed column mappings
+    products ||--o{ offers : "products.id → offers.productId (product being offered)"
+    users ||--o{ offers : "users.id → offers.buyerId (buyer making offer)"
+    users ||--o{ offers : "users.id → offers.sellerId (seller receiving offer)"
+    users ||--o{ offers : "users.id → offers.cancelledBy (user who cancelled offer)"
+    status_types ||--o{ offers : "status_types.id → offers.statusId (offer status)"
+    offers ||--o| conversations : "offers.id → conversations.conversationId (1:1 relationship)"
+    
+    conversations ||--o{ messages : "conversations.id → messages.conversationId (conversation messages)"
+    users ||--o{ messages : "users.id → messages.senderId (message sender)"
+    
+    offers ||--o{ offer_reviews : "offers.id → offer_reviews.offerId (offer reviews)"
+    users ||--o{ offer_reviews : "users.id → offer_reviews.reviewerId (reviewer)"
+    users ||--o{ offer_reviews : "users.id → offer_reviews.revieweeId (being reviewed)"
+    
+    offers ||--o{ offer_timeline : "offers.id → offer_timeline.offerId (offer timeline events)"
+    users ||--o{ offer_timeline : "users.id → offer_timeline.userId (timeline actor)"
+    
+    %% Additional conversation relationships
+    products ||--o{ conversations : "products.id → conversations.productId (product conversations)"
+    users ||--o{ conversations : "users.id → conversations.buyerId (conversation buyer)"
+    users ||--o{ conversations : "users.id → conversations.sellerId (conversation seller)"

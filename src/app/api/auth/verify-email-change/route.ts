@@ -10,37 +10,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'No verification token provided' }, { status: 400 });
     }
 
-    // Find user with this email change token
-    const users = await sql`
-      SELECT id, email, name, "pendingEmail", "emailVerificationExpires"
-      FROM users 
-      WHERE "emailVerificationToken" = ${token}
+    // Find email change request with this token
+    const emailRequests = await sql`
+      SELECT em."userId", em."pendingEmail", em."emailVerificationExpires", u.email, u.name
+      FROM email_management em
+      JOIN users u ON em."userId" = u.id
+      WHERE em."emailVerificationToken" = ${token}
     `;
 
-    if (users.length === 0) {
+    if (emailRequests.length === 0) {
       return NextResponse.json({ message: 'Invalid verification token' }, { status: 400 });
     }
 
-    const user = users[0];
+    const emailRequest = emailRequests[0];
 
-    if (!user.pendingEmail) {
+    if (!emailRequest.pendingEmail) {
       return NextResponse.json({ message: 'No pending email change found' }, { status: 400 });
     }
 
     // Check if token is expired
     const now = new Date();
-    const expiresAt = new Date(user.emailVerificationExpires);
+    const expiresAt = new Date(emailRequest.emailVerificationExpires);
     
     if (now > expiresAt) {
       // Clear expired token
       await sql`
-        UPDATE users 
-        SET 
-          "emailVerificationToken" = NULL,
-          "emailVerificationExpires" = NULL,
-          "pendingEmail" = NULL,
-          "updatedAt" = NOW()
-        WHERE id = ${user.id}
+        DELETE FROM email_management 
+        WHERE "userId" = ${emailRequest.userId}
       `;
       
       return NextResponse.json({ message: 'Verification token has expired' }, { status: 400 });
@@ -50,22 +46,25 @@ export async function POST(request: NextRequest) {
     await sql`
       UPDATE users 
       SET 
-        email = ${user.pendingEmail},
-        "emailVerificationToken" = NULL,
-        "emailVerificationExpires" = NULL,
-        "pendingEmail" = NULL,
+        email = ${emailRequest.pendingEmail},
         "updatedAt" = NOW()
-      WHERE id = ${user.id}
+      WHERE id = ${emailRequest.userId}
     `;
 
-    console.log('✅ Email changed successfully for user:', user.id, 'from', user.email, 'to', user.pendingEmail);
+    // Clear the email change request
+    await sql`
+      DELETE FROM email_management 
+      WHERE "userId" = ${emailRequest.userId}
+    `;
+
+    console.log('✅ Email changed successfully for user:', emailRequest.userId, 'from', emailRequest.email, 'to', emailRequest.pendingEmail);
 
     return NextResponse.json({
       message: 'Email address updated successfully!',
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.pendingEmail,
+        id: emailRequest.userId,
+        name: emailRequest.name,
+        email: emailRequest.pendingEmail,
       },
     });
 

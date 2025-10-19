@@ -37,6 +37,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid or expired verification code' }, { status: 400 });
     }
 
+    // Update user's phone number in the user_profiles table
+    await sql`
+      UPDATE user_profiles 
+      SET 
+        phone = ${phone},
+        "updatedAt" = NOW()
+      WHERE "userId" = ${userId}
+    `;
+
     // Update user verification status
     await sql`
       UPDATE user_verification 
@@ -52,8 +61,10 @@ export async function POST(request: NextRequest) {
       WHERE "userId" = ${userId} AND code = ${code}
     `;
 
+    console.log(`✅ Phone number updated in database: ${phone} for user ${userId}`);
+
     return NextResponse.json({
-      message: 'Phone number verified successfully'
+      message: 'Phone number verified and updated successfully'
     });
 
   } catch (error: any) {

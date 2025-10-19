@@ -41,14 +41,12 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Fetching saved products for userId:', userId);
 
-    // Get saved products with product details using normalized structure
+    // Get saved products with product details using simplified structure
     const savedProductsResult = await db
       .select({
         id: savedProducts.id,
         productId: savedProducts.productId,
-        savedDate: savedProducts.savedDate,
-        priceWhenSaved: savedProducts.priceWhenSaved,
-        alerts: savedProducts.alerts,
+        createdAt: savedProducts.createdAt,
         productName: productsTable.name,
         description: productsTable.description,
         currentPrice: productsTable.price,
@@ -68,7 +66,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(users, eq(productsTable.sellerId, users.id))
       .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(eq(savedProducts.userId, userId))
-      .orderBy(desc(savedProducts.savedDate));
+      .orderBy(desc(savedProducts.createdAt));
 
     console.log('✅ Found saved products:', savedProductsResult.length);
 
@@ -76,9 +74,7 @@ export async function GET(request: NextRequest) {
       savedProducts: savedProductsResult.map(sp => ({
         id: sp.id,
         productId: sp.productId,
-        savedDate: sp.savedDate,
-        priceWhenSaved: sp.priceWhenSaved,
-        alerts: sp.alerts,
+        createdAt: sp.createdAt,
         product: {
           id: sp.productId,
           name: sp.productName,
@@ -131,9 +127,9 @@ export async function POST(request: NextRequest) {
 
     console.log('💾 Saving product for user:', { userId: user.userId, productId });
 
-    // Get current product price
+    // Check if product exists
     const productResult = await db
-      .select({ price: productsTable.price })
+      .select({ id: productsTable.id })
       .from(productsTable)
       .where(eq(productsTable.id, productId))
       .limit(1);
@@ -144,8 +140,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-
-    const currentPrice = productResult[0].price;
 
     // Check if already saved
     const existing = await db
@@ -161,12 +155,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save the product
+    // Save the product (simplified)
     const result = await db.insert(savedProducts).values({
       userId: user.userId,
       productId: productId,
-      priceWhenSaved: currentPrice,
-      alerts: { priceAlert: false, stockAlert: false },
     }).returning();
 
     console.log('✅ Product saved successfully');
