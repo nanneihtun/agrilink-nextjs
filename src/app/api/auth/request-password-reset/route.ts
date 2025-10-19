@@ -3,7 +3,6 @@ import { sql } from '@/lib/db';
 import { Resend } from 'resend';
 import crypto from 'crypto';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,7 +86,8 @@ export async function POST(request: NextRequest) {
     // Send email if Resend is configured
     if (process.env.RESEND_API_KEY) {
       try {
-      await resend.emails.send({
+              const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
         from: 'AgriLink <noreply@hthheh.com>',
           to: [user.email],
           subject: 'Reset Your AgriLink Password',

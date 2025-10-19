@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import { sql } from '@/lib/db';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   console.log('🚀 UPDATE EMAIL API ENTRY POINT REACHED');
@@ -178,7 +177,8 @@ export async function POST(request: NextRequest) {
     console.log('🔗 EMAIL CHANGE VERIFICATION URL FOR TESTING:', verificationLink);
     
     try {
-      const { data, error } = await resend.emails.send({
+      const { data, error } =         const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
         from: 'AgriLink <noreply@hthheh.com>',
         to: [newEmail],
         subject: 'Confirm your new email address - AgriLink',

@@ -14,8 +14,6 @@ import {
 } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: NextRequest) {
   try {
     const { 
@@ -193,6 +191,7 @@ export async function POST(request: NextRequest) {
     if (process.env.RESEND_API_KEY) {
       try {
         console.log('📧 Attempting to send verification email...');
+        const resend = new Resend(process.env.RESEND_API_KEY);
         const emailResult = await resend.emails.send({
           from: 'AgriLink <noreply@hthheh.com>',
           to: [newUser[0].email],
